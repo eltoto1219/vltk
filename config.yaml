@@ -1,0 +1,287 @@
+config:
+  model:
+    load_proposals: false
+    mask_on: false
+    keypoint_on: false
+    device: cuda
+    meta_architect:  GeneralizedRCNN
+    max_pool: true
+    chkpoint: ""
+    pixel_mean:
+      - 102.9801
+      - 115.9465
+      - 122.7717
+    pixel_std:
+      - 57.375
+      - 57.120
+      - 58.395
+  input:
+    min_size_train:
+      - 640
+      - 672
+      - 704
+      - 736
+      - 768
+      - 800
+    min_size_train_sampling: choice
+    max_size_train: 1333
+    max_size_test_sampling: choice
+    max_size_test: 1333
+    min_size_test: 800
+    crop: false
+    crop_type: relative_range
+    crop_size:
+      - 0.9
+      - 0.9
+    format: BGR
+    mask_format: polygon
+  datasets:
+    precomupted_topk_train: 2000
+    precomupted_topk_test: 1000
+  dataloaders:
+    num_workers: 4
+    aspect_ratio_grouping: true
+    repeat_threshold: 0
+    filter_empty_annotations: True
+  backbone:
+    freeze_at: 2
+    name: build_resnet_backbone
+  fpn:
+    fpn_out_channels : 256
+    norm: ''
+    fuse_type: sum
+  proposal_generator:
+    name: RPN
+    hidden_channels: 512
+    min_size: 0.0
+  anchor_generator:
+    name: default
+    sizes:
+      - 64
+      - 128
+      - 256
+      - 512
+    aspect_ratios:
+      - 0.5
+      - 1.0
+      - 2.0
+    angles:
+      - -90.0
+      - 0.0
+      - 90.0
+    offset:
+  rpn:
+    pre_nms_topk_test: 6000
+    post_nms_topk_test: 1000
+    head_name : standardrpnhead
+    in_features : res4
+    boundary_thresh : -1.0
+    iou_thresholds : 0.3, 0.7
+    iou_labels : 0, -1.0, 1
+    batch_size_per_image : 256
+    positive_fraction : 0.5
+    bbox_reg_weights :
+      - 1.0
+      - 1.0
+      - 1.0
+      - 1.0
+    smooth_l1_beta : 0.0
+    loss_weight : 1.0
+    pre_nms_topk_train : 12000
+    post_nms_topk_train : 2000
+    pre_nms_topk_test: 6000
+    post_nms_topk_test: 1000
+    nms_thresh : 0.7
+  roi_heads:
+    name : res5roiheads
+    num_classes : 1600
+    in_features : res4
+    iou_thresholds : 0.5
+    iou_labels :
+      - 0
+      - 1
+    batch_size_per_image : 512
+    positive_fraction : 0.25
+    score_thresh_test : 0.05
+    nms_thresh_test : 0.5
+    proposal_append_gt : true
+  roi_box_head:
+    name : ''
+    bbox_reg_weights :
+      - 10.0
+      - 10.0
+      - 5.0
+      - 5.0
+    smooth_l1_beta : 0.0
+    pooler_resolution : 14
+    pooler_sampling_ratio : 0
+    res5halve : false
+    pooler_type: roipool
+    attr: true
+    num_attrs: 400
+    num_fc : 0
+    fc_dim : 1024
+    num_conv : 0
+    conv_dim : 256
+    cls_agnostic_bbox_reg : false
+  roi_box_cascade_head:
+    bbox_reg_weights :
+      [
+        [
+          10.0,
+          10.0,
+          5.0,
+          5.0,
+        ],
+        [
+          20.0,
+          20.0,
+          10.0,
+          10.0,
+        ],
+        [
+          30.0,
+          30.0,
+          15.0,
+          15.0,
+        ]
+      ]
+    ious:
+      - 0.5
+      - 0.6
+      - 0.7
+  roi_mask_head:
+    pooler_resolution : 14
+    pooler_sampling_ratio : 0
+    num_conv : 0
+    conv_dim : 256
+    norm :
+    cls_agnostic_mask : false
+    pooler_type : roialignv2
+  roi_keypoint_head:
+    name : krcnnconvdeconvupsamplehead
+    pooler_resolution : 14
+    pooler_sampling_ratio : 0
+    conv_dims :
+      - 512
+      - 512
+      - 512
+      - 512
+      - 512
+      - 512
+      - 512
+      - 512
+    num_keypoints : 17
+    min_keypoints_per_image : 1
+    normalize_loss_by_visible_keypoints : true
+    loss_weight : 1.0
+    pooler_type : roialignv2
+  sem_seg_head:
+    name : semsegfpnhead
+    in_features :
+      - p2
+      - p3
+      - p4
+      - p5
+    ignore_value : 255
+    num_classes : 54
+    convs_dim : 128
+    common_stride : 4
+    norm : gn
+    loss_weight : 1.0
+  panoptic_fpn:
+    instance_loss_weight : 1.0
+    combine :
+      enabled: true
+      overlap_thresh : 0.5
+      stuff_area_limit : 4096
+      instances_confidence_thresh : 0.5
+  retinanet:
+    num_classes : 80
+    in_features :
+      - p3
+      - p4
+      - p5
+      - p6,
+      - p7
+    num_convs : 4
+    iou_thresholds :
+      0.4
+      0.5
+    iou_labels :
+      - 0
+      - -1.0
+      - 1
+    prior_prob : 0.01
+    score_thresh_test : 0.05
+    topk_candidates_test : 1000
+    nms_thresh_test : 0.5
+    bbox_reg_weights :
+      - 1.0
+      - 1.0
+      - 1.0
+      - 1.0
+    focal_loss_gamma : 2.0
+    focal_loss_alpha : 0.25
+    smooth_l1_loss_beta : 0.1
+  resnets:
+    depth : 101
+    out_features : res4
+    num_groups : 1
+    norm : frozenbn
+    width_per_group : 64
+    stride_in_1x1 : true
+    res5_dilation : 1
+    res2_out_channels : 256
+    stem_out_channels : 64
+    deform_on_per_stage :
+      - false
+      - false
+      - false
+      - false
+    deform_modulated : false
+    deform_num_groups : 1
+  solver:
+    lr_scheduler_name : warmupmultisteplr
+    max_iter : 270000
+    base_lr : 0.002
+    momentum : 0.9
+    weight_decay : 0.0001
+    weight_decay_norm : 0.0
+    gamma : 0.1
+    steps :
+      - 210000
+      - 250000
+    warmup_factor : 1.0 / 1000
+    warmup_iters : 1000
+    warmup_method : linear
+    checkpoint_period : 5000
+    ims_per_batch : 16
+    bias_lr_factor : 1.0
+    weight_decay_bias : 0.0
+  test:
+    expected_results :
+      - ''
+    eval_period : 0
+    keypoint_oks_sigmas :
+      - ''
+    detections_per_image : 100
+  # aug:
+  #   enabled : false
+  #   min_sizes :
+  #     - 400
+  #     - 500
+  #     - 60
+  #     - 70
+  #     - 80
+  #     - 900
+  #     - 1000
+  #     - 1100
+  #     - 1200
+  #   max_size : 4000
+  #   flip : true
+  #precise_bn :
+  #  enbabled: false
+  #  num_iter : 200
+  seed : -1.0
+  vis_period : 0.0
