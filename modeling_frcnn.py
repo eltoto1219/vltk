@@ -14,7 +14,7 @@ from torchvision.ops import RoIPool
 from torchvision.ops import boxes as box_ops
 from torchvision.ops import nms
 
-from .image_processor import detector_postprocess
+from .image_processor_frcnn import detector_postprocess
 
 
 # Helper Functions
