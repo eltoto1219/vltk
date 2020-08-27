@@ -3,23 +3,28 @@ try:
 except ImportError:
     import pickle as pkl
 import itertools
-from collections import namedtuple
-from pprint import pprint
+import logging
 import math
 import sys
+from collections import namedtuple
+from functools import lru_cache
+from pprint import pprint
+from typing import Dict, List
+
+import numpy as np
+#batched nms
 import torch
 from torch import nn
-from torchvision.ops import RoIPool
-from torch import nn
-import numpy as np
-from torch.nn import functional as F
-import fvcore.nn.weight_init as weight_init
-import logging
-from typing import Dict, List
-from functools import lru_cache
 from torch.autograd import Function
 from torch.autograd.function import once_differentiable
+from torch.nn import functional as F
 from torch.nn.modules.utils import _pair
+from torchvision.ops import nms  # BC-compat
+from torchvision.ops import RoIPool
+from torchvision.ops import boxes as box_ops
+
+import fvcore.nn.weight_init as weight_init
+
 from .faster_rcnn_visualization import Visualizer
 
 
@@ -38,62 +43,6 @@ def _assert_strides_are_log2_contiguous(strides):
 
 
 
-class StandardRPNHead(nn.Module):
-    """
-    RPN classification and regression heads. Uses a 3x3 conv to produce a shared
-    hidden state from which one 1x1 conv predicts objectness logits for each anchor
-    and a second 1x1 conv predicts bounding-box deltas specifying how to deform
-    each anchor into an object proposal.
-    """
-
-    def __init__(self, cfg, input_shape: List[ShapeSpec]):
-        super().__init__()
-
-        # Standard RPN is shared across levels:
-        in_channels = [s.channels for s in input_shape]
-        assert len(set(in_channels)) == 1, "Each level must have the same channel!"
-        in_channels = in_channels[0]
-
-        anchor_generator = build_anchor_generator(cfg, input_shape)
-        num_cell_anchors = anchor_generator.num_cell_anchors
-        box_dim = anchor_generator.box_dim
-        assert (
-            len(set(num_cell_anchors)) == 1
-        ), "Each level must have the same number of cell anchors"
-        num_cell_anchors = num_cell_anchors[0]
-
-        if cfg.MODEL.PROPOSAL_GENERATOR.HID_CHANNELS == -1:
-            hid_channels = in_channels
-        else:
-            hid_channels = cfg.MODEL.PROPOSAL_GENERATOR.HID_CHANNELS
-            print("Modifications for VG in RPN (modeling/proposal_generator/rpn.py):\n"
-                  "\tUse hidden dim %d instead fo the same dim as Res4 (%d).\n" % (hid_channels, in_channels))
-
-        # 3x3 conv for the hidden representation
-        self.conv = nn.Conv2d(in_channels, hid_channels, kernel_size=3, stride=1, padding=1)
-        # 1x1 conv for predicting objectness logits
-        self.objectness_logits = nn.Conv2d(hid_channels, num_cell_anchors, kernel_size=1, stride=1)
-        # 1x1 conv for predicting box2box transform deltas
-        self.anchor_deltas = nn.Conv2d(
-            hid_channels, num_cell_anchors * box_dim, kernel_size=1, stride=1
-        )
-
-        for l in [self.conv, self.objectness_logits, self.anchor_deltas]:
-            nn.init.normal_(l.weight, std=0.01)
-            nn.init.constant_(l.bias, 0)
-
-    def forward(self, features):
-        """
-        Args:
-            features (list[Tensor]): list of feature maps
-        """
-        pred_objectness_logits = []
-        pred_anchor_deltas = []
-        for x in features:
-            t = F.relu(self.conv(x))
-            pred_objectness_logits.append(self.objectness_logits(t))
-            pred_anchor_deltas.append(self.anchor_deltas(t))
-        return pred_objectness_logits, pred_anchor_deltas
 
 
 
@@ -890,104 +839,6 @@ class ROIPooler(nn.Module):
 #Detector postprpcess
 
 # RPN outputs:
-def find_top_rpn_proposals(
-    proposals,
-    pred_objectness_logits,
-    images,
-    nms_thresh,
-    pre_nms_topk,
-    post_nms_topk,
-    min_box_side_len,
-    training,
-):
-    """
-    For each feature map, select the `pre_nms_topk` highest scoring proposals,
-    apply NMS, clip proposals, and remove small boxes. Return the `post_nms_topk`
-    highest scoring proposals among all the feature maps if `training` is True,
-    otherwise, returns the highest `post_nms_topk` scoring proposals for each
-    feature map.
-    Args:
-        proposals (list[Tensor]): A list of L tensors. Tensor i has shape (N, Hi*Wi*A, 4).
-            All proposal predictions on the feature maps.
-        pred_objectness_logits (list[Tensor]): A list of L tensors. Tensor i has shape (N, Hi*Wi*A).
-        images (ImageList): Input images as an :class:`ImageList`.
-        nms_thresh (float): IoU threshold to use for NMS
-        pre_nms_topk (int): number of top k scoring proposals to keep before applying NMS.
-            When RPN is run on multiple feature maps (as in FPN) this number is per
-            feature map.
-        post_nms_topk (int): number of top k scoring proposals to keep after applying NMS.
-            When RPN is run on multiple feature maps (as in FPN) this number is total,
-            over all feature maps.
-        min_box_side_len (float): minimum proposal box side length in pixels (absolute units
-            wrt input images).
-        training (bool): True if proposals are to be used in training, otherwise False.
-            This arg exists only to support a legacy bug; look for the "NB: Legacy bug ..."
-            comment.
-    Returns:
-        proposals (list[Instances]): list of N Instances. The i-th Instances
-            stores post_nms_topk object proposals for image i.
-    """
-    image_sizes = images.image_sizes  # in (h, w) order
-    num_images = len(image_sizes)
-    device = proposals[0].device
-
-    # 1. Select top-k anchor for every level and every image
-    topk_scores = []  # #lvl Tensor, each of shape N x topk
-    topk_proposals = []
-    level_ids = []  # #lvl Tensor, each of shape (topk,)
-    batch_idx = torch.arange(num_images, device=device)
-    for level_id, proposals_i, logits_i in zip(
-        itertools.count(), proposals, pred_objectness_logits
-    ):
-        Hi_Wi_A = logits_i.shape[1]
-        num_proposals_i = min(pre_nms_topk, Hi_Wi_A)
-
-        # sort is faster than topk (https://github.com/pytorch/pytorch/issues/22812)
-        # topk_scores_i, topk_idx = logits_i.topk(num_proposals_i, dim=1)
-        logits_i, idx = logits_i.sort(descending=True, dim=1)
-        topk_scores_i = logits_i[batch_idx, :num_proposals_i]
-        topk_idx = idx[batch_idx, :num_proposals_i]
-
-        # each is N x topk
-        topk_proposals_i = proposals_i[batch_idx[:, None], topk_idx]  # N x topk x 4
-
-        topk_proposals.append(topk_proposals_i)
-        topk_scores.append(topk_scores_i)
-        level_ids.append(torch.full((num_proposals_i,), level_id, dtype=torch.int64, device=device))
-
-    # 2. Concat all levels together
-    topk_scores = cat(topk_scores, dim=1)
-    topk_proposals = cat(topk_proposals, dim=1)
-    level_ids = cat(level_ids, dim=0)
-
-    # 3. For each image, run a per-level NMS, and choose topk results.
-    results = []
-    for n, image_size in enumerate(image_sizes):
-        boxes = Boxes(topk_proposals[n])
-        scores_per_img = topk_scores[n]
-        boxes.clip(image_size)
-
-        # filter empty boxes
-        keep = boxes.nonempty(threshold=min_box_side_len)
-        lvl = level_ids
-        if keep.sum().item() != len(boxes):
-            boxes, scores_per_img, lvl = boxes[keep], scores_per_img[keep], level_ids[keep]
-
-        keep = batched_nms(boxes.tensor, scores_per_img, lvl, nms_thresh)
-        # In Detectron1, there was different behavior during training vs. testing.
-        # (https://github.com/facebookresearch/Detectron/issues/459)
-        # During training, topk is over the proposals from *all* images in the training batch.
-        # During testing, it is over the proposals for each image separately.
-        # As a result, the training behavior becomes batch-dependent,
-        # and the configuration "POST_NMS_TOPK_TRAIN" end up relying on the batch size.
-        # This bug is addressed in Detectron2 to make the behavior independent of batch size.
-        keep = keep[:post_nms_topk]
-
-        res = Instances(image_size)
-        res.proposal_boxes = boxes[keep]
-        res.objectness_logits = scores_per_img[keep]
-        results.append(res)
-    return results
 
 
 # RPN LOSSES:
@@ -1455,10 +1306,6 @@ def subsample_labels(labels, num_samples, positive_fraction, bg_label):
 
 
 
-#batched nms
-import torch
-from torchvision.ops import boxes as box_ops
-from torchvision.ops import nms  # BC-compat
 
 
 def batched_nms(boxes, scores, idxs, iou_threshold):
@@ -2264,7 +2111,3 @@ def retry_if_cuda_oom(func):
         return func(*new_args, **new_kwargs)
 
     return wrapped
-
-
-
-
