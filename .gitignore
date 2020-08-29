@@ -1,3 +1,5 @@
 *.pkl
 venv/
 venv/**
+__pychache__/**
+
