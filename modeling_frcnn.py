@@ -13,6 +13,8 @@ from torchvision.ops import RoIPool
 from torchvision.ops import boxes as box_ops
 from torchvision.ops import nms
 
+from image_processor_frcnn import _clip_box
+
 
 # Helper Functions
 def build_backbone(cfg):
@@ -137,9 +139,8 @@ def find_top_rpn_proposals(
     training,
 ):
     """Args:
-        proposals (list[Tensor]): A list of L tensors (N, Hi*Wi*A, 4).
-        pred_objectness_logits (list[Tensor]): A list of L tensors.
-        images (torch.Tensor)
+        proposals (list[Tensor]): (L, N, Hi*Wi*A, 4).
+        pred_objectness_logits: tensors of lenngth L.
         nms_thresh (float): IoU threshold to use for NMS
         pre_nms_topk (int): before nms
         post_nms_topk (int): after nms
@@ -210,22 +211,8 @@ def find_top_rpn_proposals(
             "objectness_logits": scores_per_img[keep],
         }
         results.append(res)
+
     return results
-
-
-def _clip_box(tensor, box_size: Tuple[int, int]):
-    """
-    Clip (in place) the boxes by limiting x coordinates to the range [0, width]
-    and y coordinates to the range [0, height].
-    Args:
-        box_size (height, width): The clipping box's size.
-    """
-    assert torch.isfinite(tensor).all(), "Box tensor contains infinite or NaN!"
-    h, w = box_size
-    tensor[:, 0].clamp_(min=0, max=w)
-    tensor[:, 1].clamp_(min=0, max=h)
-    tensor[:, 2].clamp_(min=0, max=w)
-    tensor[:, 3].clamp_(min=0, max=h)
 
 
 def _nonempty_boxes(box, threshold: float = 0.0) -> torch.Tensor:
@@ -338,27 +325,11 @@ def rpn_losses(
     pred_anchor_deltas,
     smooth_l1_beta,
 ):
+    pass
     """
-    Args:
-        gt_objectness_logits (Tensor): shape (N,),
-            = ignore; 0 = not object; 1 = object.
-        gt_anchor_deltas (Tensor): shape (N, box_dim), row i represents ground-truth
-            box2box transform targets (dx, dy, dw, dh)
-        pred_objectness_logits (Tensor): shape (N,),
-        pred_anchor_deltas (Tensor): shape (N, box_dim), each row is a predicted box2box
-        smooth_l1_beta (float): The transition point between L1 and L2 loss
-    Returns:
-        objectness_loss, localization_loss, both unnormalized (summed over samples).
+    see https://github.com/airsplay/py-bottom-up-attention/\
+            blob/master/detectron2/modeling/roi_heads/roi_heads.py
     """
-
-    localization_loss = torch.nn.SmoothL1Loss(reduction="sum")
-    valid_masks = gt_objectness_logits >= 0
-    objectness_loss = F.binary_cross_entropy_with_logits(
-        pred_objectness_logits[valid_masks],
-        gt_objectness_logits[valid_masks].to(torch.float32),
-        reduction="sum",
-    )
-    return objectness_loss, localization_loss
 
 
 @torch.no_grad()
@@ -373,15 +344,6 @@ def frcnn_output(
         nms_thresh,
         topk_per_image,
 ):
-    """
-    Single-image inference. Return bounding-box detection results by thresholding
-    on scores and applying non-maximum suppression (NMS).
-    Args:
-        Same as `fast_rcnn_inference`, but with boxes, scores, and image shapes
-        per image.
-    Returns:
-        Same as `fast_rcnn_inference`, but for only one image.
-    """
     scores = box_scores[:, :-1]
     num_bbox_reg_classes = boxes.shape[1] // 4
     # Convert to Boxes to use the `clip` function ...
@@ -869,105 +831,6 @@ class RPNOutputs(object):
             gt_anchor_deltas.append(gt_anchor_deltas_i)
 
         return gt_objectness_logits, gt_anchor_deltas
-
-    def losses(self):
-        def resample(label):
-            """
-            Randomly sample a subset of positive and negative examples by overwriting
-            the label vector to the ignore value (-1) for all elements that are not
-            included in the sample.
-            """
-            pos_idx, neg_idx = subsample_labels(
-                label, self.batch_size_per_image, self.positive_fraction, 0
-            )
-            # Fill with the ignore label (-1), then set positive and negative labels
-            label.fill_(-1)
-            label.scatter_(0, pos_idx, 1)
-            label.scatter_(0, neg_idx, 0)
-            return label
-
-        gt_objectness_logits, gt_anchor_deltas = self._get_ground_truth()
-        """
-        gt_objectness_logits: list of N tensors.
-        Tensor i is a vector whose length is the
-            total number of anchors in image i (i.e., len(anchors[i]))
-        gt_anchor_deltas: list of N tensors. Tensor i has shape (len(anchors[i]), B),
-            where B is the box dimension
-        """
-        # Collect all objectness labels and delta targets over feature maps and images
-        # The final ordering is L, N, H, W, A from slowest to fastest axis.
-        num_anchors_per_map = [
-            np.prod(x.shape[1:]) for x in self.pred_objectness_logits
-        ]
-        num_anchors_per_image = sum(num_anchors_per_map)
-
-        # Stack to: (N, num_anchors_per_image)
-        gt_objectness_logits = torch.stack(
-            [resample(label) for label in gt_objectness_logits], dim=0
-        )
-
-        # Log the number of positive/negative anchors per-image that's used in training
-        # num_pos_anchors = (gt_objectness_logits == 1).sum().item()
-        # num_neg_anchors = (gt_objectness_logits == 0).sum().item()
-
-        assert gt_objectness_logits.shape[1] == num_anchors_per_image
-        # Split to tuple of L tensors, each with shape (N, num_anchors_per_map)
-        gt_objectness_logits = torch.split(
-            gt_objectness_logits, num_anchors_per_map, dim=1
-        )
-        # Concat from all feature maps
-        gt_objectness_logits = torch.cat(
-            [x.flatten() for x in gt_objectness_logits], dim=0
-        )
-
-        # Stack to: (N, num_anchors_per_image, B)
-        gt_anchor_deltas = torch.stack(gt_anchor_deltas, dim=0)
-        assert gt_anchor_deltas.shape[1] == num_anchors_per_image
-        B = gt_anchor_deltas.shape[2]  # box dimension (4 or 5)
-
-        # Split to tuple of L tensors, each with shape (N, num_anchors_per_image)
-        gt_anchor_deltas = torch.split(gt_anchor_deltas, num_anchors_per_map, dim=1)
-        # Concat from all feature maps
-        gt_anchor_deltas = torch.cat(
-            [x.reshape(-1, B) for x in gt_anchor_deltas], dim=0
-        )
-
-        # Collect all objectness logits and delta predictions over feature maps
-        # and images to arrive at the same shape as the labels and targets
-        # The final ordering is L, N, H, W, A from slowest to fastest axis.
-        pred_objectness_logits = torch.cat(
-            [
-                # Reshape: (N, A, Hi, Wi) -> (N, Hi, Wi, A) -> (N*Hi*Wi*A, )
-                x.permute(0, 2, 3, 1).flatten()
-                for x in self.pred_objectness_logits
-            ],
-            dim=0,
-        )
-        pred_anchor_deltas = torch.cat(
-            [
-                # Reshape: (N, A*B, Hi, Wi) -> (N, A, B, Hi, Wi) -> (N, Hi, Wi, A, B)
-                #          -> (N*Hi*Wi*A, B)
-                x.view(x.shape[0], -1, B, x.shape[-2], x.shape[-1])
-                .permute(0, 3, 4, 1, 2)
-                .reshape(-1, B)
-                for x in self.pred_anchor_deltas
-            ],
-            dim=0,
-        )
-
-        objectness_loss, localization_loss = rpn_losses(
-            gt_objectness_logits,
-            gt_anchor_deltas,
-            pred_objectness_logits,
-            pred_anchor_deltas,
-            self.smooth_l1_beta,
-        )
-        normalizer = 1.0 / (self.batch_size_per_image * self.num_images)
-        loss_cls = objectness_loss * normalizer  # cls: classification loss
-        loss_loc = localization_loss * normalizer  # loc: localization loss
-        losses = {"loss_rpn_cls": loss_cls, "loss_rpn_loc": loss_loc}
-
-        return losses
 
     def predict_proposals(self):
         """
@@ -1542,7 +1405,7 @@ class ROIPooler(nn.Module):
         x = [v for v in x.values()]
         boxes = proposals["proposal_boxes"]
         # objectness_logits = proposals["objectness_logits"]
-        inds = proposals["inds"]
+        # inds = proposals["inds"]
         num_level_assignments = len(self.level_poolers)
         assert (
             len(x[0]) == num_level_assignments
@@ -2103,17 +1966,18 @@ class RPN(nn.Module):
                 self.training,
             )
             # For RPN-only models, the proposals are the final output
-            inds = torch.stack(
-                [p["objectness_logits"].sort(descending=True)[1] for p in proposals]
-            )
+            # inds = torch.stack(
+            #     [p["objectness_logits"].sort(descending=True)[1] for p in proposals]
+            # )
             proposal_boxes = torch.stack(
-                [p["proposal_boxes"][ind] for p, ind in zip(proposals, inds)]
+                [p["proposal_boxes"] for p in proposals]
             )
             objectness_logits = torch.stack(
-                [p["objectness_logits"][ind] for p, ind in zip(proposals, inds)])
+                [p["objectness_logits"] for p in proposals]
+            )
 
             return {"proposal_boxes": proposal_boxes, 'objectness_logits':
-                    objectness_logits, "inds": inds, "sizes": image_shapes}, losses
+                    objectness_logits, "sizes": image_shapes}, losses
 
 
 class FastRCNNOutputs(object):
@@ -2134,7 +1998,7 @@ class FastRCNNOutputs(object):
         self.feature_pooled = feature_pooled
         self.box2box_transform = box2box_transform
         # is this dynamic?
-        self.num_preds_per_image = [len(p) for p in proposals["inds"]]
+        self.num_preds_per_image = [len(p) for p in proposals["proposal_boxes"]]
         self.pred_class_logits = pred_class_logits
         self.pred_proposal_deltas = pred_proposal_deltas
         self.smooth_l1_beta = smooth_l1_beta
@@ -2236,6 +2100,7 @@ class FastRCNNOutputs(object):
         probs = F.softmax(self.pred_class_logits, dim=-1)
         return probs.split(self.num_preds_per_image, dim=0)
 
+    @torch.no_grad()
     def inference(self, score_thresh, nms_thresh, topk_per_image):
         boxes = self.predict_boxes()[0]
         box_scores = self.predict_probs()[0]
@@ -2243,6 +2108,8 @@ class FastRCNNOutputs(object):
         attr_probs, attrs = attrs.max(-1)
         feature_pooled = self.feature_pooled
         image_sizes = self.image_size
+        print(boxes.int(), boxes.shape)
+        raise Exception
 
         return frcnn_output(
             boxes,
@@ -2338,7 +2205,7 @@ class GeneralizedRCNN(nn.Module):
         self.input_format = cfg.INPUT.FORMAT
         self.to(self.device)
 
-    def forward(self, images, image_shapes, gt_boxes, proposals):
+    def forward(self, images, image_shapes, gt_boxes=None, proposals=None):
         """Args:
             image: Tensor, image in (C, H, W) format.
             instances (optional): groundtruth :class:`Instances`

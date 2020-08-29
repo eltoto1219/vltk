@@ -8,8 +8,9 @@ import PIL.Image as Image
 import torch
 from yaml import Loader, dump, load
 
-from image_processor_frcnn import PreProcess, img_array
+from image_processor_frcnn import PreProcess, postprocess, tensorize
 from modeling_frcnn import GeneralizedRCNN
+from viz import viz_image
 
 
 def load_config(config="config.yaml"):
@@ -116,12 +117,12 @@ if __name__ == "__main__":
     # prepare for inference
     model.eval()
     # tensorize the image
-    img = img_array(raw_img)
+    img_tensor = tensorize(raw_img)
     # preprocess the image
-    img, image_hw, scale_xy = preprocess(img)
+    img, image_hw, scale_xy = preprocess(img_tensor)
     # run the backbone
-    output_dict = model(
-        img.unsqueeze(0), image_hw.unsqueeze(0), gt_boxes=None, proposals=None
-    )
-    boxes = output_dict["pred_boxes"]
-    print(boxes, boxes.shape)
+    output_dict = model(img.unsqueeze(0), image_hw.unsqueeze(0))
+    # get boxes
+    boxes = postprocess(output_dict["pred_boxes"], image_hw, image_hw)
+    # viz results
+    viz_image(img_tensor, boxes.numpy())

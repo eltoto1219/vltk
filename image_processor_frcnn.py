@@ -1,14 +1,11 @@
 import sys
+from typing import Tuple
 
 import cv2
 import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
-
-
-def detector_postprocess():
-    pass
 
 
 class ResizeShortestEdge:
@@ -139,31 +136,25 @@ class PreProcess:
             return (image, image_hw, torch.Tensor([scale_x, scale_y]))
 
 
-def post_process_img(
-    img_processed, boxes=None, masks=None, keypoints=None, mask_threshold=0.5
-):
-    """Rescale and apply boxes"""
-    imgage, output_height, output_width = img_processed
-
+def postprocess(boxes, input_hw, output_hw):
     scale_x, scale_y = (
-        output_width / boxes.size[1],
-        output_height / boxes.size[0],
+        output_hw[1] / input_hw[1],
+        output_hw[0] / input_hw[0],
     )
-
-    aux_viz = None
-    if boxes is not None:
-        aux_viz = boxes
-    elif masks is not None:
-        aux_viz = masks
-    elif keypoints is not None:
-        aux_viz = keypoints
-    if aux_viz is not None:
-        aux_viz.scale(scale_x, scale_y)
-        aux_viz.clip(aux_viz.size)
-
-    return img_processed
+    boxes[:, 0::2] *= scale_x
+    boxes[:, 1::2] *= scale_y
+    return boxes.int()
 
 
-def img_array(im):
+def tensorize(im):
     im = cv2.imread(im)
     return cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
+
+
+def _clip_box(tensor, box_size: Tuple[int, int]):
+    assert torch.isfinite(tensor).all(), "Box tensor contains infinite or NaN!"
+    h, w = box_size
+    tensor[:, 0].clamp_(min=0, max=w)
+    tensor[:, 1].clamp_(min=0, max=h)
+    tensor[:, 2].clamp_(min=0, max=w)
+    tensor[:, 3].clamp_(min=0, max=h)
