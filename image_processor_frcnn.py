@@ -1,11 +1,10 @@
 import sys
 
+import cv2
+import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
-
-import cv2
-import np
 
 
 def detector_postprocess():
@@ -18,13 +17,14 @@ class ResizeShortestEdge:
         Args:
             short_edge_length (list[min, max])
             max_size (int): maximum allowed longest edge length.
-            sample_style (str): either "range" or "choice".
         """
         self.interp_method = interp
         self.max_size = max_size
+        self.short_edge_length = short_edge_length
 
     def __call__(self, img):
         h, w = img.shape[:2]
+        # later: provide list and randomly choose index for resize
         size = np.random.randint(
             self.short_edge_length[0], self.short_edge_length[1] + 1
         )
@@ -69,54 +69,80 @@ class PreProcess:
         self.input_format = cfg.INPUT.FORMAT
         self.size_divisibility = cfg.SIZE_DIVISIBILITY
         self.pad_value = cfg.PAD_VALUE
-        self.max_image_size = cfg.MAX_SIZE
+        self.max_image_size = cfg.INPUT.MAX_SIZE_TEST
+        self.device = cfg.MODEL.DEVICE
+        self.pixel_std = torch.Tensor(cfg.MODEL.PIXEL_STD).to(self.device)
+        self.pixel_mean = torch.Tensor(cfg.MODEL.PIXEL_MEAN).to(self.device)
 
-    def __call__(self, img_jpg, input_format="RGB"):
-        # read file
-        im = cv2.imread(img_jpg)
-        # convert rgb
-        img_rgb = cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
-        # if self.input_format == "RGB":
-        #    original_image = original_image[:, :, ::-1]
-        height, width = img_rgb.shape[:2]
-        # Preprocessing
-        image = self.aug(img_rgb)
-        image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1)).to(
-            self.device
-        )
-        # normalize the image values
-        image = (image - self.pixel_mean) / self.pixel_std
-        # Normalize
-        # PAD:
-        assert isinstance(image, torch.Tensor), type(image)
-        max_size = max(image.shape)
-        if self.stride > 0:
-            import math
+    def __call__(self, img_tensor, max_size=None, input_format="RGB"):
+        """Args:
+        max_size (tuple): [mas_height, max_width], should pad to batch_wise_max, else:
+        defualts to max_size set in config
+        """
+        if max_size is None:
+            max_size = (
+                self.max_image_size,
+                self.max_image_size,
+            )
+        else:
+            max_size = (
+                min(self.max_image_size, max_size[0]),
+                min(self.max_image_size, max_size[1]),
+            )
+        with torch.no_grad():
+            img_rgb = img_tensor
+            if self.input_format == "RGB":
+                img_rgb = img_rgb[:, :, ::-1]
+            height, width = img_rgb.shape[:2]
+            image_hw = torch.Tensor([height, width])
+            # Preprocessing
+            image = self.aug(img_rgb)
+            scaled_hw = torch.Tensor(image.shape[:2])
+            image = torch.as_tensor(image.astype("float32").transpose(2, 0, 1)).to(
+                self.device
+            )
+            # Normalize the image values
+            image = image - self.pixel_mean.unsqueeze(-1).unsqueeze(
+                -1
+            ) / self.pixel_std.unsqueeze(-1).unsqueeze(-1)
+            # PAD:
+            if self.size_divisibility > 0:
+                raise NotImplementedError()
+                """
+                stride = self.size_divisibility
+                import math
 
-            stride = self.stride
-            # type: ignore
-            max_height = int(math.ceil(image.shape[-2] / stride) * stride)
-            # type: ignore
-            max_width = int(math.ceil(image.shape[-1] / stride) * stride)
-            max_size = tuple([max_height, max_width])
-        image_size = image.shape[-2:]
-        padded = F.pad(
-            image,
-            [0, max_size[-1] - image_size[1], 0, max_size[-2] - image_size[0]],
-            value=self.pad_value,
-        )
-        image = padded.contiguous()
-        new_height, new_width = image.shape[:2]
-        scale_x = 1.0 * new_width / width
-        scale_y = 1.0 * new_height / height
-        return (image, (height, width), (scale_x, scale_y))
+                stride = self.stride
+                # type: ignore
+                max_height = int(math.ceil(image.shape[-2] / stride) * stride)
+                # type: ignore
+                max_width = int(math.ceil(image.shape[-1] / stride) * stride)
+                max_size = tuple([max_height, max_width])
+                """
+            image_size = image.shape[-2:]
+            # pad vals: (pl, pr, pl, pr)
+            pad_vals = (
+                0,
+                max_size[0] - image_size[1],
+                0,
+                max_size[1] - image_size[0],
+            )
+            padded = F.pad(
+                image,
+                pad_vals,
+                value=self.pad_value,
+            )
+            image = padded.contiguous()
+            new_height, new_width = image.shape[-2], image.shape[-1]
+            scale_x = 1.0 * new_width / scaled_hw[0]
+            scale_y = 1.0 * new_height / scaled_hw[1]
+            return (image, image_hw, torch.Tensor([scale_x, scale_y]))
 
 
 def post_process_img(
     img_processed, boxes=None, masks=None, keypoints=None, mask_threshold=0.5
 ):
-    """Rescale and apply boxes
-    """
+    """Rescale and apply boxes"""
     imgage, output_height, output_width = img_processed
 
     scale_x, scale_y = (
@@ -136,3 +162,8 @@ def post_process_img(
         aux_viz.clip(aux_viz.size)
 
     return img_processed
+
+
+def img_array(im):
+    im = cv2.imread(im)
+    return cv2.cvtColor(im, cv2.COLOR_BGR2RGB)
