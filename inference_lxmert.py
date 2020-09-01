@@ -29,9 +29,7 @@ def load_obj_data(objs="objects.txt", attrs="attributes.txt"):
     with open(attrs) as f:
         for object in f.readlines():
             vg_attrs.append(object.split(",")[0].lower().strip())
-    return {i: c for i, c in enumerate(vg_classes)}, {
-        i: c for i, c in enumerate(vg_attrs)
-    }
+    return vg_classes, vg_attrs
 
 
 def load_ckp(ckp="checkpoint.pkl"):

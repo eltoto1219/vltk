@@ -26,7 +26,9 @@ anchor_generator:
 rpn:
     batch_size_per_image : 1
     pre_nms_topk_test: 6000
-    post_nms_topk_test: 1000
+    post_nms_topk_test: 300
+    pre_nms_topk_train : 12000
+    post_nms_topk_train : 2000
     in_features : [res4]
     boundary_thresh : -1.0
     iou_thresholds : [0.3, 0.7]
@@ -35,10 +37,6 @@ rpn:
     bbox_reg_weights : [1.0, 1.0, 1.0, 1.0]
     smooth_l1_beta : 0.0
     loss_weight : 1.0
-    pre_nms_topk_train : 12000
-    post_nms_topk_train : 2000
-    pre_nms_topk_test: 6000
-    post_nms_topk_test: 1000
     nms_thresh : 0.7
     roi_heads:
         num_classes : 1600
@@ -46,16 +44,15 @@ rpn:
         iou_thresholds : [0.5]
         iou_labels : [0, 1]
         positive_fraction : 0.25
-        # score_thresh_test : 0.05
         score_thresh_test : 0.2
-        # nms_thresh_test : 0.5
-        nms_thresh_test : [0.5, 1.0, 0.1]
+        nms_thresh_test : [0.5, 0.6, 0.7]
         proposal_append_gt : true
     roi_box_head:
         bbox_reg_weights : [10.0, 10.0, 5.0, 5.0]
         smooth_l1_beta : 0.0
         pooler_resolution : 14
         pooler_sampling_ratio : 0
+        # true or false
         res5halve : False
         attr: true
         num_attrs: 400
@@ -88,10 +85,10 @@ solver:
     warmup_iters : 1000
     warmup_method : linear
     checkpoint_period : 5000
-    ims_per_batch : 16
+    ims_per_batch : 1.0
     bias_lr_factor : 1.0
     weight_decay_bias : 0.0
 size_divisibility: 0
 pad_value: 0.0
-detections_per_image : 36
-
+min_detections: 36
+max_detections: 36

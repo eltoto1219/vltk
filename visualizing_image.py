@@ -17,7 +17,7 @@ class SingleImageViz:
     def __init__(
         self,
         img,
-        scale=1.0,
+        scale=1.2,
         edgecolor="g",
         alpha=0.5,
         linestyle="-",
@@ -53,7 +53,7 @@ class SingleImageViz:
         self.edgecolor = edgecolor
         self.alpha = 0.5
         self.linestyle = linestyle
-        self.font_size = int(np.sqrt(min(height, width)) * scale // 2)
+        self.font_size = int(np.sqrt(min(height, width)) * scale // 3)
         self.width = width
         self.height = height
         self.scale = scale
@@ -81,7 +81,7 @@ class SingleImageViz:
                 height,
                 fill=False,
                 edgecolor=color,
-                linewidth=self.font_size // 4,
+                linewidth=self.font_size // 3,
                 alpha=self.alpha,
                 linestyle=self.linestyle,
             )
@@ -95,6 +95,10 @@ class SingleImageViz:
         areas = np.prod(boxes[:, 2:] - boxes[:, :2], axis=1)
         sorted_idxs = np.argsort(-areas).tolist()
         boxes = boxes[sorted_idxs] if boxes is not None else None
+        obj_ids = obj_ids[sorted_idxs] if obj_ids is not None else None
+        obj_scores = obj_scores[sorted_idxs] if obj_scores is not None else None
+        attr_ids = attr_ids[sorted_idxs] if attr_ids is not None else None
+        attr_scores = attr_scores[sorted_idxs] if attr_scores is not None else None
         assigned_colors = [self._random_color(maximum=1) for _ in range(len(boxes))]
         assigned_colors = [assigned_colors[idx] for idx in sorted_idxs]
         if obj_ids is not None:
@@ -120,7 +124,7 @@ class SingleImageViz:
         height_ratio = (y1 - y0) / np.sqrt(self.height * self.width)
         lighter_color = self._change_color_brightness(color, brightness_factor=0.7)
         font_size = np.clip((height_ratio - 0.02) / 0.08 + 1, 1.2, 2)
-        font_size *= 0.5 * self.font_size
+        font_size *= 0.75 * self.font_size
 
         self.draw_text(
             text=label,
@@ -177,13 +181,11 @@ class SingleImageViz:
     def _create_text_labels_attr(self, classes, scores, attr_classes, attr_scores):
         labels = [self.id2obj[i] for i in classes]
         attr_labels = [self.id2attr[i] for i in attr_classes]
-        if len(scores.shape) > 1:
-            scores = scores.max(-1)
         labels = [
-            f"{li} {float(s):.0f} {ll} {float(ss):.0f}".format(
-                li, s * 100, ll, ss * 100
+            f"{label} {score:.2f} {attr} {attr_score:.2f}"
+            for label, score, attr, attr_score in zip(
+                labels, scores, attr_labels, attr_scores
             )
-            for li, s, ll, ss in zip(labels, scores, attr_labels, attr_scores)
         ]
         return labels
 

@@ -1,4 +1,3 @@
-import copy
 import itertools
 import math
 from abc import ABCMeta, abstractmethod
@@ -20,13 +19,11 @@ def compare(t, eps_minor=0.01, eps_major=0.1):
     with open("dump.npy", "rb") as f:
         n = np.load(f)
         t2 = torch.from_numpy(n)
-        t2, _ = torch.sort(t2, dim=0, descending=False)
-        for i in range(4):
-            for j, (o, oo) in enumerate(zip(t[:, i].tolist(), t2[:, i].tolist())):
-                if int(o) != int(oo):
-                    print(i, j, o, oo)
+        # t2, _ = torch.sort(t2, dim=0, descending=False)
+        # for i in range(4):
+        #     for j, (o, oo) in enumerate(zip(t[:, i].tolist(), t2[:, i].tolist())):
+        #         if int(o) != int(oo):
 
-        print(t.shape, t2.shape)
         assert np.allclose(t.numpy(), t2.numpy(), rtol=eps_minor, atol=eps_major)
 
 
@@ -327,59 +324,48 @@ def rpn_losses(
 
 
 @torch.no_grad()
-def frcnn_output(
-        boxes,
-        box_scores,
-        attrs,
-        attr_scores,
-        feature_pooled,
-        image_size,
-        score_thresh,
-        nms_thresh,
-        topk_per_image,
+def frcnn_outputsv2(
+    boxes,
+    box_scores,
+    image_size,
+    score_thresh,
+    nms_thresh,
+    mink_per_image,
+    topk_per_image,
 ):
-
-    scores = box_scores[..., :-1]
+    scores = box_scores[:, :-1]
     num_bbox_reg_classes = boxes.shape[1] // 4
     # Convert to Boxes to use the `clip` function ...
     boxes = boxes.reshape(-1, 4)
     _clip_box(boxes, image_size[0])
     boxes = boxes.view(-1, num_bbox_reg_classes, 4)  # R x C x 4
 
-    for thresh in np.arange(*nms_thresh):
-        filter_mask = scores > score_thresh  # R x K
-        filter_inds = filter_mask.nonzero(as_tuple=False)
-        if num_bbox_reg_classes == 1:
-            boxes_t = copy.deepcopy(boxes[filter_inds[:, 0], 0])
-        else:
-            boxes_t = copy.deepcopy(boxes[filter_mask])
-        scores_t = copy.deepcopy(scores[filter_mask])
-        keep = box_ops.batched_nms(boxes_t, scores_t, filter_inds[:, 1], thresh)
-        if topk_per_image >= 0:
-            keep = keep[:topk_per_image]
+    # Apply NMS
+    filter_mask = scores > score_thresh  # R x K
+    filter_inds = filter_mask.nonzero(as_tuple=True)
+    # wow this was hard to catch
+    filter_inds = torch.transpose(torch.stack(filter_inds), -1, -2)
+    if num_bbox_reg_classes == 1:
+        max_boxes = boxes[filter_inds[:, 0], 0]
+    else:
+        max_boxes = boxes[filter_mask]
+    max_scores = scores[filter_mask]
+    keep = box_ops.batched_nms(max_boxes, max_scores, filter_inds[:, 1], nms_thresh)
+    keep = keep[:topk_per_image]
 
-        boxes_t, scores_t, filter_inds = (
-            boxes_t[keep],
-            scores_t[keep],
-            filter_inds[keep]
-        )
-        box_classes = filter_inds[:, 1]
-        inds = filter_inds[:, 0]
+    max_boxes, max_scores, filter_inds = (
+        max_boxes[keep],
+        max_scores[keep],
+        filter_inds[keep]
+    )
 
-        if len(inds) == topk_per_image:
-            break
+    classes = filter_inds[:, 1]
 
-    attrs = attrs[inds]
-    attr_scores = attr_scores[inds]
-    feature_pooled = feature_pooled[inds]
     return {
-        "boxes": boxes_t,
-        "obj_ids": box_classes,
-        "obj_scores": scores_t,
-        "attr_ids": attrs,
-        "attr_scores": attr_scores,
-        "roi_features": feature_pooled
-    }
+        "boxes": max_boxes,
+        "obj_ids": classes,
+        "obj_scores": max_scores,
+    }, filter_inds[:, 0]
 
 
 def add_ground_truth_to_proposals(gt_boxes, proposals):
@@ -1460,7 +1446,8 @@ class Res5ROIHeads(nn.Module):
         self.positive_sample_fraction = cfg.RPN.ROI_HEADS.POSITIVE_FRACTION
         self.test_score_thresh = cfg.RPN.ROI_HEADS.SCORE_THRESH_TEST
         self.test_nms_thresh = cfg.RPN.ROI_HEADS.NMS_THRESH_TEST
-        self.test_detections_per_img = cfg.DETECTIONS_PER_IMAGE
+        self.min_detections = cfg.MIN_DETECTIONS
+        self.max_detections = cfg.MAX_DETECTIONS
         self.in_features = cfg.RPN.ROI_HEADS.IN_FEATURES
         self.num_classes = cfg.RPN.ROI_HEADS.NUM_CLASSES
         self.proposal_append_gt = cfg.RPN.ROI_HEADS.PROPOSAL_APPEND_GT
@@ -1652,13 +1639,6 @@ class Res5ROIHeads(nn.Module):
 
         pred_class_logits, pred_attr_logits, pred_proposal_deltas = box_predictions
 
-        """
-        torch.Size([134, 1601])
-        torch.Size([134, 401])
-        torch.Size([134, 6400])
-        tohch.Size([134, 2048]
-        """
-
         outputs = FastRCNNOutputs(
             self.box2box_transform,
             box_predictions,
@@ -1677,7 +1657,8 @@ class Res5ROIHeads(nn.Module):
             pred_instances = outputs.inference(
                 self.test_score_thresh,
                 self.test_nms_thresh,
-                self.test_detections_per_img,
+                self.min_detections,
+                self.max_detections,
             )
             return pred_instances
 
@@ -2087,13 +2068,13 @@ class FastRCNNOutputs(object):
         }
 
     def predict_boxes(self):
-        # N = self.proposals.size(0)
-        num_pred = self.proposals.size(-2)
-        B = self.proposals.size(-1)
+        # need to squeeze first dim here for single image
+        proposals = self.proposals.squeeze(0)
+        num_pred = proposals.size(-2)
+        B = proposals.size(-1)
         K = self.pred_proposal_deltas.size(-1) // B
         pred_proposal_deltas = self.pred_proposal_deltas.view(num_pred * K, B)
-        proposals = self.proposals.expand(K, num_pred, B).reshape(-1, B)
-        # proposals, _ = torch.sort(proposals, dim=0, descending=True)
+        proposals = proposals.unsqueeze(1).expand(num_pred, K, B).reshape(-1, B)
         boxes = self.box2box_transform.apply_deltas(
             pred_proposal_deltas,
             proposals
@@ -2106,26 +2087,34 @@ class FastRCNNOutputs(object):
         return probs.split(self.num_preds_per_image, dim=0)
 
     @torch.no_grad()
-    def inference(self, score_thresh, nms_thresh, topk_per_image):
+    def inference(self, score_thresh, nms_thresh, mink_per_image, topk_per_image):
         # ther is something wrong here
         boxes = self.predict_boxes()[0]
         box_scores = self.predict_probs()[0]
+
         attrs = self.pred_attr_logits[..., :-1].softmax(-1)
         attr_probs, attrs = attrs.max(-1)
         feature_pooled = self.feature_pooled
         image_sizes = self.image_size
+        if not isinstance(nms_thresh, list):
+            nms_thresh = [nms_thresh]
+        for nms_t in nms_thresh:
+            output, ids = frcnn_outputsv2(
+                boxes=boxes,
+                box_scores=box_scores,
+                image_size=image_sizes,
+                score_thresh=score_thresh,
+                nms_thresh=nms_t,
+                mink_per_image=mink_per_image,
+                topk_per_image=topk_per_image,
+            )
+            if ids.shape[-1] >= mink_per_image and ids.shape[-1] <= topk_per_image:
+                break
 
-        return frcnn_output(
-            boxes,
-            box_scores,
-            attrs,
-            attr_probs,
-            feature_pooled,
-            image_sizes,
-            score_thresh,
-            nms_thresh,
-            topk_per_image,
-        ), {}
+        output["attr_ids"] = attrs[ids]
+        output["attr_scores"] = attr_probs[ids]
+        output["roi_features"] = feature_pooled[ids]
+        return output
 
 
 class FastRCNNOutputLayers(nn.Module):
@@ -2261,7 +2250,7 @@ class GeneralizedRCNN(nn.Module):
                     )
                 else:
                     assert proposals is not None
-                results, _ = self.roi_heads(features, proposals, None)
+                results = self.roi_heads(features, proposals, None)
             else:
                 results = self.roi_heads.forward_with_given_boxes(
                     features, gt_boxes
@@ -2270,6 +2259,4 @@ class GeneralizedRCNN(nn.Module):
             if scale_yx is not None:
                 results["boxes"] = _scale_box(results["boxes"], scale_yx)
 
-            # torch.save(results, "output.pt")
-
-            return results
+        return results
