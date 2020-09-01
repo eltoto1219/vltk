@@ -1,3 +1,4 @@
+import copy
 import itertools
 import math
 from abc import ABCMeta, abstractmethod
@@ -11,9 +12,22 @@ from torch.nn import functional as F
 from torch.nn.modules.batchnorm import BatchNorm2d
 from torchvision.ops import RoIPool
 from torchvision.ops import boxes as box_ops
-from torchvision.ops import nms
 
-from image_processor_frcnn import _clip_box
+from processing_image import _clip_box, _scale_box
+
+
+def compare(t, eps_minor=0.01, eps_major=0.1):
+    with open("dump.npy", "rb") as f:
+        n = np.load(f)
+        t2 = torch.from_numpy(n)
+        t2, _ = torch.sort(t2, dim=0, descending=False)
+        for i in range(4):
+            for j, (o, oo) in enumerate(zip(t[:, i].tolist(), t2[:, i].tolist())):
+                if int(o) != int(oo):
+                    print(i, j, o, oo)
+
+        print(t.shape, t2.shape)
+        assert np.allclose(t.numpy(), t2.numpy(), rtol=eps_minor, atol=eps_major)
 
 
 # Helper Functions
@@ -202,7 +216,7 @@ def find_top_rpn_proposals(
                 level_ids[keep],
             )
 
-        keep = batched_nms(boxes, scores_per_img, lvl, nms_thresh)
+        keep = box_ops.batched_nms(boxes, scores_per_img, lvl, nms_thresh)
         keep = keep[:post_nms_topk]
 
         res = {
@@ -227,26 +241,6 @@ def _nonempty_boxes(box, threshold: float = 0.0) -> torch.Tensor:
     widths = box[:, 2] - box[:, 0]
     heights = box[:, 3] - box[:, 1]
     keep = (widths > threshold) & (heights > threshold)
-    return keep
-
-
-def batched_nms(
-    boxes: torch.Tensor, scores: torch.Tensor, idxs: torch.Tensor, iou_threshold: float
-):
-    """
-    Same as torchvision.ops.boxes.batched_nms, but safer.
-    """
-    assert boxes.shape[-1] == 4
-    if len(boxes) < 40000:
-        return box_ops.batched_nms(boxes, scores, idxs, iou_threshold)
-
-    result_mask = scores.new_zeros(scores.size(), dtype=torch.bool)
-    for i in torch.jit.annotate(List[int], torch.unique(idxs).cpu().tolist()):
-        mask = (idxs == i).nonzero().view(-1)
-        keep = nms(boxes[mask], scores[mask], iou_threshold)
-        result_mask[mask[keep]] = True
-    keep = result_mask.nonzero().view(-1)
-    keep = keep[scores[keep].argsort(descending=True)]
     return keep
 
 
@@ -344,44 +338,47 @@ def frcnn_output(
         nms_thresh,
         topk_per_image,
 ):
-    scores = box_scores[:, :-1]
+
+    scores = box_scores[..., :-1]
     num_bbox_reg_classes = boxes.shape[1] // 4
     # Convert to Boxes to use the `clip` function ...
     boxes = boxes.reshape(-1, 4)
     _clip_box(boxes, image_size[0])
     boxes = boxes.view(-1, num_bbox_reg_classes, 4)  # R x C x 4
 
-    # Filter results based on detection scores
-    filter_mask = scores > score_thresh  # R x K
-    # R' x 2. First column contains indices of the R predictions;
-    # Second column contains indices of classes.
-    filter_inds = torch.nonzero(filter_mask, as_tuple=False)
-    if num_bbox_reg_classes == 1:
-        boxes = boxes[filter_inds[:, 0], 0]
-    else:
-        boxes = boxes[filter_mask]
-    scores = scores[filter_mask]
+    for thresh in np.arange(*nms_thresh):
+        filter_mask = scores > score_thresh  # R x K
+        filter_inds = filter_mask.nonzero(as_tuple=False)
+        if num_bbox_reg_classes == 1:
+            boxes_t = copy.deepcopy(boxes[filter_inds[:, 0], 0])
+        else:
+            boxes_t = copy.deepcopy(boxes[filter_mask])
+        scores_t = copy.deepcopy(scores[filter_mask])
+        keep = box_ops.batched_nms(boxes_t, scores_t, filter_inds[:, 1], thresh)
+        if topk_per_image >= 0:
+            keep = keep[:topk_per_image]
 
-    # Apply per-class NMS
-    keep = batched_nms(boxes, scores, filter_inds[:, 1], nms_thresh)
-    if topk_per_image >= 0:
-        keep = keep[:topk_per_image]
+        boxes_t, scores_t, filter_inds = (
+            boxes_t[keep],
+            scores_t[keep],
+            filter_inds[keep]
+        )
+        box_classes = filter_inds[:, 1]
+        inds = filter_inds[:, 0]
 
-    boxes, scores, attrs, attr_scores, feature_pooled, filter_inds = (
-        boxes[keep],
-        scores[keep],
-        attrs[keep],
-        attr_scores[keep],
-        filter_inds[keep],
-        feature_pooled[keep]
-    )
+        if len(inds) == topk_per_image:
+            break
+
+    attrs = attrs[inds]
+    attr_scores = attr_scores[inds]
+    feature_pooled = feature_pooled[inds]
     return {
-        "pred_boxes": boxes,
-        "pred_obj_scores": scores,
-        "pred_obj_classes": filter_inds[:, 1],
-        "pred_attr_classes": attrs,
-        "pred_attr_scores": attr_scores,
-        "pred_features": feature_pooled
+        "boxes": boxes_t,
+        "obj_ids": box_classes,
+        "obj_scores": scores_t,
+        "attr_ids": attrs,
+        "attr_scores": attr_scores,
+        "roi_features": feature_pooled
     }
 
 
@@ -1091,8 +1088,6 @@ class BottleneckBlock(ResNetBlockBase):
             norm=get_norm(norm, out_channels),
         )
 
-        # deleted fvcore init weights method
-
     def forward(self, x):
         out = self.conv1(x)
         out = F.relu_(out)
@@ -1655,6 +1650,15 @@ class Res5ROIHeads(nn.Module):
 
         box_predictions = self.box_predictor(feature_pooled)
 
+        pred_class_logits, pred_attr_logits, pred_proposal_deltas = box_predictions
+
+        """
+        torch.Size([134, 1601])
+        torch.Size([134, 401])
+        torch.Size([134, 6400])
+        tohch.Size([134, 2048]
+        """
+
         outputs = FastRCNNOutputs(
             self.box2box_transform,
             box_predictions,
@@ -1966,14 +1970,14 @@ class RPN(nn.Module):
                 self.training,
             )
             # For RPN-only models, the proposals are the final output
-            # inds = torch.stack(
-            #     [p["objectness_logits"].sort(descending=True)[1] for p in proposals]
-            # )
+            inds = torch.stack(
+                [p["objectness_logits"].sort(descending=True)[1] for p in proposals]
+            )
             proposal_boxes = torch.stack(
-                [p["proposal_boxes"] for p in proposals]
+                [p["proposal_boxes"][ind] for p, ind in zip(proposals, inds)]
             )
             objectness_logits = torch.stack(
-                [p["objectness_logits"] for p in proposals]
+                [p["objectness_logits"][ind] for p, ind in zip(proposals, inds)]
             )
 
             return {"proposal_boxes": proposal_boxes, 'objectness_logits':
@@ -1997,7 +2001,6 @@ class FastRCNNOutputs(object):
         pred_class_logits, pred_attr_logits, pred_proposal_deltas = box_predictions
         self.feature_pooled = feature_pooled
         self.box2box_transform = box2box_transform
-        # is this dynamic?
         self.num_preds_per_image = [len(p) for p in proposals["proposal_boxes"]]
         self.pred_class_logits = pred_class_logits
         self.pred_proposal_deltas = pred_proposal_deltas
@@ -2090,11 +2093,13 @@ class FastRCNNOutputs(object):
         K = self.pred_proposal_deltas.size(-1) // B
         pred_proposal_deltas = self.pred_proposal_deltas.view(num_pred * K, B)
         proposals = self.proposals.expand(K, num_pred, B).reshape(-1, B)
+        # proposals, _ = torch.sort(proposals, dim=0, descending=True)
         boxes = self.box2box_transform.apply_deltas(
             pred_proposal_deltas,
             proposals
         )
-        return boxes.view(num_pred, K * B).split(self.num_preds_per_image, dim=0)
+        box_final = boxes.view(num_pred, K * B).split(self.num_preds_per_image, dim=0)
+        return box_final
 
     def predict_probs(self):
         probs = F.softmax(self.pred_class_logits, dim=-1)
@@ -2102,14 +2107,13 @@ class FastRCNNOutputs(object):
 
     @torch.no_grad()
     def inference(self, score_thresh, nms_thresh, topk_per_image):
+        # ther is something wrong here
         boxes = self.predict_boxes()[0]
         box_scores = self.predict_probs()[0]
         attrs = self.pred_attr_logits[..., :-1].softmax(-1)
         attr_probs, attrs = attrs.max(-1)
         feature_pooled = self.feature_pooled
         image_sizes = self.image_size
-        print(boxes.int(), boxes.shape)
-        raise Exception
 
         return frcnn_output(
             boxes,
@@ -2205,7 +2209,14 @@ class GeneralizedRCNN(nn.Module):
         self.input_format = cfg.INPUT.FORMAT
         self.to(self.device)
 
-    def forward(self, images, image_shapes, gt_boxes=None, proposals=None):
+    def forward(
+        self,
+        images,
+        image_shapes,
+        gt_boxes=None,
+        proposals=None,
+        scale_yx=None
+    ):
         """Args:
             image: Tensor, image in (C, H, W) format.
             instances (optional): groundtruth :class:`Instances`
@@ -2221,7 +2232,8 @@ class GeneralizedRCNN(nn.Module):
                 images=images,
                 image_shapes=image_shapes,
                 gt_boxes=gt_boxes,
-                proposals=proposals
+                proposals=proposals,
+                scale_yx=scale_yx
             )
 
     def training(self, bactched_inputs):
@@ -2233,25 +2245,31 @@ class GeneralizedRCNN(nn.Module):
         image_shapes,
         gt_boxes=None,
         proposals=None,
+        scale_yx=None
     ):
 
-        features = self.backbone(images)
+        with torch.no_grad():
+            features = self.backbone(images)
 
-        if gt_boxes is None:
-            if self.proposal_generator:
-                proposals, _ = self.proposal_generator(
-                    images,
-                    image_shapes,
-                    features,
-                    None
-                )
+            if gt_boxes is None:
+                if self.proposal_generator:
+                    proposals, _ = self.proposal_generator(
+                        images,
+                        image_shapes,
+                        features,
+                        None
+                    )
+                else:
+                    assert proposals is not None
+                results, _ = self.roi_heads(features, proposals, None)
             else:
-                assert proposals is not None
-            # proposals: (N, P, B)
-            results, _ = self.roi_heads(features, proposals, None)
-        else:
-            results = self.roi_heads.forward_with_given_boxes(
-                features, gt_boxes
-            )
+                results = self.roi_heads.forward_with_given_boxes(
+                    features, gt_boxes
+                )
 
-        return results
+            if scale_yx is not None:
+                results["boxes"] = _scale_box(results["boxes"], scale_yx)
+
+            # torch.save(results, "output.pt")
+
+            return results

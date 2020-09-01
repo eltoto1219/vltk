@@ -4,7 +4,7 @@ model :
     max_pool: true
     chkpoint: ""
     pixel_mean: [102.9801, 115.9465, 122.7717]
-    pixel_std: [57.375, 57.120, 58.395]
+    pixel_std: [1.0, 1.0, 1.0]
 input:
     max_size_train: 1333
     min_size_train: 640
@@ -46,8 +46,10 @@ rpn:
         iou_thresholds : [0.5]
         iou_labels : [0, 1]
         positive_fraction : 0.25
-        score_thresh_test : 0.05
-        nms_thresh_test : 0.5
+        # score_thresh_test : 0.05
+        score_thresh_test : 0.2
+        # nms_thresh_test : 0.5
+        nms_thresh_test : [0.5, 1.0, 0.1]
         proposal_append_gt : true
     roi_box_head:
         bbox_reg_weights : [10.0, 10.0, 5.0, 5.0]
@@ -67,7 +69,7 @@ resnets:
     depth : 101
     out_features : [res4]
     num_groups : 1
-    norm : BN # frozenbn, try regular batch norm for now
+    norm : BN
     width_per_group : 64
     stride_in_1x1 : true
     res5_dilation : 1
@@ -90,6 +92,6 @@ solver:
     bias_lr_factor : 1.0
     weight_decay_bias : 0.0
 size_divisibility: 0
-pad_value: 0
+pad_value: 0.0
 detections_per_image : 36
 

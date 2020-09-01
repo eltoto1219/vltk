@@ -8,9 +8,9 @@ import PIL.Image as Image
 import torch
 from yaml import Loader, dump, load
 
-from image_processor_frcnn import PreProcess, postprocess, tensorize
 from modeling_frcnn import GeneralizedRCNN
-from viz import viz_image
+from processing_image import Preprocess, tensorize
+from visualizing_image import SingleImageViz
 
 
 def load_config(config="config.yaml"):
@@ -19,7 +19,7 @@ def load_config(config="config.yaml"):
     return Config(data)
 
 
-def load_obj_data(objs="objects_vocab.txt", attrs="attributes_vocab.txt"):
+def load_obj_data(objs="objects.txt", attrs="attributes.txt"):
     vg_classes = []
     with open(objs) as f:
         for object in f.readlines():
@@ -29,7 +29,9 @@ def load_obj_data(objs="objects_vocab.txt", attrs="attributes_vocab.txt"):
     with open(attrs) as f:
         for object in f.readlines():
             vg_attrs.append(object.split(",")[0].lower().strip())
-    return vg_classes, vg_attrs
+    return {i: c for i, c in enumerate(vg_classes)}, {
+        i: c for i, c in enumerate(vg_attrs)
+    }
 
 
 def load_ckp(ckp="checkpoint.pkl"):
@@ -39,9 +41,9 @@ def load_ckp(ckp="checkpoint.pkl"):
     for k in copy.deepcopy(list(ckp.keys())):
         v = ckp.pop(k)
         if isinstance(v, np.ndarray):
-            v = torch.Tensor(v)
+            v = torch.tensor(v)
         else:
-            assert isinstance(v, torch.Tensor), type(v)
+            assert isinstance(v, torch.tensor), type(v)
         r[k] = v
     return r
 
@@ -108,21 +110,29 @@ if __name__ == "__main__":
     raw_img = "test_in.jpg"
     # load the config
     cfg = load_config()
+    # load obj and attr labels
+    objids, attrids = load_obj_data()
     # init image processor
-    preprocess = PreProcess(cfg)
+    preprocess = Preprocess(cfg)
     # init model
     model = GeneralizedRCNN(cfg)
     # load the checkpoint
-    model.load_state_dict(load_ckp())
+    model.load_state_dict(load_ckp(), strict=False)
     # prepare for inference
     model.eval()
     # tensorize the image
     img_tensor = tensorize(raw_img)
+    # setup image viz
+    visualizer = SingleImageViz(img_tensor, id2obj=objids, id2attr=attrids)
     # preprocess the image
-    img, image_hw, scale_xy = preprocess(img_tensor)
-    # run the backbone
-    output_dict = model(img.unsqueeze(0), image_hw.unsqueeze(0))
-    # get boxes
-    boxes = postprocess(output_dict["pred_boxes"], image_hw, image_hw)
-    # viz results
-    viz_image(img_tensor, boxes.numpy())
+    images, sizes, scale_yx = preprocess(img_tensor)
+    # run model
+    output_dict = model(images, sizes, scale_yx=scale_yx)
+    # pop pooled features for later
+    features = output_dict.pop("roi_features")
+    # unsqueezing dictionary
+    output_dict = dict(map(lambda i: (i[0], i[1].numpy()), output_dict.items()))
+    # add boxes and labels to the image
+    visualizer.draw_boxes(**output_dict)
+    # save viz
+    visualizer.save()
