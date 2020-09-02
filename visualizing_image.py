@@ -92,6 +92,7 @@ class SingleImageViz:
     ):
         if len(boxes.shape) > 2:
             boxes = boxes[0]
+        boxes = boxes.numpy()
         areas = np.prod(boxes[:, 2:] - boxes[:, :2], axis=1)
         sorted_idxs = np.argsort(-areas).tolist()
         boxes = boxes[sorted_idxs] if boxes is not None else None

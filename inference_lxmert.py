@@ -6,6 +6,7 @@ from collections import OrderedDict
 import numpy as np
 import PIL.Image as Image
 import torch
+from transformers import LxmertForQuestionAnswering, LxmertTokenizer
 from yaml import Loader, dump, load
 
 from modeling_frcnn import GeneralizedRCNN
@@ -106,31 +107,56 @@ class Config:
 
 if __name__ == "__main__":
     raw_img = "test_in.jpg"
-    # load the config
-    cfg = load_config()
-    # load obj and attr labels
-    objids, attrids = load_obj_data()
-    # init image processor
-    preprocess = Preprocess(cfg)
-    # init model
-    model = GeneralizedRCNN(cfg)
-    # load the checkpoint
-    model.load_state_dict(load_ckp(), strict=False)
-    # prepare for inference
-    model.eval()
-    # tensorize the image
+    test_qustion = ["Is the man on a horse?"]
+    target = "yes"
     img_tensor = tensorize(raw_img)
-    # setup image viz
+    cfg = load_config()
+    objids, attrids = load_obj_data()
+    gqa_answers = json.load(open("gqa_answers.json"))
+    # init classes
     visualizer = SingleImageViz(img_tensor, id2obj=objids, id2attr=attrids)
-    # preprocess the image
+    preprocess = Preprocess(cfg)
+    frcnn = GeneralizedRCNN(cfg)
+    frcnn.load_state_dict(load_ckp(), strict=False)
+    frcnn.eval()
+    lxmert_tokenizer = LxmertTokenizer.from_pretrained("unc-nlp/lxmert-base-uncased")
+    lxmert = LxmertForQuestionAnswering.from_pretrained(
+        "unc-nlp/lxmert-base-uncased", num_qa_labels=len(gqa_answers)
+    )
+    lxmert.eval()
+    # run frcnn
     images, sizes, scale_yx = preprocess(img_tensor)
-    # run model
-    output_dict = model(images, sizes, scale_yx=scale_yx)
-    # pop pooled features for later
+    output_dict = frcnn(images, sizes, scale_yx=scale_yx)
     features = output_dict.pop("roi_features")
-    # unsqueezing dictionary
-    output_dict = dict(map(lambda i: (i[0], i[1].numpy()), output_dict.items()))
+    boxes = output_dict.pop("boxes")
     # add boxes and labels to the image
-    visualizer.draw_boxes(**output_dict)
-    # save viz
-    visualizer.save()
+    visualizer.draw_boxes(
+        boxes,
+        output_dict.pop("obj_ids"),
+        output_dict.pop("obj_scores"),
+        output_dict.pop("attr_ids"),
+        output_dict.pop("attr_scores"),
+    )
+    # run lxmert
+    inputs = lxmert_tokenizer(
+        test_qustion,
+        padding="max_length",
+        max_length=20,
+        truncation=True,
+        return_token_type_ids=True,
+        return_attention_mask=True,
+        add_special_tokens=True,
+    )
+    input_ids = torch.tensor(inputs.input_ids)
+    output = lxmert(
+        input_ids=input_ids,
+        attention_mask=torch.tensor(inputs.attention_mask),
+        visual_feats=features.unsqueeze(0),
+        visual_pos=boxes.unsqueeze(0),
+        token_type_ids=torch.tensor(inputs.token_type_ids),
+        return_dict=True,
+        output_attentions=False,
+    )
+    logit, pred = output["question_answering_score"].max(-1)
+    print("prediction:", gqa_answers[pred])
+    print("class ind:", int(pred))

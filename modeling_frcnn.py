@@ -15,18 +15,6 @@ from torchvision.ops import boxes as box_ops
 from processing_image import _clip_box, _scale_box
 
 
-def compare(t, eps_minor=0.01, eps_major=0.1):
-    with open("dump.npy", "rb") as f:
-        n = np.load(f)
-        t2 = torch.from_numpy(n)
-        # t2, _ = torch.sort(t2, dim=0, descending=False)
-        # for i in range(4):
-        #     for j, (o, oo) in enumerate(zip(t[:, i].tolist(), t2[:, i].tolist())):
-        #         if int(o) != int(oo):
-
-        assert np.allclose(t.numpy(), t2.numpy(), rtol=eps_minor, atol=eps_major)
-
-
 # Helper Functions
 def build_backbone(cfg):
     input_shape = ShapeSpec(channels=len(cfg.MODEL.PIXEL_MEAN))
@@ -42,10 +30,7 @@ def build_backbone(cfg):
     if freeze_at >= 1:
         for p in stem.parameters():
             p.requires_grad = False
-        # may need to get back frozen batch norm
-        # stem = FrozenBatchNorm2d.convert_frozen_batchnorm(stem)
 
-    # fmt: off
     out_features = cfg.RESNETS.OUT_FEATURES
     depth = cfg.RESNETS.DEPTH
     num_groups = cfg.RESNETS.NUM_GROUPS
@@ -55,7 +40,6 @@ def build_backbone(cfg):
     out_channels = cfg.RESNETS.RES2_OUT_CHANNELS
     stride_in_1x1 = cfg.RESNETS.STRIDE_IN_1X1
     res5_dilation = cfg.RESNETS.RES5_DILATION
-    # fmt: on
     assert res5_dilation in {1, 2}, "res5_dilation cannot be {}.".format(res5_dilation)
 
     num_blocks_per_stage = {50: [3, 4, 6, 3], 101: [3, 4, 23, 3], 152: [3, 8, 36, 3]}[
@@ -63,9 +47,6 @@ def build_backbone(cfg):
     ]
 
     stages = []
-
-    # Avoid creating variables without gradients
-    # It consumes extra memory and may cause allreduce to fail
     out_stage_idx = [
         {"res2": 2, "res3": 3, "res4": 4, "res5": 5}[f] for f in out_features
     ]
@@ -158,8 +139,7 @@ def find_top_rpn_proposals(
         min_box_side_len (float): minimum proposal box side
         training (bool): True if proposals are to be used in training,
     Returns:
-        proposals (list[Instances]): list of N Instances. The i-th Instances
-            stores post_nms_topk object proposals for image i.
+        resuls (List[Dict]): stores post_nms_topk object proposals for image i.
     """
     num_images = len(images)
     device = proposals[0].device
@@ -227,14 +207,6 @@ def find_top_rpn_proposals(
 
 
 def _nonempty_boxes(box, threshold: float = 0.0) -> torch.Tensor:
-    """
-    Find boxes that are non-empty.
-    A box is considered empty, if either of its side is no larger than threshold.
-    Returns:
-        Tensor:
-            a binary vector which represents whether each box is empty
-            (False) or non-empty (True).
-    """
     widths = box[:, 2] - box[:, 0]
     heights = box[:, 3] - box[:, 1]
     keep = (widths > threshold) & (heights > threshold)
@@ -246,10 +218,6 @@ def pairwise_intersection(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.T
     Given two lists of boxes of size N and M,
     compute the intersection area between __all__ N x M pairs of boxes.
     The box order must be (xmin, ymin, xmax, ymax)
-    Args:
-        boxes1,boxes2 (Boxes): two `Boxes`. Contains N & M boxes, respectively.
-    Returns:
-        Tensor: intersection, sized [N,M].
     """
     width_height = torch.min(boxes1[:, None, 2:], boxes2[:, 2:]) - torch.max(
         boxes1[:, None, :2], boxes2[:, :2]
@@ -266,10 +234,6 @@ def pairwise_iou(boxes1: torch.Tensor, boxes2: torch.Tensor) -> torch.Tensor:
     compute the IoU (intersection over union)
     between __all__ N x M pairs of boxes.
     The box order must be (xmin, ymin, xmax, ymax).
-    Args:
-        boxes1,boxes2 (Boxes): two `Boxes`. Contains N & M boxes, respectively.
-    Returns:
-        Tensor: IoU, sized [N,M].
     """
     area1 = boxes1.area()  # [N]
     area2 = boxes2.area()  # [M]
@@ -309,22 +273,8 @@ def subsample_labels(labels, num_samples, positive_fraction, bg_label):
     return pos_idx, neg_idx
 
 
-def rpn_losses(
-    gt_objectness_logits,
-    gt_anchor_deltas,
-    pred_objectness_logits,
-    pred_anchor_deltas,
-    smooth_l1_beta,
-):
-    pass
-    """
-    see https://github.com/airsplay/py-bottom-up-attention/\
-            blob/master/detectron2/modeling/roi_heads/roi_heads.py
-    """
-
-
 @torch.no_grad()
-def frcnn_outputsv2(
+def frcnn_outputs(
     boxes,
     box_scores,
     image_size,
@@ -369,42 +319,11 @@ def frcnn_outputsv2(
 
 
 def add_ground_truth_to_proposals(gt_boxes, proposals):
-    assert gt_boxes is not None
-
-    assert len(proposals) == len(gt_boxes)
-    if len(proposals) == 0:
-        return proposals
-
-    return [
-        add_ground_truth_to_proposals_single_image(gt_boxes_i, proposals_i)
-        for gt_boxes_i, proposals_i in zip(gt_boxes, proposals)
-    ]
+    raise NotImplementedError()
 
 
 def add_ground_truth_to_proposals_single_image(gt_boxes, proposals):
-    """
-    Augment `proposals` with ground-truth boxes from `gt_boxes`.
-    Args:
-        Same as `add_ground_truth_to_proposals`, but with gt_boxes and proposals
-        per image.
-    Returns:
-        Same as `add_ground_truth_to_proposals`, but for only one image.
-    """
-    device = proposals.objectness_logits.device
-    # Assign all ground-truth boxes an objectness logit corresponding to
-    # P(object) = sigmoid(logit) =~ 1.
-    gt_logit_value = math.log((1.0 - 1e-10) / (1 - (1.0 - 1e-10)))
-    gt_logits = gt_logit_value * torch.ones(len(gt_boxes), device=device)
-
-    # Concatenating gt_boxes with proposals requires them to have the same fields
-    gt_proposals = {
-        "size": proposals["image_size"],
-        "proposal_boxes": gt_boxes,
-        "objectness_logits": gt_logits,
-    }
-    new_proposals = {**proposals, **gt_proposals}
-
-    return new_proposals
+    raise NotImplementedError()
 
 
 def _fmt_box_list(box_tensor, batch_index: int):
@@ -595,25 +514,15 @@ class Matcher(object):
             labels (list): a list of values to label predictions belonging at
                 each level. A label can be one of {-1, 0, 1} signifying
                 {ignore, negative class, positive class}, respectively.
-            allow_low_quality_matches (bool): if True, produce additional matches
-                for predictions with maximum match quality lower than high_threshold.
-                See set_low_quality_matches_ for more details.
-            For example,
-                thresholds = [0.3, 0.5]
-                labels = [0, -1, 1]
-                All predictions with iou < 0.3 will be marked with 0 and
-                thus will be considered as false positives while training.
-                All predictions with 0.3 <= iou < 0.5 will be marked with -1 and
-                thus will be ignored.
-                All predictions with 0.5 <= iou will be marked with 1 and
-                thus will be considered as true positives.
+            allow_low_quality_matches (bool): if True, produce additional matches or predictions with maximum match quality lower than high_threshold.
+                For example, thresholds = [0.3, 0.5] labels = [0, -1, 1] All predictions with iou < 0.3 will be marked with 0 and
+                thus will be considered as false positives while training. All predictions with 0.3 <= iou < 0.5 will be marked with -1 and
+                thus will be ignored. All predictions with 0.5 <= iou will be marked with 1 and thus will be considered as true positives.
         """
-        # Add -inf and +inf to first and last position in thresholds
         thresholds = thresholds[:]
         assert thresholds[0] > 0
         thresholds.insert(0, -float("inf"))
         thresholds.append(float("inf"))
-        # Currently torchscript does not support all + generator
         assert all(
             [low <= high for (low, high) in zip(thresholds[:-1], thresholds[1:])]
         )
@@ -626,15 +535,11 @@ class Matcher(object):
     def __call__(self, match_quality_matrix):
         """
         Args:
-            match_quality_matrix (Tensor[float]): an MxN tensor, containing the
-                pairwise quality between M ground-truth elements and N predicted
-                elements. All elements must be >= 0 (due to the us of `torch.nonzero`
-                for selecting indices in :meth:`set_low_quality_matches_`).
+            match_quality_matrix (Tensor[float]): an MxN tensor, containing the pairwise quality between M ground-truth elements and N predicted
+                elements. All elements must be >= 0 (due to the us of `torch.nonzero` for selecting indices in :meth:`set_low_quality_matches_`).
         Returns:
-            matches (Tensor[int64]): a vector of length N, where matches[i] is a matched
-                ground-truth index in [0, M)
-            match_labels (Tensor[int8]): a vector of length N, where pred_labels[i]
-                indicates whether a prediction is a true or false positive or ignored
+            matches (Tensor[int64]): a vector of length N, where matches[i] is a matched ground-truth index in [0, M)
+            match_labels (Tensor[int8]): a vector of length N, where pred_labels[i] indicates true or false positive or ignored
         """
         assert match_quality_matrix.dim() == 2
         if match_quality_matrix.numel() == 0:
@@ -690,11 +595,6 @@ class Matcher(object):
             )
         else:
             (_, pred_inds_with_highest_quality) = of_quality_inds.nonzero().unbind(1)
-        # If an anchor was labeled positive only due to a low-quality match
-        # with gt_A, but it has larger overlap with gt_B,
-        # it's matched index will still be gt_B.
-        # This follows the implementation in Detectron,
-        # and is found to have no significant impact.
         match_labels[pred_inds_with_highest_quality] = 1
 
 
@@ -715,38 +615,17 @@ class RPNOutputs(object):
     ):
         """
         Args:
-            box2box_transform (Box2BoxTransform): :class:`Box2BoxTransform` instance for
-                anchor-proposal transformations.
-            anchor_matcher (Matcher): :class:`Matcher` instance for matching anchors to
-                ground-truth boxes; used to determine training labels.
+            box2box_transform (Box2BoxTransform): :class:`Box2BoxTransform` instance for anchor-proposal transformations.
+            anchor_matcher (Matcher): :class:`Matcher` instance for matching anchors to ground-truth boxes; used to determine training labels.
             batch_size_per_image (int): number of proposals to sample when training
-            positive_fraction (float): target fraction of sampled proposals
-            that should be positive
+            positive_fraction (float): target fraction of sampled proposals that should be positive
             images (ImageList): :class:`ImageList` instance representing N input images
-            pred_objectness_logits (list[Tensor]): A list of L elements.
-                Element i is a tensor of shape (N, A, Hi, Wi) representing
-                the predicted objectness logits for anchors.
-            pred_anchor_deltas (list[Tensor]): A list of L elements.
-            Element i is a tensor of shape
-                (N, A*4, Hi, Wi) representing the predicted "deltas"
-                used to transform anchors
-                to proposals.
-            anchors (list[list[Boxes]]): A list of N elements.
-            Each element is a list of L
-                Boxes. The Boxes at (n, l) stores the entire anchor array
-                for feature map l in image
-                n (i.e. the cell anchors repeated over all locations
-                in feature map (n, l)).
-            boundary_threshold (int): if >= 0, then anchors that extend beyond the image
-                boundary by more than boundary_thresh are not used in training.
-                Set to a very large
-                number or < 0 to disable this behavior. Only needed in training.
+            pred_objectness_logits (list[Tensor]): A list of L elements. Element i is a tensor of shape (N, A, Hi, W)
+            pred_anchor_deltas (list[Tensor]): A list of L elements. Element i is a tensor of shape (N, A*4, Hi, Wi)
+            anchors (list[torch.Tensor]): nested list ofboxes. anchors[i][j] at (n, l) stores anchor array for feature map l
+            boundary_threshold (int): if >= 0, then anchors that extend beyond the image boundary by more than boundary_thresh are not used in training.
             gt_boxes (list[Boxes], optional): A list of N elements.
-            Element i a Boxes storing
-                the ground-truth ("gt") boxes for image i.
-            smooth_l1_beta (float): The transition point between L1 and L2 loss in
-                the smooth L1 loss function. When set to 0, the loss becomes L1. When
-                set to +inf, the loss becomes constant 0.
+            smooth_l1_beta (float): The transition point between L1 and L2 lossn. When set to 0, the loss becomes L1. When +inf, it is ignored
         """
         self.box2box_transform = box2box_transform
         self.anchor_matcher = anchor_matcher
@@ -763,57 +642,7 @@ class RPNOutputs(object):
         self.smooth_l1_beta = smooth_l1_beta
 
     def _get_ground_truth(self):
-        """
-        gt_objectness_logits: list of N tensors, whose length is
-            total number of anchors in image i (i.e., len(anchors[i])). Label values are
-            in {-1, 0, 1}, with meanings: -1 = ignore;
-            0 = negative class; 1 = positive class.
-        gt_anchor_deltas: list of N tensors. Tensor i has shape (len(anchors[i]), 4).
-        """
-        gt_objectness_logits = []
-        gt_anchor_deltas = []
-        # Concatenate anchors from all feature maps into a single Boxes per image
-        anchors = torch.stack(self.anchors, dim=0)
-        for image_size_i, anchors_i, gt_boxes_i in zip(
-            self.image_sizes, anchors, self.gt_boxes
-        ):
-            """
-            image_size_i: (h, w) for the i-th image
-            anchors_i: anchors for i-th image
-            gt_boxes_i: ground-truth boxes for i-th image
-            """
-            match_quality_matrix = pairwise_iou(gt_boxes_i, anchors_i)
-            matched_idxs, gt_objectness_logits_i = self.anchor_matcher(
-                match_quality_matrix
-            )
-            # Matching is memory-expensive, may result in CPU tensors.
-            gt_objectness_logits_i = gt_objectness_logits_i.to(device=gt_boxes_i.device)
-            del match_quality_matrix
-
-            if self.boundary_threshold >= 0:
-                # Discard anchors that go out of the boundaries of the image
-                # NOTE: This is legacy functionality
-                # that is turned off by default in Detectron2
-                anchors_inside_image = anchors_i.inside_box(
-                    image_size_i, self.boundary_threshold
-                )
-                gt_objectness_logits_i[~anchors_inside_image] = -1
-
-            if len(gt_boxes_i) == 0:
-                # These values won't be used anyway since the anchor
-                # is labeled as background
-                gt_anchor_deltas_i = torch.zeros_like(anchors_i.tensor)
-            else:
-                # TODO wasted computation for ignored boxes
-                matched_gt_boxes = gt_boxes_i[matched_idxs]
-                gt_anchor_deltas_i = self.box2box_transform.get_deltas(
-                    anchors_i.tensor, matched_gt_boxes.tensor
-                )
-
-            gt_objectness_logits.append(gt_objectness_logits_i)
-            gt_anchor_deltas.append(gt_anchor_deltas_i)
-
-        return gt_objectness_logits, gt_anchor_deltas
+        raise NotImplementedError()
 
     def predict_proposals(self):
         """
@@ -855,8 +684,6 @@ class RPNOutputs(object):
 
     def predict_objectness_logits(self):
         """
-        Return objectness logits in the same format as the proposals returned by
-        :meth:`predict_proposals`.
         Returns:
             pred_objectness_logits (list[Tensor]) -> (N, Hi*Wi*A).
         """
@@ -871,11 +698,6 @@ class RPNOutputs(object):
 # Main Classes
 class Conv2d(torch.nn.Conv2d):
     def __init__(self, *args, **kwargs):
-        """
-        Args:
-            norm(nn.Module, optional): a normalization layer
-            activation(callable(Tensor) -> Tensor): a callable activation function
-        """
         norm = kwargs.pop("norm", None)
         activation = kwargs.pop("activation", None)
         super().__init__(*args, **kwargs)
@@ -916,8 +738,7 @@ class Conv2d(torch.nn.Conv2d):
 
 class LastLevelMaxPool(nn.Module):
     """
-    This module is used in the original FPN to generate a downsampled
-    P6 feature from P5.
+    This module is used in the original FPN to generate a downsampled P6 feature from P5.
     """
 
     def __init__(self):
@@ -931,8 +752,7 @@ class LastLevelMaxPool(nn.Module):
 
 class LastLevelP6P7(nn.Module):
     """
-    This module is used in RetinaNet to generate extra layers, P6 and P7 from
-    C5 feature.
+    This module is used in RetinaNet to generate extra layers, P6 and P7 from C5 feature.
     """
 
     def __init__(self, in_channels, out_channels):
@@ -941,7 +761,6 @@ class LastLevelP6P7(nn.Module):
         self.in_feature = "res5"
         self.p6 = nn.Conv2d(in_channels, out_channels, 3, 2, 1)
         self.p7 = nn.Conv2d(out_channels, out_channels, 3, 2, 1)
-        # origianlly initizlied to c2_xavier_fill
 
     def forward(self, c5):
         p6 = self.p6(c5)
@@ -951,11 +770,6 @@ class LastLevelP6P7(nn.Module):
 
 class BasicStem(nn.Module):
     def __init__(self, in_channels=3, out_channels=64, norm="BN", caffe_maxpool=False):
-        """
-        Args:
-            norm(str or callable): a callable that takes the number of
-                channels and return a `nn.Module`, or a pre - defined string
-        """
         super().__init__()
         self.conv1 = Conv2d(
             in_channels,
@@ -968,7 +782,6 @@ class BasicStem(nn.Module):
         )
         self.caffe_maxpool = caffe_maxpool
         # use pad 1 instead of pad zero
-        # check out fvcore for special weight init methods
 
     def forward(self, x):
         x = self.conv1(x)
@@ -990,12 +803,6 @@ class BasicStem(nn.Module):
 
 class ResNetBlockBase(nn.Module):
     def __init__(self, in_channels, out_channels, stride):
-        """
-        Args:
-             in_channels (int):
-             out_channels (int):
-             stride (int):
-        """
         super().__init__()
         self.in_channels = in_channels
         self.out_channels = out_channels
@@ -1004,8 +811,6 @@ class ResNetBlockBase(nn.Module):
     def freeze(self):
         for p in self.parameters():
             p.requires_grad = False
-        # try without for now
-        # FrozenBatchNorm2d.convert_frozen_batchnorm(self)
         return self
 
 
@@ -1021,11 +826,6 @@ class BottleneckBlock(ResNetBlockBase):
         stride_in_1x1=False,
         dilation=1,
     ):
-        """
-        Args:
-            stride_in_1x1 (bool): when stride==2, whether to put stride in the
-                first 1x1 convolution or the bottleneck 3x3 convolution.
-        """
         super().__init__(in_channels, out_channels, stride)
 
         if in_channels != out_channels:
@@ -1094,42 +894,23 @@ class BottleneckBlock(ResNetBlockBase):
 
 
 class Backbone(nn.Module, metaclass=ABCMeta):
-    """
-    Abstract base class for network backbones.
-    """
-
     def __init__(self):
-        """
-        The `__init__` method of any subclass can specify its own set of arguments.
-        """
         super().__init__()
 
     @abstractmethod
     def forward(self):
-        """
-        Subclasses must override this method, but adhere to the same return type.
-        Returns:
-            dict[str->Tensor]: mapping from feature name (e.g., "res2") to tensor
-        """
         pass
 
     @property
     def size_divisibility(self):
         """
-        Some backbones require the input height and width to be divisible by a
-        specific integer. This is typically true for encoder / decoder type networks
-        with lateral connection (e.g., FPN) for which feature maps need to match
-        dimension in the "bottom up" and "top down" paths. Set to 0 if no specific
-        input size divisibility is required.
+        Some backbones require the input height and width to be divisible by a specific integer. This is
+        typically true for encoder / decoder type networks with lateral connection (e.g., FPN) for which feature maps need to match
+        dimension in the "bottom up" and "top down" paths. Set to 0 if no specific input size divisibility is required.
         """
         return 0
 
     def output_shape(self):
-        """
-        Returns:
-            dict[str->ShapeSpec]
-        """
-        # this is a backward-compatible default
         return {
             name: ShapeSpec(
                 channels=self._out_feature_channels[name],
@@ -1137,8 +918,6 @@ class Backbone(nn.Module, metaclass=ABCMeta):
             )
             for name in self._out_features
         }
-
-    # the properties below are not used any more
 
     @property
     def out_features(self):
@@ -1161,13 +940,10 @@ class ResNet(Backbone):
         """
         Args:
             stem (nn.Module): a stem module
-            stages (list[list[ResNetBlock]]): several (typically 4) stages,
-                each contains multiple :class:`ResNetBlockBase`.
+            stages (list[list[ResNetBlock]]): several (typically 4) stages, each contains multiple :class:`ResNetBlockBase`.
             num_classes (None or int): if None, will not perform classification.
-            out_features (list[str]): name of the layers whose outputs should
-                be returned in forward. Can be anything in:
-                    "stem", "linear", or "res2" ...
-                If None, will return the output of the last layer.
+            out_features (list[str]): name of the layers whose outputs should be returned in forward. Can be anything in:
+            "stem", "linear", or "res2" ... If None, will return the output of the last layer.
         """
         super(ResNet, self).__init__()
         self.stem = stem
@@ -1225,7 +1001,6 @@ class ResNet(Backbone):
             x = self.linear(x)
             if "linear" in self._out_features:
                 outputs["linear"] = x
-        # so somehow the number of images gets squeezed here
         return outputs
 
     def output_shape(self):
@@ -1299,34 +1074,13 @@ class ROIPooler(nn.Module):
     ):
         """
         Args:
-
-        output_size(int, tuple[int] or list[int]):
-        output size of the pooled region,
-        e.g., 14 x 14. If tuple or list is given, the length must be 2.
-        scales(list[float]): The scale for each low - level pooling op relative to
-        the input image. For a feature map with stride s relative to the input
-        image, scale is defined as a 1 / s. The stride must be power of 2.
-        When there are multiple scales, they must form a pyramid, i.e. they must be
-        a monotically decreasing geometric sequence with a factor of 1 / 2.
-        sampling_ratio(int): The `sampling_ratio` parameter for the ROIAlign op.
-        pooler_type(string): Name of the type of
-        pooling operation that should be applied.
-        For instance, "ROIPool" or "ROIAlignV2".
-        canonical_box_size(int): A canonical box size
-        in pixels(sqrt(box area)). The default
-        is heuristically defined as 224 pixels in the FPN paper(based on ImageNet
-                                                                pre - training).
-        canonical_level(int): The feature map level index
-        from which a canonically - sized box
-        should be placed. The default is defined as
-        level 4 (stride=16) in the FPN paper,
-        i.e., a box of size 224x224 will be placed on the feature with stride = 16.
-        The box placement for all boxes will be determined from their sizes w.r.t
-        canonical_box_size. For example, a box whose area is 4x that of a canonical box
-        should be used to pool features from feature level ``canonical_level + 1``.
-        Note that the actual input feature maps given to this module may not have
-        sufficiently many levels for the input boxes. If the boxes are too large or too
-        small for the input feature maps, the closest level will be used.
+            output_size(int, tuple[int] or list[int): output size of the pooled region, e.g., 14 x 14.
+            scales(list[float]): The scale for each low - level pooling op relative to the input image.
+            sampling_ratio(int): The `sampling_ratio` parameter for the ROIAlign op.
+            pooler_type(string): Name of the type of pooling operation that should be applied.
+            canonical_box_size(int): A canonical box size
+            in pixels(sqrt(box area)). The default is heuristically defined as 224 pixels in the FPN paper
+            canonical_level(int): The feature map level
         """
         super().__init__()
 
@@ -1341,7 +1095,6 @@ class ROIPooler(nn.Module):
             RoIPool(output_size, spatial_scale=scale) for scale in scales
         )
 
-        # Map scale (defined as 1 / stride) to its feature map level under the
         # assumption that stride is a power of 2.
         min_level = -math.log2(scales[0])
         max_level = -math.log2(scales[-1])
@@ -1355,9 +1108,6 @@ class ROIPooler(nn.Module):
         ), "[ROIPooler] Sizes of input featuremaps do not form a pyramid!"
         assert 0 < self.min_level and self.min_level <= self.max_level
         if len(scales) > 1:
-            # When there is only one feature map,
-            # canonical_level is redundant and we should not
-            # require it to be a sensible value. Therefore we skip this assertion
             assert (
                 self.min_level <= canonical_level and canonical_level <= self.max_level
             )
@@ -1368,25 +1118,14 @@ class ROIPooler(nn.Module):
     def forward(self, x, proposals):
         """
         Args:
-            x(list[Tensor]): A list of feature maps of
-            NCHW shape, with scales matching those
-                used to construct this module.
-            box_lists(list[Boxes] | list[RotatedBoxes]):
-                A list of N Boxes or N RotatedBoxes,
-                where N is the number of images in the batch.
-                The box coordinates are defined on the original image and
-                will be scaled by the `scales` argument of: class: `ROIPooler`.
+            x(list[torch.Tensor]): A list of feature maps of NCHW shape, with scales matching those
+            box_lists(list[torch.Tensor]): A list of N Boxes,
         Returns:
-            Tensor:
-                A tensor of shape(M, C, output_size, output_size)
-                where M is the total number of
-                boxes aggregated over all N batch images and C
-                is the number of channels in `x`.
+                A tensor of shape(M, C, output_size, output_size) M: total boxes in
+                batch over N images, with C channels
         """
         x = [v for v in x.values()]
         boxes = proposals["proposal_boxes"]
-        # objectness_logits = proposals["objectness_logits"]
-        # inds = proposals["inds"]
         num_level_assignments = len(self.level_poolers)
         assert (
             len(x[0]) == num_level_assignments
@@ -1464,7 +1203,6 @@ class Res5ROIHeads(nn.Module):
             allow_low_quality_matches=False,
         )
 
-        # Box2BoxTransform for bounding box regression
         self.box2box_transform = Box2BoxTransform(
             weights=cfg.RPN.ROI_BOX_HEAD.BBOX_REG_WEIGHTS)
 
@@ -1486,7 +1224,7 @@ class Res5ROIHeads(nn.Module):
         self.res5 = self._build_res5_block(cfg)
         if not res5_halve:
             """
-            Modifications for VG in RoI heads (modeling/roi_heads/roi_heads.py):
+            Modifications for VG in RoI heads:
             1. Change the stride of conv1 and shortcut in Res5.Block1 from 2 to 1
             2. Modifying all conv2 with (padding: 1 --> 2) and (dilation: 1 --> 2)
             """
@@ -1504,7 +1242,6 @@ class Res5ROIHeads(nn.Module):
         )
 
     def _build_res5_block(self, cfg):
-        # fmt: off
         stage_channel_factor = self.stage_channel_factor  # res5 is 8x res2
         num_groups = cfg.RESNETS.NUM_GROUPS
         width_per_group = cfg.RESNETS.WIDTH_PER_GROUP
@@ -1530,108 +1267,13 @@ class Res5ROIHeads(nn.Module):
         x = self.pooler(features, boxes)
         return self.res5(x)
 
-    def _sample_proposals(self, matched_idxs, matched_labels, gt_classes):
-        """
-        Args:
-            matched_idxs (Tensor): a vector of length N, each is the best-matched
-            matched_labels (Tensor): a vector of length N, the matcher's label
-            gt_classes (Tensor): a vector of length M.
-        Returns:
-            Tensor: a vector of indices of sampled proposals. Each is in [0, N).
-            Tensor: Each sample is labeled as either a category in [0, num_classes)
-        """
-        has_gt = gt_classes.numel() > 0
-        # Get the corresponding GT for each proposal
-        if has_gt:
-            gt_classes = gt_classes[matched_idxs]
-            # Label unmatched proposals
-            # (0 label from matcher) as background (label=num_classes)
-            gt_classes[matched_labels == 0] = self.num_classes
-            # Label ignore proposals (-1 label)
-            gt_classes[matched_labels == -1] = -1
-        else:
-            gt_classes = torch.zeros_like(matched_idxs) + self.num_classes
-
-        sampled_fg_idxs, sampled_bg_idxs = subsample_labels(
-            gt_classes,
-            self.batch_size_per_image,
-            self.positive_sample_fraction,
-            self.num_classes,
-        )
-
-        sampled_idxs = torch.cat([sampled_fg_idxs, sampled_bg_idxs], dim=0)
-        return sampled_idxs, gt_classes[sampled_idxs]
-
-    @torch.no_grad()
-    def label_and_sample_proposals(self, proposals, targets):
-        """
-        Augment proposals with ground-truth boxes.
-        Adding the gt boxes to the set of proposals
-        ensures that the second stage components will have some positive
-        examples from the start of training. For RPN, this augmentation improves
-        convergence and empirically improves box AP on COCO by about 0.5
-
-        Returns:
-            - proposal_boxes: the proposal boxes
-            - gt_boxes: the ground-truth box that the proposal is assigned to
-            - gt_classes
-        """
-        gt_boxes = [x.gt_boxes for x in targets]
-        if self.proposal_append_gt:
-            proposals = add_ground_truth_to_proposals(gt_boxes, proposals)
-
-        proposals_with_gt = []
-        num_fg_samples = []
-        num_bg_samples = []
-        for proposals_per_image, targets_per_image in zip(proposals, targets):
-            has_gt = len(targets_per_image) > 0
-            match_quality_matrix = pairwise_iou(
-                targets_per_image.gt_boxes, proposals_per_image.proposal_boxes
-            )
-            matched_idxs, matched_labels = self.proposal_matcher(match_quality_matrix)
-            sampled_idxs, gt_classes = self._sample_proposals(
-                matched_idxs, matched_labels, targets_per_image.gt_classes
-            )
-
-            # Set target attributes of the sampled proposals:
-            proposals_per_image = proposals_per_image[sampled_idxs]
-            proposals_per_image.gt_classes = gt_classes
-
-            # We index all the attributes of targets that start with "gt_"
-            # and have not been added to proposals yet (="gt_classes").
-            if has_gt:
-                sampled_targets = matched_idxs[sampled_idxs]
-                # NOTE: here the indexing waste some compute, because heads
-                # like masks, keypoints, etc, will filter the proposals again,
-                # (by foreground/background, or number of keypoints in the image, etc)
-                # so we essentially index the data twice.
-                for (trg_name, trg_value) in targets_per_image.get_fields().items():
-                    if trg_name.startswith("gt_") and not proposals_per_image.has(
-                        trg_name
-                    ):
-                        proposals_per_image.set(trg_name, trg_value[sampled_targets])
-            else:
-                gt_boxes = targets_per_image.gt_boxes.tensor.new_zeros(
-                    (len(sampled_idxs), 4)
-                )
-
-                proposals_per_image.gt_boxes = gt_boxes
-
-            num_bg_samples.append((gt_classes == self.num_classes).sum().item())
-            num_fg_samples.append(gt_classes.numel() - num_bg_samples[-1])
-            proposals_with_gt.append(proposals_per_image)
-
-        return proposals_with_gt
-
     def forward(self, features, proposals, targets=None):
 
         if self.training:
-            proposal_boxes = self.label_and_sample_proposals(proposals, targets)
-            del targets
+            raise NotImplementedError()
         else:
             proposal_boxes = proposals
 
-        # aha, so it is the features that are casusing the problem
         box_features = self._shared_roi_transform(features, proposal_boxes)
         feature_pooled = box_features.mean(dim=[2, 3])  # pooled to 1x1
 
@@ -1677,17 +1319,11 @@ class AnchorGenerator(nn.Module):
         self.offset = cfg.ANCHOR_GENERATOR.OFFSET
         assert 0.0 <= self.offset < 1.0, self.offset
 
-        # fmt: on
         """
-        sizes (list[list[int]]): sizes[i] is the list of anchor sizes to use
-            for the i-th feature map. If len(sizes) == 1, then the same list of
-            anchor sizes, given by sizes[0], is used for all feature maps. Anchor
-            sizes are given in absolute lengths in units of the input image;
-            they do not dynamically scale if the input image size changes.
-        aspect_ratios (list[list[float]]): aspect_ratios[i] is the list of
-            anchor aspect ratios to use for the i-th feature map. If
-            len(aspect_ratios) == 1, then the same list of anchor aspect ratios,
-            given by aspect_ratios[0], is used for all feature maps.
+        sizes (list[list[int]]): sizes[i] is the list of anchor sizes for feat map i
+            1. given in absolute lengths in units of the input image;
+            2. they do not dynamically scale if the input image size changes.
+        aspect_ratios (list[list[float]])
         strides (list[int]): stride of each input feature.
         """
 
@@ -1695,13 +1331,11 @@ class AnchorGenerator(nn.Module):
         self.cell_anchors = nn.ParameterList(
             self._calculate_anchors(sizes, aspect_ratios)
         )
-        # self.register_parameter("cell_anchors", cell_anchors)
         self._spacial_feat_dim = 4
 
     def _calculate_anchors(self, sizes, aspect_ratios):
         # If one size (or aspect ratio) is specified and there are multiple feature
         # maps, then we "broadcast" anchors of that single size (or aspect ratio)
-        # over all feature maps.
         if len(sizes) == 1:
             sizes *= self.num_features
         if len(aspect_ratios) == 1:
@@ -1724,14 +1358,7 @@ class AnchorGenerator(nn.Module):
     def num_cell_anchors(self):
         """
         Returns:
-            list[int]: Each int is the number of anchors at every pixel
-                location, on that feature map.
-                For example, if at every pixel we use anchors of 3 aspect
-                ratios and 5 sizes, the number of anchors is 15.
-                (See also ANCHOR_GENERATOR.SIZES and
-                ANCHOR_GENERATOR.ASPECT_RATIOS in config)
-                In standard RPN models, `num_cell_anchors`
-                on every feature map is the same.
+            list[int]: Each int is the number of anchors at every pixel location, on that feature map.
         """
         return [len(cell_anchors) for cell_anchors in self.cell_anchors]
 
@@ -1759,16 +1386,6 @@ class AnchorGenerator(nn.Module):
         centered on one feature map point sample.
         We can later build the set of anchors
         for the entire feature map by tiling these tensors
-
-        Args:
-            sizes (tuple[float]): Absolute size of the anchors in the units of the input
-                image (the scaled input received by the network)
-                The absolute size is given as the side length of a box.
-            aspect_ratios (tuple[float]]): Aspect ratios of the boxes computed as box
-                height / width.
-        Returns:
-            Tensor of shape (len(sizes) * len(aspect_ratios), 4) storing anchor boxes
-                in XYXY format.
         """
 
         anchors = []
@@ -1784,18 +1401,12 @@ class AnchorGenerator(nn.Module):
     def forward(self, features):
         """
         Args:
-            features (list[Tensor]): list of feature maps on which to generate anchors.
+            features (torch.Tensor): list of feature maps on which to generate anchors.
         Returns:
-            list[list[Boxes]]: a list of #image elements.
-            Each is a list of #feature level Boxes.
+            torch.Tensor: a list of #image elements.
         """
         grid_sizes = [feature_map.shape[-2:] for feature_map in features]
         anchors_over_all_feature_maps = self.grid_anchors(grid_sizes)
-
-        # anchors_in_image = []
-        # for anchors_per_feature_map in anchors_over_all_feature_maps:
-        #     anchors_in_image.append(anchors_per_feature_map)
-
         return torch.stack(anchors_over_all_feature_maps)
 
 
@@ -1869,7 +1480,6 @@ class RPN(nn.Module):
     def __init__(self, cfg, input_shape: Dict[str, ShapeSpec]):
         super().__init__()
 
-        # fmt: off
         self.min_box_side_len = cfg.PROPOSAL_GENERATOR.MIN_SIZE
         self.in_features = cfg.RPN.IN_FEATURES
         self.nms_thresh = cfg.RPN.NMS_THRESH
@@ -1877,9 +1487,7 @@ class RPN(nn.Module):
         self.positive_fraction = cfg.RPN.POSITIVE_FRACTION
         self.smooth_l1_beta = cfg.RPN.SMOOTH_L1_BETA
         self.loss_weight = cfg.RPN.LOSS_WEIGHT
-        # fmt: on
 
-        # Map from self.training state to train/test settings
         self.pre_nms_topk = {
             True: cfg.RPN.PRE_NMS_TOPK_TRAIN,
             False: cfg.RPN.PRE_NMS_TOPK_TEST,
@@ -1908,8 +1516,8 @@ class RPN(nn.Module):
             features (dict[str: Tensor])
             gt_instances
         Returns:
-            proposals: list[Instances] or None
-            loss: dict[Tensor]
+            proposals: list[Dict]
+            loss: Dict[torch.Tensor]
         """
         features = [features[f] for f in self.in_features]
         pred_objectness_logits, pred_anchor_deltas = self.rpn_head(features)
@@ -1929,7 +1537,7 @@ class RPN(nn.Module):
         )
 
         if self.training:
-            losses = {k: v * self.loss_weight for k, v in outputs.losses().items()}
+            raise NotImplementedError()
         else:
             losses = {}
 
@@ -1998,77 +1606,7 @@ class FastRCNNOutputs(object):
             self.gt_boxes = proposals["gt_boxes"]
             self.gt_classs = proposals["gt_classes"]
 
-    def _log_accuracy(self):
-        raise NotImplementedError()
-        """
-        see:
-        https://github.com/airsplay/py-bottom-up-attention/blob\
-                /master/detectron2/modeling/roi_heads/fast_rcnn.py
-        """
-
-    def softmax_cross_entropy_loss(self):
-        self._log_accuracy()
-        return F.cross_entropy(
-            self.pred_class_logits, self.gt_classes, reduction="mean"
-        )
-
-    def smooth_l1_loss(self):
-        raise NotImplementedError()
-        """
-        see:
-        https://github.com/airsplay/py-bottom-up-attention/blob\
-                /master/detectron2/modeling/roi_heads/fast_rcnn.py
-        """
-
-        """
-        Compute the smooth L1 loss for box regression.
-        Returns:
-            scalar Tensor
-        """
-        gt_proposal_deltas = self.box2box_transform.get_deltas(
-            self.proposals.tensor, self.gt_boxes.tensor
-        )
-        box_dim = gt_proposal_deltas.size(1)  # 4 or 5
-        cls_agnostic_bbox_reg = self.pred_proposal_deltas.size(1) == box_dim
-        if cls_agnostic_bbox_reg:
-            pass
-            # pred_proposal_deltas only corresponds to foreground class for agnostic
-            # gt_class_cols = torch.arange(box_dim, device=device)
-        else:
-            pass
-            # fg_gt_classes = self.gt_classes[fg_inds]
-            # pred_proposal_deltas for class k
-            # are located in columns [b * k : b * k + b],
-            # where b is the dimension of box representation (4 or 5)
-            # Note that compared to Detectron1,
-            # we do not perform bounding box regression for background classes.
-            # gt_class_cols = box_dim * fg_gt_classes[:, None] + torch.arange(
-            #    box_dim, device=device
-            # )
-
-        loss_box_reg = torch.nn.SmoothL1Loss(reduction="sum")
-        # The loss is normalized using the total number of regions (R), not the number
-        # of foreground regions even though the box regression loss is only defined on
-        # foreground regions. Why? Because doing so gives equal training influence to
-        # each foreground example. To see how, consider two different minibatches:
-        #  (1) Contains a single foreground region
-        #  (2) Contains 100 foreground regions
-        # If we normalize by the number of foreground regions, the single example in
-        # minibatch (1) will be given 100 times as much influence as each foreground
-        # example in minibatch (2). Normalizing by the total number of regions, R,
-        # means that the single example in minibatch (1) and each of the 100 examples
-        # in minibatch (2) are given equal influence.
-        loss_box_reg = loss_box_reg / self.gt_classes.numel()
-        return loss_box_reg
-
-    def losses(self):
-        return {
-            "loss_cls": self.softmax_cross_entropy_loss(),
-            "loss_box_reg": self.smooth_l1_loss(),
-        }
-
     def predict_boxes(self):
-        # need to squeeze first dim here for single image
         proposals = self.proposals.squeeze(0)
         num_pred = proposals.size(-2)
         B = proposals.size(-1)
@@ -2088,7 +1626,6 @@ class FastRCNNOutputs(object):
 
     @torch.no_grad()
     def inference(self, score_thresh, nms_thresh, mink_per_image, topk_per_image):
-        # ther is something wrong here
         boxes = self.predict_boxes()[0]
         box_scores = self.predict_probs()[0]
 
@@ -2099,7 +1636,7 @@ class FastRCNNOutputs(object):
         if not isinstance(nms_thresh, list):
             nms_thresh = [nms_thresh]
         for nms_t in nms_thresh:
-            output, ids = frcnn_outputsv2(
+            output, ids = frcnn_outputs(
                 boxes=boxes,
                 box_scores=box_scores,
                 image_size=image_sizes,
@@ -2153,11 +1690,10 @@ class FastRCNNOutputLayers(nn.Module):
         self.use_attr = use_attr
         if use_attr:
             '''
-            pass
-            Modifications for VG in RoI heads (modeling/roi_heads/fast_rcnn.py))\n"
-            f"\tEmbedding: {num_classes + 1} --> {input_size // 8}"
-            f"\tLinear: {input_size + input_size // 8} --> {input_size // 4}"
-            f"\tLinear: {input_size // 4} --> {num_attrs + 1}
+            Modifications for VG in RoI heads
+            Embedding: {num_classes + 1} --> {input_size // 8}
+            Linear: {input_size + input_size // 8} --> {input_size // 4}
+            Linear: {input_size // 4} --> {num_attrs + 1}
             '''
             self.cls_embedding = nn.Embedding(num_classes + 1, input_size // 8)
             self.fc_attr = nn.Linear(input_size + input_size // 8, input_size // 4)
@@ -2213,9 +1749,6 @@ class GeneralizedRCNN(nn.Module):
         """
         if self.training:
             raise NotImplementedError()
-            # return self.training(images, image_sizes, gt_boxes)
-            # see GeneralizedRCNN in Detectron2
-
         else:
             return self.inference(
                 images=images,
@@ -2224,9 +1757,6 @@ class GeneralizedRCNN(nn.Module):
                 proposals=proposals,
                 scale_yx=scale_yx
             )
-
-    def training(self, bactched_inputs):
-        pass
 
     def inference(
         self,
@@ -2252,9 +1782,7 @@ class GeneralizedRCNN(nn.Module):
                     assert proposals is not None
                 results = self.roi_heads(features, proposals, None)
             else:
-                results = self.roi_heads.forward_with_given_boxes(
-                    features, gt_boxes
-                )
+                raise NotImplementedError()
 
             if scale_yx is not None:
                 results["boxes"] = _scale_box(results["boxes"], scale_yx)
