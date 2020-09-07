@@ -28,6 +28,7 @@ from yaml import Loader, dump, load
 
 from modeling_frcnn import GeneralizedRCNN
 from processing_image import Preprocess, tensorize
+
 # from transformers import LxmertForQuestionAnswering, LxmertTokenizer
 from visualizing_image import SingleImageViz
 
@@ -63,18 +64,6 @@ def load_ckp(ckp="checkpoint.pkl"):
             assert isinstance(v, torch.tensor), type(v)
         r[k] = v
     return r
-
-
-def show_image(a):
-    a = np.uint8(np.clip(a, 0, 255))
-    img = Image.fromarray(a)
-    img.show()
-
-
-def save_image(a, name="test_out", affix="jpg"):
-    a = np.uint8(np.clipk(a, 0, 255))
-    img = Image.fromarray(a)
-    img.save(f"{name}.{affix}")
 
 
 class Config:
