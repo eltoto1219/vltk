@@ -1,3 +1,20 @@
+"""
+ coding=utf-8
+ Copyright 2018, Antonio Mendoza Hao Tan, Mohit Bansal
+ Adapted From Facebook Inc, Detectron2
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.import copy
+ """
 import colorsys
 import io
 
@@ -175,9 +192,6 @@ class SingleImageViz:
             )
         else:
             self.fig.savefig(saveas)
-
-    def show(self):
-        self.ax.imshow(self.img, interpolation="nearest")
 
     def _create_text_labels_attr(self, classes, scores, attr_classes, attr_scores):
         labels = [self.id2obj[i] for i in classes]

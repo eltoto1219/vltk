@@ -11,8 +11,6 @@ input:
     max_size_test: 1333
     min_size_test: 800
     format: BGR
-dataloaders:
-    num_workers: 4
 backbone:
     freeze_at: 2
 proposal_generator:
@@ -38,30 +36,28 @@ rpn:
     smooth_l1_beta : 0.0
     loss_weight : 1.0
     nms_thresh : 0.7
-    roi_heads:
-        num_classes : 1600
-        in_features : [res4]
-        iou_thresholds : [0.5]
-        iou_labels : [0, 1]
-        positive_fraction : 0.25
-        score_thresh_test : 0.2
-        nms_thresh_test : [0.5, 0.6, 0.7]
-        proposal_append_gt : true
-    roi_box_head:
-        bbox_reg_weights : [10.0, 10.0, 5.0, 5.0]
-        smooth_l1_beta : 0.0
-        pooler_resolution : 14
-        pooler_sampling_ratio : 0
-        # true or false
-        res5halve : False
-        attr: true
-        num_attrs: 400
-        num_fc : 0
-        fc_dim : 1024
-        num_conv : 0
-        conv_dim : 256
-        cls_agnostic_bbox_reg : False
-        pooler_type: ROIPool
+roi_heads:
+    num_classes : 1600
+    in_features : [res4]
+    iou_thresholds : [0.5]
+    iou_labels : [0, 1]
+    positive_fraction : 0.25
+    score_thresh_test : 0.2
+    nms_thresh_test : [0.5, 0.6, 0.7]
+    proposal_append_gt : true
+roi_box_head:
+    bbox_reg_weights : [10.0, 10.0, 5.0, 5.0]
+    smooth_l1_beta : 0.0
+    pooler_resolution : 14
+    pooler_sampling_ratio : 0
+    res5halve : False
+    attr: true
+    num_attrs: 400
+    num_fc : 0
+    fc_dim : 1024
+    num_conv : 0
+    conv_dim : 256
+    cls_agnostic_bbox_reg : False
 resnets:
     depth : 101
     out_features : [res4]

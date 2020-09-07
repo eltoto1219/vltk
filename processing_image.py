@@ -1,3 +1,20 @@
+"""
+ coding=utf-8
+ Copyright 2018, Antonio Mendoza Hao Tan, Mohit Bansal
+ Adapted From Facebook Inc, Detectron2
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.import copy
+ """
 import sys
 from typing import Tuple
 
@@ -96,7 +113,7 @@ class Preprocess:
 
     def __call__(self, images, input_format="BGR"):
         with torch.no_grad():
-            if len(images.shape) < 4:
+            if not isinstance(images, list):
                 images = [images]
             if self.input_format == "RGB":
                 images = [im[:, :, ::-1] for im in images]
@@ -113,8 +130,8 @@ class Preprocess:
                 raise NotImplementedError()
             # pad
             images, sizes = self.pad(images)
-            scale_yx = torch.true_divide(raw_sizes, sizes)
-            return images, sizes, scale_yx
+            scales_yx = torch.true_divide(raw_sizes, sizes).tolist()
+            return images, sizes, scales_yx
 
 
 def _scale_box(boxes, scale_yx):

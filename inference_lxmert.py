@@ -1,3 +1,21 @@
+"""
+ coding=utf-8
+ Copyright 2018, Antonio Mendoza Hao Tan, Mohit Bansal
+ Adapted From Facebook Inc, Detectron2
+
+ Licensed under the Apache License, Version 2.0 (the "License");
+ you may not use this file except in compliance with the License.
+ You may obtain a copy of the License at
+
+     http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing, software
+ distributed under the License is distributed on an "AS IS" BASIS,
+ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ See the License for the specific language governing permissions and
+ limitations under the License.import copy
+ """
+
 import copy
 import json
 import pickle as pkl
@@ -6,11 +24,11 @@ from collections import OrderedDict
 import numpy as np
 import PIL.Image as Image
 import torch
-from transformers import LxmertForQuestionAnswering, LxmertTokenizer
 from yaml import Loader, dump, load
 
 from modeling_frcnn import GeneralizedRCNN
 from processing_image import Preprocess, tensorize
+# from transformers import LxmertForQuestionAnswering, LxmertTokenizer
 from visualizing_image import SingleImageViz
 
 
@@ -106,27 +124,30 @@ class Config:
 
 
 if __name__ == "__main__":
-    raw_img = "test_in.jpg"
+    im1 = "test_one.jpg"
     test_qustion = ["Is the man on a horse?"]
     target = "yes"
-    img_tensor = tensorize(raw_img)
+    # incase I want to batch
+    img_tensors = list(map(lambda x: tensorize(x), [im1]))
     cfg = load_config()
     objids, attrids = load_obj_data()
     gqa_answers = json.load(open("gqa_answers.json"))
     # init classes
-    visualizer = SingleImageViz(img_tensor, id2obj=objids, id2attr=attrids)
+    visualizer = SingleImageViz(img_tensors[0], id2obj=objids, id2attr=attrids)
     preprocess = Preprocess(cfg)
     frcnn = GeneralizedRCNN(cfg)
     frcnn.load_state_dict(load_ckp(), strict=False)
     frcnn.eval()
-    lxmert_tokenizer = LxmertTokenizer.from_pretrained("unc-nlp/lxmert-base-uncased")
-    lxmert = LxmertForQuestionAnswering.from_pretrained(
-        "unc-nlp/lxmert-base-uncased", num_qa_labels=len(gqa_answers)
-    )
-    lxmert.eval()
+    # lxmert_tokenizer = LxmertTokenizer.from_pretrained("eltoto1219/lxmert-gqa-untuned")
+    # lxmert = LxmertForQuestionAnswering.from_pretrained(
+    #     "eltoto1219/lxmert-gqa-untuned", num_qa_labels=len(gqa_answers)
+    # )
+    # lxmert.eval()
     # run frcnn
-    images, sizes, scale_yx = preprocess(img_tensor)
-    output_dict = frcnn(images, sizes, scale_yx=scale_yx)
+    images, sizes, scales_yx = preprocess(img_tensors)
+    output_dict = frcnn(images, sizes, scales_yx=scales_yx)
+    # only want to select the first image
+    output_dict = output_dict[0]
     features = output_dict.pop("roi_features")
     boxes = output_dict.pop("boxes")
     # add boxes and labels to the image
@@ -137,26 +158,27 @@ if __name__ == "__main__":
         output_dict.pop("attr_ids"),
         output_dict.pop("attr_scores"),
     )
+    visualizer.save()
     # run lxmert
-    inputs = lxmert_tokenizer(
-        test_qustion,
-        padding="max_length",
-        max_length=20,
-        truncation=True,
-        return_token_type_ids=True,
-        return_attention_mask=True,
-        add_special_tokens=True,
-    )
-    input_ids = torch.tensor(inputs.input_ids)
-    output = lxmert(
-        input_ids=input_ids,
-        attention_mask=torch.tensor(inputs.attention_mask),
-        visual_feats=features.unsqueeze(0),
-        visual_pos=boxes.unsqueeze(0),
-        token_type_ids=torch.tensor(inputs.token_type_ids),
-        return_dict=True,
-        output_attentions=False,
-    )
-    logit, pred = output["question_answering_score"].max(-1)
-    print("prediction:", gqa_answers[pred])
-    print("class ind:", int(pred))
+    # inputs = lxmert_tokenizer(
+    #     test_qustion,
+    #     padding="max_length",
+    #     max_length=20,
+    #     truncation=True,
+    #     return_token_type_ids=True,
+    #     return_attention_mask=True,
+    #     add_special_tokens=True,
+    # )
+    # input_ids = torch.tensor(inputs.input_ids)
+    # output = lxmert(
+    #     input_ids=input_ids,
+    #     attention_mask=torch.tensor(inputs.attention_mask),
+    #     visual_feats=features.unsqueeze(0),
+    #     visual_pos=boxes.unsqueeze(0),
+    #     token_type_ids=torch.tensor(inputs.token_type_ids),
+    #     return_dict=True,
+    #     output_attentions=False,
+    # )
+    # logit, pred = output["question_answering_score"].max(-1)
+    # print("prediction:", gqa_answers[pred])
+    # print("class ind:", int(pred))
