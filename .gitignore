@@ -1,6 +1,5 @@
-*.pkl
-venv/
-venv/**
-__pycache__/**
-src/**
-.ipynb_checkpoints/**
+**.pkl
+**/venv/
+**/__pycache__/
+**/.ipynb_checkpoints/
+frcnn.egg-info/

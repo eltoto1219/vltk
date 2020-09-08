@@ -22,15 +22,11 @@ import pickle as pkl
 from collections import OrderedDict
 
 import numpy as np
-import PIL.Image as Image
 import torch
 from yaml import Loader, dump, load
 
-from modeling_frcnn import GeneralizedRCNN
-from processing_image import Preprocess, tensorize
-
-# from transformers import LxmertForQuestionAnswering, LxmertTokenizer
-from visualizing_image import SingleImageViz
+from .processing_image import Preprocess, tensorize
+from .visualizing_image import SingleImageViz
 
 
 def load_config(config="config.yaml"):
@@ -113,6 +109,8 @@ class Config:
 
 
 if __name__ == "__main__":
+    from .modeling_frcnn import GeneralizedRCNN
+
     im1 = "test_one.jpg"
     test_qustion = ["Is the man on a horse?"]
     target = "yes"
@@ -127,12 +125,6 @@ if __name__ == "__main__":
     frcnn = GeneralizedRCNN(cfg)
     frcnn.load_state_dict(load_ckp(), strict=False)
     frcnn.eval()
-    # lxmert_tokenizer = LxmertTokenizer.from_pretrained("eltoto1219/lxmert-gqa-untuned")
-    # lxmert = LxmertForQuestionAnswering.from_pretrained(
-    #     "eltoto1219/lxmert-gqa-untuned", num_qa_labels=len(gqa_answers)
-    # )
-    # lxmert.eval()
-    # run frcnn
     images, sizes, scales_yx = preprocess(img_tensors)
     output_dict = frcnn(images, sizes, scales_yx=scales_yx)
     # only want to select the first image
@@ -148,26 +140,3 @@ if __name__ == "__main__":
         output_dict.pop("attr_scores"),
     )
     visualizer.save()
-    # run lxmert
-    # inputs = lxmert_tokenizer(
-    #     test_qustion,
-    #     padding="max_length",
-    #     max_length=20,
-    #     truncation=True,
-    #     return_token_type_ids=True,
-    #     return_attention_mask=True,
-    #     add_special_tokens=True,
-    # )
-    # input_ids = torch.tensor(inputs.input_ids)
-    # output = lxmert(
-    #     input_ids=input_ids,
-    #     attention_mask=torch.tensor(inputs.attention_mask),
-    #     visual_feats=features.unsqueeze(0),
-    #     visual_pos=boxes.unsqueeze(0),
-    #     token_type_ids=torch.tensor(inputs.token_type_ids),
-    #     return_dict=True,
-    #     output_attentions=False,
-    # )
-    # logit, pred = output["question_answering_score"].max(-1)
-    # print("prediction:", gqa_answers[pred])
-    # print("class ind:", int(pred))
