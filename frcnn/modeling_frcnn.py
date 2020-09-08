@@ -1,7 +1,7 @@
 """
  coding=utf-8
  Copyright 2018, Antonio Mendoza Hao Tan, Mohit Bansal
- Adapted From Facebook Inc, Detectron2
+ Adapted From Facebook Inc, Detectron2 && Huggingface Co.
 
  Licensed under the Apache License, Version 2.0 (the "License");
  you may not use this file except in compliance with the License.
@@ -30,7 +30,11 @@ from torch.nn.modules.batchnorm import BatchNorm2d
 from torchvision.ops import RoIPool
 from torchvision.ops import boxes as box_ops
 
-from .utils import WEIGHTS_NAME, Config, cached_path, hf_bucket_url, is_remote_url, load_checkpoint, load_config
+
+try:
+    from .utils import WEIGHTS_NAME, Config, cached_path, hf_bucket_url, is_remote_url, load_checkpoint
+except ImportError:
+    from utils import WEIGHTS_NAME, Config, cached_path, hf_bucket_url, is_remote_url, load_checkpoint
 
 
 # Helper Functions
@@ -1600,6 +1604,7 @@ class GeneralizedRCNN(nn.Module):
         self.roi_outputs = ROIOutputs(cfg)
         self.to(self.device)
 
+    '''
     @staticmethod
     def from_pretrained(config=None, checkpoint=None, random_weights=False, strict=False):
         if config is None:
@@ -1620,56 +1625,10 @@ class GeneralizedRCNN(nn.Module):
             else:
                 model.load_state_dict(load_checkpoint(), strict=strict)
                 return model
-
-    def forward(self, images, image_shapes, gt_boxes=None, proposals=None, scales_yx=None):
-        if self.training:
-            raise NotImplementedError()
-        return self.inference(
-            images=images,
-            image_shapes=image_shapes,
-            gt_boxes=gt_boxes,
-            proposals=proposals,
-            scales_yx=scales_yx
-        )
-
-    @torch.no_grad()
-    def inference(self, images, image_shapes, gt_boxes=None, proposals=None, scales_yx=None):
-        # run images through bacbone
-        features = self.backbone(images)
-
-        # generate proposals if none are available
-        if proposals is None:
-            proposal_boxes, _ = self.proposal_generator(
-                images,
-                image_shapes,
-                features,
-                gt_boxes
-            )
-        else:
-            assert proposals is not None
-
-        # pool object features from either gt_boxes, or from proposals
-        obj_logits, attr_logits, box_deltas, feature_pooled = self.roi_heads(
-            features,
-            proposal_boxes,
-            gt_boxes
-        )
-
-        # prepare FRCNN Outputs and select top proposals
-        results = self.roi_outputs(
-            obj_logits=obj_logits,
-            attr_logits=attr_logits,
-            box_deltas=box_deltas,
-            pred_boxes=proposal_boxes,
-            features=feature_pooled,
-            sizes=image_shapes,
-            scales=scales_yx
-        )
-
-        return results
+        '''
 
     @classmethod
-    def from_pretrained_v2(cls, pretrained_model_name_or_path, *model_args, **kwargs):
+    def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
         config = kwargs.pop("config", None)
         state_dict = kwargs.pop("state_dict", None)
         cache_dir = kwargs.pop("cache_dir", None)
@@ -1683,7 +1642,15 @@ class GeneralizedRCNN(nn.Module):
         # Load config if we don't provide a configuration
         if not isinstance(config, Config):
             config_path = config if config is not None else pretrained_model_name_or_path
-            config = load_config(config_path)
+            # try:
+            config = Config.from_pretrained(
+                config_path,
+                cache_dir=cache_dir,
+                force_download=force_download,
+                resume_download=resume_download,
+                proxies=proxies,
+                local_files_only=local_files_only,
+            )
 
         # Load model
         if pretrained_model_name_or_path is not None:
@@ -1744,7 +1711,11 @@ class GeneralizedRCNN(nn.Module):
 
         if state_dict is None:
             try:
-                state_dict = torch.load(resolved_archive_file, map_location="cpu")
+                try:
+                    state_dict = torch.load(resolved_archive_file, map_location="cpu")
+                except Exception:
+                    state_dict = load_checkpoint(resolved_archive_file)
+
             except Exception:
                 raise OSError(
                     "Unable to load weights from pytorch checkpoint file. "
@@ -1838,3 +1809,50 @@ class GeneralizedRCNN(nn.Module):
         model.eval()
 
         return model
+
+    def forward(self, images, image_shapes, gt_boxes=None, proposals=None, scales_yx=None):
+        if self.training:
+            raise NotImplementedError()
+        return self.inference(
+            images=images,
+            image_shapes=image_shapes,
+            gt_boxes=gt_boxes,
+            proposals=proposals,
+            scales_yx=scales_yx
+        )
+
+    @torch.no_grad()
+    def inference(self, images, image_shapes, gt_boxes=None, proposals=None, scales_yx=None):
+        # run images through bacbone
+        features = self.backbone(images)
+
+        # generate proposals if none are available
+        if proposals is None:
+            proposal_boxes, _ = self.proposal_generator(
+                images,
+                image_shapes,
+                features,
+                gt_boxes
+            )
+        else:
+            assert proposals is not None
+
+        # pool object features from either gt_boxes, or from proposals
+        obj_logits, attr_logits, box_deltas, feature_pooled = self.roi_heads(
+            features,
+            proposal_boxes,
+            gt_boxes
+        )
+
+        # prepare FRCNN Outputs and select top proposals
+        results = self.roi_outputs(
+            obj_logits=obj_logits,
+            attr_logits=attr_logits,
+            box_deltas=box_deltas,
+            pred_boxes=proposal_boxes,
+            features=feature_pooled,
+            sizes=image_shapes,
+            scales=scales_yx
+        )
+
+        return results

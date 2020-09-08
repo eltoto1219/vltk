@@ -26,7 +26,7 @@ class Install(install):
 setup(
     name="frcnn",
     version="1.0.0",
-    cmdclass={"develop": Develop, "install": Install},
+    # cmdclass={"develop": Develop, "install": Install},
     author="Antonio Mendoza",
     author_email="avmendoz@cs.unc.edu",
     packages=["frcnn"],
@@ -42,5 +42,8 @@ setup(
         "pillow",
         "matplotlib",
         "opencv-python",
+        "requests",
+        "fnmatch",
+        "tqdm",
     ],
 )

@@ -78,12 +78,6 @@ WEIGHTS_NAME = "pytorch_model.bin"
 CONFIG_NAME = "config.yaml"
 
 
-def load_config(config=CONFIG):
-    with open(config) as stream:
-        data = load(stream, Loader=Loader)
-    return Config(data)
-
-
 def load_labels(objs=OBJECTS, attrs=ATTRIBUTES):
     vg_classes = []
     with open(objs) as f:
@@ -159,6 +153,12 @@ class Config:
         with open(f"{file_name}", "w") as stream:
             json.dump(data, stream)
 
+    @staticmethod
+    def load_yaml(config):
+        with open(config) as stream:
+            data = load(stream, Loader=Loader)
+        return data
+
     def __str__(self):
         t = "    "
         if self._name != "root":
@@ -174,6 +174,63 @@ class Config:
                 r += f"{t * (self._level)}{k}: {v} ({type(v).__name__})\n"
             self._level = level
         return r[:-1]
+
+    @classmethod
+    def from_pretrained(cls, pretrained_model_name_or_path: str, **kwargs):
+        config_dict, kwargs = cls.get_config_dict(
+            pretrained_model_name_or_path, **kwargs
+        )
+        return cls(config_dict)
+
+    @classmethod
+    def get_config_dict(cls, pretrained_model_name_or_path: str, **kwargs):
+
+        cache_dir = kwargs.pop("cache_dir", None)
+        force_download = kwargs.pop("force_download", False)
+        resume_download = kwargs.pop("resume_download", False)
+        proxies = kwargs.pop("proxies", None)
+        local_files_only = kwargs.pop("local_files_only", False)
+
+        if os.path.isdir(pretrained_model_name_or_path):
+            config_file = os.path.join(pretrained_model_name_or_path, CONFIG_NAME)
+        elif os.path.isfile(pretrained_model_name_or_path) or is_remote_url(
+            pretrained_model_name_or_path
+        ):
+            config_file = pretrained_model_name_or_path
+        else:
+            config_file = hf_bucket_url(
+                pretrained_model_name_or_path, filename=CONFIG_NAME, use_cdn=False
+            )
+
+        try:
+            # Load from URL or cache if already cached
+            resolved_config_file = cached_path(
+                config_file,
+                cache_dir=cache_dir,
+                force_download=force_download,
+                proxies=proxies,
+                resume_download=resume_download,
+                local_files_only=local_files_only,
+            )
+            # Load config dict
+            if resolved_config_file is None:
+                raise EnvironmentError
+            #  config_dict = Config.load_yaml(resolved_config_file)
+
+        except EnvironmentError:
+            msg = "Can't load config for"
+            raise EnvironmentError(msg)
+
+        if resolved_config_file == config_file:
+            print("loading configuration file {}".format(config_file))
+        else:
+            print(
+                "loading configuration file {} from cache at {}".format(
+                    config_file, resolved_config_file
+                )
+            )
+
+        return Config.load_yaml(resolved_config_file), kwargs
 
 
 # Hugging face functiions below

@@ -2,6 +2,7 @@
 **/venv/
 **/__pycache__/
 **/.ipynb_checkpoints/
-**/frcnn-vg-finetuned/
 frcnn/frcnn-vg-finetuned/
+**/frcnn-*/
+**/lxmert-*/
 frcnn.egg-info/
