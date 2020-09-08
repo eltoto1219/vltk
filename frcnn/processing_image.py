@@ -18,11 +18,12 @@
 import sys
 from typing import Tuple
 
-import cv2
 import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
+
+import cv2
 
 
 class ResizeShortestEdge:
@@ -111,10 +112,17 @@ class Preprocess:
 
         return torch.stack(images), torch.tensor(image_sizes)
 
-    def __call__(self, images, input_format="BGR"):
+    def __call__(self, images, input_format="BGR", single_image=False):
         with torch.no_grad():
             if not isinstance(images, list):
                 images = [images]
+            if single_image:
+                assert len(images) == 1
+            for i in range(len(images)):
+                if isinstance(images[i], torch.Tensor):
+                    images.insert(i, images.pop(i).numpy())
+                elif not isinstance(images[i], np.ndarray):
+                    images.insert(i, tensorize(images.pop(i)))
             if self.input_format == "RGB":
                 images = [im[:, :, ::-1] for im in images]
             # resize shape
@@ -131,7 +139,10 @@ class Preprocess:
             # pad
             images, sizes = self.pad(images)
             scales_yx = torch.true_divide(raw_sizes, sizes).tolist()
-            return images, sizes, scales_yx
+            if single_image:
+                return images[0], sizes[0], scales_yx[0]
+            else:
+                return images, sizes, scales_yx
 
 
 def _scale_box(boxes, scale_yx):

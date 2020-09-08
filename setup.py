@@ -30,6 +30,7 @@ setup(
     author="Antonio Mendoza",
     author_email="avmendoz@cs.unc.edu",
     packages=["frcnn"],
+    # package_dir={"": "src"},
     scripts=["scripts/checkpoint"],
     description="PyTorch implementation of faster-rcnn",
     long_description=open("README.md").read(),

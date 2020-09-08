@@ -29,6 +29,8 @@ from torch.nn.modules.batchnorm import BatchNorm2d
 from torchvision.ops import RoIPool
 from torchvision.ops import boxes as box_ops
 
+from .utils import Config, load_checkpoint, load_config
+
 
 # Helper Functions
 def _clip_box(tensor, box_size: Tuple[int, int]):
@@ -1596,6 +1598,27 @@ class GeneralizedRCNN(nn.Module):
         self.roi_heads = Res5ROIHeads(cfg, self.backbone.output_shape())
         self.roi_outputs = ROIOutputs(cfg)
         self.to(self.device)
+
+    @staticmethod
+    def from_pretrained(config=None, checkpoint=None, random_weights=False, strict=False):
+        if config is None:
+            cfg = load_config()
+        else:
+            if isinstance(config, Config):
+                cfg = config
+            else:
+                cfg = load_config(config=config)
+
+        model = GeneralizedRCNN(cfg)
+        if random_weights:
+            return model
+        else:
+            if checkpoint is not None:
+                model.load_state_dict(load_checkpoint(checkpoint=checkpoint), strict=strict)
+                return model
+            else:
+                model.load_state_dict(load_checkpoint(), strict=strict)
+                return model
 
     def forward(self, images, image_shapes, gt_boxes=None, proposals=None, scales_yx=None):
         if self.training:
