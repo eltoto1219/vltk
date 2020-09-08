@@ -1,6 +1,6 @@
 """
  coding=utf-8
- Copyright 2018, Antonio Mendoza Hao Tan, Mohit Bansal
+ Copyright 2018, Antonio Mendoza Hao Tan, Mohit Bansal, Huggingface team :)
  Adapted From Facebook Inc, Detectron2
 
  Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,26 +17,65 @@
  """
 
 import copy
+import fnmatch
 import json
 import os
 import pickle as pkl
+import shutil
+import sys
+import tarfile
+import tempfile
 from collections import OrderedDict
+from contextlib import contextmanager
+from functools import partial
+from hashlib import sha256
 from pathlib import Path
+from urllib.parse import urlparse
+from zipfile import ZipFile, is_zipfile
 
 import numpy as np
-import torch
-
+import requests
+from filelock import FileLock
+from tqdm.auto import tqdm
 from yaml import Loader, dump, load
 
-from .processing_image import Preprocess, tensorize
-from .visualizing_image import SingleImageViz
+
+try:
+    import torch
+
+    _torch_available = True
+except ImportError:
+    _torch_available = False
 
 
+try:
+    from torch.hub import _get_torch_home
+
+    torch_cache_home = _get_torch_home()
+except ImportError:
+    torch_cache_home = os.path.expanduser(
+        os.getenv(
+            "TORCH_HOME", os.path.join(os.getenv("XDG_CACHE_HOME", "~/.cache"), "torch")
+        )
+    )
+
+default_cache_path = os.path.join(torch_cache_home, "transformers")
+
+CLOUDFRONT_DISTRIB_PREFIX = "https://cdn.huggingface.co"
+S3_BUCKET_PREFIX = "https://s3.amazonaws.com/models.huggingface.co/bert"
 PATH = "/".join(str(Path(__file__).resolve()).split("/")[:-1])
 CONFIG = os.path.join(PATH, "config.yaml")
 ATTRIBUTES = os.path.join(PATH, "attributes.txt")
 OBJECTS = os.path.join(PATH, "objects.txt")
-CHECKPOINT = os.path.join(PATH, "checkpoint.pkl")
+PYTORCH_PRETRAINED_BERT_CACHE = os.getenv(
+    "PYTORCH_PRETRAINED_BERT_CACHE", default_cache_path
+)
+PYTORCH_TRANSFORMERS_CACHE = os.getenv(
+    "PYTORCH_TRANSFORMERS_CACHE", PYTORCH_PRETRAINED_BERT_CACHE
+)
+TRANSFORMERS_CACHE = os.getenv("TRANSFORMERS_CACHE", PYTORCH_TRANSFORMERS_CACHE)
+WEIGHTS_NAME = "pytorch_model.bin"
+CONFIG_NAME = "config.yaml"
 
 
 def load_config(config=CONFIG):
@@ -58,7 +97,7 @@ def load_labels(objs=OBJECTS, attrs=ATTRIBUTES):
     return vg_classes, vg_attrs
 
 
-def load_checkpoint(ckp=CHECKPOINT):
+def load_checkpoint(ckp):
     r = OrderedDict()
     with open(ckp, "rb") as f:
         ckp = pkl.load(f)["model"]
@@ -137,35 +176,261 @@ class Config:
         return r[:-1]
 
 
-if __name__ == "__main__":
-    from .modeling_frcnn import GeneralizedRCNN
+# Hugging face functiions below
+def is_remote_url(url_or_filename):
+    parsed = urlparse(url_or_filename)
+    return parsed.scheme in ("http", "https")
 
-    im1 = "test_one.jpg"
-    test_qustion = ["Is the man on a horse?"]
-    target = "yes"
-    # incase I want to batch
-    img_tensors = list(map(lambda x: tensorize(x), [im1]))
-    cfg = load_config()
-    objids, attrids = load_labels()
-    gqa_answers = json.load(open("gqa_answers.json"))
-    # init classes
-    visualizer = SingleImageViz(img_tensors[0], id2obj=objids, id2attr=attrids)
-    preprocess = Preprocess(cfg)
-    frcnn = GeneralizedRCNN(cfg)
-    frcnn.load_state_dict(load_checkpoint(), strict=False)
-    frcnn.eval()
-    images, sizes, scales_yx = preprocess(img_tensors)
-    output_dict = frcnn(images, sizes, scales_yx=scales_yx)
-    # only want to select the first image
-    output_dict = output_dict[0]
-    features = output_dict.pop("roi_features")
-    boxes = output_dict.pop("boxes")
-    # add boxes and labels to the image
-    visualizer.draw_boxes(
-        boxes,
-        output_dict.pop("obj_ids"),
-        output_dict.pop("obj_scores"),
-        output_dict.pop("attr_ids"),
-        output_dict.pop("attr_scores"),
+
+def hf_bucket_url(model_id: str, filename: str, use_cdn=True) -> str:
+    endpoint = CLOUDFRONT_DISTRIB_PREFIX if use_cdn else S3_BUCKET_PREFIX
+    legacy_format = "/" not in model_id
+    if legacy_format:
+        return f"{endpoint}/{model_id}-{filename}"
+    else:
+        return f"{endpoint}/{model_id}/{filename}"
+
+
+def http_get(
+    url, temp_file, proxies=None, resume_size=0, user_agent=None,
+):
+    ua = "python/{}".format(sys.version.split()[0])
+    if _torch_available:
+        ua += "; torch/{}".format(torch.__version__)
+    if isinstance(user_agent, dict):
+        ua += "; " + "; ".join("{}/{}".format(k, v) for k, v in user_agent.items())
+    elif isinstance(user_agent, str):
+        ua += "; " + user_agent
+    headers = {"user-agent": ua}
+    if resume_size > 0:
+        headers["Range"] = "bytes=%d-" % (resume_size,)
+    response = requests.get(url, stream=True, proxies=proxies, headers=headers)
+    if response.status_code == 416:  # Range not satisfiable
+        return
+    content_length = response.headers.get("Content-Length")
+    total = resume_size + int(content_length) if content_length is not None else None
+    progress = tqdm(
+        unit="B", unit_scale=True, total=total, initial=resume_size, desc="Downloading",
     )
-    visualizer.save()
+    for chunk in response.iter_content(chunk_size=1024):
+        if chunk:  # filter out keep-alive new chunks
+            progress.update(len(chunk))
+            temp_file.write(chunk)
+    progress.close()
+
+
+def get_from_cache(
+    url,
+    cache_dir=None,
+    force_download=False,
+    proxies=None,
+    etag_timeout=10,
+    resume_download=False,
+    user_agent=None,
+    local_files_only=False,
+):
+
+    if cache_dir is None:
+        cache_dir = TRANSFORMERS_CACHE
+    if isinstance(cache_dir, Path):
+        cache_dir = str(cache_dir)
+
+    os.makedirs(cache_dir, exist_ok=True)
+
+    etag = None
+    if not local_files_only:
+        try:
+            response = requests.head(
+                url, allow_redirects=True, proxies=proxies, timeout=etag_timeout
+            )
+            if response.status_code == 200:
+                etag = response.headers.get("ETag")
+        except (EnvironmentError, requests.exceptions.Timeout):
+            # etag is already None
+            pass
+
+    filename = url_to_filename(url, etag)
+
+    # get cache path to put the file
+    cache_path = os.path.join(cache_dir, filename)
+
+    # etag is None = we don't have a connection, or url doesn't exist, or is otherwise inaccessible.
+    # try to get the last downloaded one
+    if etag is None:
+        if os.path.exists(cache_path):
+            return cache_path
+        else:
+            matching_files = [
+                file
+                for file in fnmatch.filter(os.listdir(cache_dir), filename + ".*")
+                if not file.endswith(".json") and not file.endswith(".lock")
+            ]
+            if len(matching_files) > 0:
+                return os.path.join(cache_dir, matching_files[-1])
+            else:
+                # If files cannot be found and local_files_only=True,
+                # the models might've been found if local_files_only=False
+                # Notify the user about that
+                if local_files_only:
+                    raise ValueError(
+                        "Cannot find the requested files in the cached path and outgoing traffic has been"
+                        " disabled. To enable model look-ups and downloads online, set 'local_files_only'"
+                        " to False."
+                    )
+                return None
+
+    # From now on, etag is not None.
+    if os.path.exists(cache_path) and not force_download:
+        return cache_path
+
+    # Prevent parallel downloads of the same file with a lock.
+    lock_path = cache_path + ".lock"
+    with FileLock(lock_path):
+
+        # If the download just completed while the lock was activated.
+        if os.path.exists(cache_path) and not force_download:
+            # Even if returning early like here, the lock will be released.
+            return cache_path
+
+        if resume_download:
+            incomplete_path = cache_path + ".incomplete"
+
+            @contextmanager
+            def _resumable_file_manager():
+                with open(incomplete_path, "a+b") as f:
+                    yield f
+
+            temp_file_manager = _resumable_file_manager
+            if os.path.exists(incomplete_path):
+                resume_size = os.stat(incomplete_path).st_size
+            else:
+                resume_size = 0
+        else:
+            temp_file_manager = partial(
+                tempfile.NamedTemporaryFile, dir=cache_dir, delete=False
+            )
+            resume_size = 0
+
+        # Download to temporary file, then copy to cache dir once finished.
+        # Otherwise you get corrupt cache entries if the download gets interrupted.
+        with temp_file_manager() as temp_file:
+            print(
+                "%s not found in cache or force_download set to True, downloading to %s",
+                url,
+                temp_file.name,
+            )
+
+            http_get(
+                url,
+                temp_file,
+                proxies=proxies,
+                resume_size=resume_size,
+                user_agent=user_agent,
+            )
+
+        os.replace(temp_file.name, cache_path)
+
+        meta = {"url": url, "etag": etag}
+        meta_path = cache_path + ".json"
+        with open(meta_path, "w") as meta_file:
+            json.dump(meta, meta_file)
+
+    return cache_path
+
+
+def url_to_filename(url, etag=None):
+
+    url_bytes = url.encode("utf-8")
+    url_hash = sha256(url_bytes)
+    filename = url_hash.hexdigest()
+
+    if etag:
+        etag_bytes = etag.encode("utf-8")
+        etag_hash = sha256(etag_bytes)
+        filename += "." + etag_hash.hexdigest()
+
+    if url.endswith(".h5"):
+        filename += ".h5"
+
+    return filename
+
+
+def cached_path(
+    url_or_filename,
+    cache_dir=None,
+    force_download=False,
+    proxies=None,
+    resume_download=False,
+    user_agent=None,
+    extract_compressed_file=False,
+    force_extract=False,
+    local_files_only=False,
+):
+    if cache_dir is None:
+        cache_dir = TRANSFORMERS_CACHE
+    if isinstance(url_or_filename, Path):
+        url_or_filename = str(url_or_filename)
+    if isinstance(cache_dir, Path):
+        cache_dir = str(cache_dir)
+
+    if is_remote_url(url_or_filename):
+        # URL, so get it from the cache (downloading if necessary)
+        output_path = get_from_cache(
+            url_or_filename,
+            cache_dir=cache_dir,
+            force_download=force_download,
+            proxies=proxies,
+            resume_download=resume_download,
+            user_agent=user_agent,
+            local_files_only=local_files_only,
+        )
+    elif os.path.exists(url_or_filename):
+        # File, and it exists.
+        output_path = url_or_filename
+    elif urlparse(url_or_filename).scheme == "":
+        # File, but it doesn't exist.
+        raise EnvironmentError("file {} not found".format(url_or_filename))
+    else:
+        # Something unknown
+        raise ValueError(
+            "unable to parse {} as a URL or as a local path".format(url_or_filename)
+        )
+
+    if extract_compressed_file:
+        if not is_zipfile(output_path) and not tarfile.is_tarfile(output_path):
+            return output_path
+
+        # Path where we extract compressed archives
+        # We avoid '.' in dir name and add "-extracted" at the end: "./model.zip" => "./model-zip-extracted/"
+        output_dir, output_file = os.path.split(output_path)
+        output_extract_dir_name = output_file.replace(".", "-") + "-extracted"
+        output_path_extracted = os.path.join(output_dir, output_extract_dir_name)
+
+        if (
+            os.path.isdir(output_path_extracted)
+            and os.listdir(output_path_extracted)
+            and not force_extract
+        ):
+            return output_path_extracted
+
+        # Prevent parallel extractions
+        lock_path = output_path + ".lock"
+        with FileLock(lock_path):
+            shutil.rmtree(output_path_extracted, ignore_errors=True)
+            os.makedirs(output_path_extracted)
+            if is_zipfile(output_path):
+                with ZipFile(output_path, "r") as zip_file:
+                    zip_file.extractall(output_path_extracted)
+                    zip_file.close()
+            elif tarfile.is_tarfile(output_path):
+                tar_file = tarfile.open(output_path)
+                tar_file.extractall(output_path_extracted)
+                tar_file.close()
+            else:
+                raise EnvironmentError(
+                    "Archive format of {} could not be identified".format(output_path)
+                )
+
+        return output_path_extracted
+
+    return output_path
