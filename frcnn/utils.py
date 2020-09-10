@@ -29,13 +29,17 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from functools import partial
 from hashlib import sha256
+from io import BytesIO
 from pathlib import Path
 from urllib.parse import urlparse
 from zipfile import ZipFile, is_zipfile
 
+import cv2
 import numpy as np
 import requests
+import wget
 from filelock import FileLock
+from PIL import Image
 from tqdm.auto import tqdm
 from yaml import Loader, dump, load
 
@@ -215,25 +219,37 @@ class Config:
             # Load config dict
             if resolved_config_file is None:
                 raise EnvironmentError
-            #  config_dict = Config.load_yaml(resolved_config_file)
+
+            config_file = Config.load_yaml(resolved_config_file)
 
         except EnvironmentError:
             msg = "Can't load config for"
             raise EnvironmentError(msg)
 
         if resolved_config_file == config_file:
-            print("loading configuration file {}".format(config_file))
+            print("loading configuration file from path")
         else:
-            print(
-                "loading configuration file {} from cache at {}".format(
-                    config_file, resolved_config_file
-                )
-            )
+            print("loading configuration file cache")
 
         return Config.load_yaml(resolved_config_file), kwargs
 
 
-# Hugging face functiions below
+# quick compare tensors
+def compare(in_tensor):
+
+    out_tensor = torch.load("dump.pt", map_location=in_tensor.device)
+    n1 = in_tensor.numpy()
+    n2 = out_tensor.numpy()[0]
+    print(n1.shape, n1[0, 0, :5])
+    print(n2.shape, n2[0, 0, :5])
+    assert np.allclose(
+        n1, n2, rtol=0.01, atol=0.1
+    ), f"{sum([1 for x in np.isclose(n1, n2, rtol=0.01, atol=0.1).flatten() if x == False])/len(n1.flatten())*100:.4f} % element-wise mismatch"
+    raise Exception("tensors are all good")
+
+    # Hugging face functiions below
+
+
 def is_remote_url(url_or_filename):
     parsed = urlparse(url_or_filename)
     return parsed.scheme in ("http", "https")
@@ -491,3 +507,66 @@ def cached_path(
         return output_path_extracted
 
     return output_path
+
+
+def get_data(query, delim=","):
+    assert isinstance(query, str)
+    if os.path.isfile(query):
+        with open(query) as f:
+            data = eval(f.read())
+    else:
+        req = requests.get(query)
+        try:
+            data = requests.json()
+        except Exception:
+            data = req.content.decode()
+            assert data is not None, "could not connect"
+            try:
+                data = eval(data)
+            except Exception:
+                data = data.split("\n")
+        req.close()
+    return data
+
+
+def get_image_from_url(url):
+    response = requests.get(url)
+    img = np.array(Image.open(BytesIO(response.content)))
+    return img
+
+
+# to load legace frcnn checkpoint from detectron
+def load_frcnn_pkl_from_url(url):
+    fn = url.split("/")[-1]
+    if fn not in os.listdir(os.getcwd()):
+        wget.download(url)
+    with open(fn, "rb") as stream:
+        weights = pkl.load(stream)
+    model = weights.pop("model")
+    new = {}
+    for k, v in model.items():
+        new[k] = torch.from_numpy(v)
+        if "running_var" in k:
+            zero = torch.Tensor([0])
+            k2 = k.replace("running_var", "num_batches_tracked")
+            new[k2] = zero
+    return new
+
+
+def get_demo_path():
+    print(
+        f"the demo is here: {os.path.abspath(os.path.join(PATH, os.pardir))}/demo.ipynb"
+    )
+
+
+def img_tensorize(im, input_format="RGB"):
+    assert isinstance(im, str)
+    if os.path.isfile(im):
+        img = cv2.imread(im)
+    else:
+        img = get_image_from_url(im)
+        assert img is not None, f"could not connect to: {im}"
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+    if input_format == "RGB":
+        img = img[:, :, ::-1]
+    return img

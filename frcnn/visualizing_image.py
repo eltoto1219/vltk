@@ -18,13 +18,16 @@
 import colorsys
 import io
 
-import cv2
 import matplotlib as mpl
 import matplotlib.colors as mplc
 import matplotlib.figure as mplfigure
 import numpy as np
 import torch
 from matplotlib.backends.backend_agg import FigureCanvasAgg
+
+import cv2
+
+from .utils import img_tensorize
 
 
 _SMALL_OBJ = 1000
@@ -51,8 +54,7 @@ class SingleImageViz:
         if isinstance(img, torch.Tensor):
             img = img.numpy().astype("np.uint8")
         if isinstance(img, str):
-            img = cv2.imread(img)
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            img = img_tensorize(img)
         assert isinstance(img, np.ndarray)
 
         width, height = img.shape[1], img.shape[0]

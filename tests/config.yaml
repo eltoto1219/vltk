@@ -5,6 +5,7 @@ model :
     chkpoint: ""
     pixel_mean: [102.9801, 115.9465, 122.7717]
     pixel_std: [1.0, 1.0, 1.0]
+    num_channels: 3
 input:
     max_size_train: 1333
     min_size_train: 640

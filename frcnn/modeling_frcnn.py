@@ -29,12 +29,60 @@ from torch.nn import functional as F
 from torch.nn.modules.batchnorm import BatchNorm2d
 from torchvision.ops import RoIPool
 from torchvision.ops import boxes as box_ops
+from torchvision.ops import nms
 
 
 try:
     from .utils import WEIGHTS_NAME, Config, cached_path, hf_bucket_url, is_remote_url, load_checkpoint
 except ImportError:
     from utils import WEIGHTS_NAME, Config, cached_path, hf_bucket_url, is_remote_url, load_checkpoint
+
+
+# other:
+def batched_nms(boxes, scores, idxs, iou_threshold):
+    """
+    Same as torchvision.ops.boxes.batched_nms, but safer.
+    """
+    assert boxes.shape[-1] == 4
+    # TODO may need better strategy.
+    # Investigate after having a fully-cuda NMS op.
+    if len(boxes) < 40000:
+        return box_ops.batched_nms(boxes, scores, idxs, iou_threshold)
+
+    result_mask = scores.new_zeros(scores.size(), dtype=torch.bool)
+    for id in torch.unique(idxs).cpu().tolist():
+        mask = (idxs == id).nonzero().view(-1)
+        keep = nms(boxes[mask], scores[mask], iou_threshold)
+        result_mask[mask[keep]] = True
+    keep = result_mask.nonzero().view(-1)
+    keep = keep[scores[keep].argsort(descending=True)]
+    return keep
+
+
+def do_nms(boxes, scores, image_shape, score_thresh, nms_thresh, mind, maxd):
+    scores = scores[:, :-1]
+    num_bbox_reg_classes = boxes.shape[1] // 4
+    # Convert to Boxes to use the `clip` function ...
+    boxes = boxes.reshape(-1, 4)
+    _clip_box(boxes, image_shape)
+    boxes = boxes.view(-1, num_bbox_reg_classes, 4)  # R x C x 4
+
+    # Select max scores
+    max_scores, max_classes = scores.max(1)       # R x C --> R
+    num_objs = boxes.size(0)
+    boxes = boxes.view(-1, 4)
+    idxs = torch.arange(num_objs).to(boxes.device) * num_bbox_reg_classes + max_classes
+    max_boxes = boxes[idxs]     # Select max boxes according to the max scores.
+
+    # Apply NMS
+    keep = batched_nms(max_boxes, max_scores, nms_thresh)
+    keep = keep[:maxd]
+    if keep.shape[-1] >= mind and keep.shape[-1] <= maxd:
+        max_boxes, max_scores = max_boxes[keep], max_scores[keep]
+        classes = max_classes[keep]
+        return max_boxes, max_scores, classes, keep
+    else:
+        return None
 
 
 # Helper Functions
@@ -229,7 +277,7 @@ def find_top_rpn_proposals(
                 level_ids[keep],
             )
 
-        keep = box_ops.batched_nms(boxes, scores_per_img, lvl, nms_thresh)
+        keep = batched_nms(boxes, scores_per_img, lvl, nms_thresh)
         keep = keep[:post_nms_topk]
 
         res = (boxes[keep], scores_per_img[keep])
@@ -1111,6 +1159,7 @@ class ROIOutputs(object):
         boxes_all = self._predict_boxes(pred_boxes, box_deltas, preds_per_image)
         obj_scores_all = self._predict_objs(obj_logits, preds_per_image)  # list of length N
         attr_probs_all, attrs_all = self._predict_attrs(attr_logits, preds_per_image)
+        features = features.split(preds_per_image, dim=0)
 
         # fun for each image too, also I can expirement and do multiple images
         final_results = []
@@ -1130,24 +1179,33 @@ class ROIOutputs(object):
                 else:
                     max_boxes = boxes_j[filter_mask]
                 max_scores = scores[filter_mask]
-                keep = box_ops.batched_nms(max_boxes, max_scores, filter_inds[:, 1], nms_t)
+                keep = batched_nms(max_boxes, max_scores, filter_inds[:, 1], nms_t)
                 keep = keep[:self.max_detections]
                 max_boxes, max_scores, filter_inds = (max_boxes[keep], max_scores[keep], filter_inds[keep])
                 classes = filter_inds[:, 1]
                 ids = filter_inds[:, 0]
                 if ids.shape[-1] >= self.min_detections and ids.shape[-1] <= self.max_detections:
                     break
+
+                """
+                outputs = do_nms(boxes, obj_scores, size, self.score_thresh, nms_t, self.min_detections, self.max_detections)
+                if outputs is not None:
+                    max_boxes, max_scores, classes, ids = outputs
+                    break
+                """
+
             if scales is not None:
                 scale_yx = scales[i]
                 max_boxes[:, 0::2] *= scale_yx[1]
                 max_boxes[:, 1::2] *= scale_yx[0]
+
             final_results.append({
                 "boxes": max_boxes,
                 "obj_ids": classes,
                 "obj_scores": max_scores,
                 "attr_ids": attrs[ids],
                 "attr_scores": attr_probs[ids],
-                "roi_features": features[ids]
+                "roi_features": features[i][ids]
             })
         return final_results
 
@@ -1747,13 +1805,13 @@ class GeneralizedRCNN(nn.Module):
         if metadata is not None:
             state_dict._metadata = metadata
 
+        '''
         # PyTorch's `_load_from_state_dict` does not copy parameters in a module's descendants
         # so we need to apply the function recursively.
-        def load(module: nn.Module, prefix=""):
-            local_metadata = {} if metadata is None else metadata.get(prefix[:-1], {})
+        def load(module: nn.Module):
+            local_metadata = {}
             module._load_from_state_dict(
                 state_dict,
-                prefix,
                 local_metadata,
                 True,
                 missing_keys,
@@ -1762,12 +1820,14 @@ class GeneralizedRCNN(nn.Module):
             )
             for name, child in module._modules.items():
                 if child is not None:
-                    load(child, prefix + name + ".")
+                    load(child)
 
         # Make sure we are able to load base models as well as derived models (with heads)
-        start_prefix = ""
         model_to_load = model
-        load(model_to_load, prefix=start_prefix)
+        load(model_to_load)
+        '''
+        model_to_load = model
+        model_to_load.load_state_dict(state_dict)
 
         if model.__class__.__name__ != model_to_load.__class__.__name__:
             base_model_state_dict = model_to_load.state_dict().keys()
