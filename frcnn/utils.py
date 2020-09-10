@@ -554,9 +554,7 @@ def load_frcnn_pkl_from_url(url):
 
 
 def get_demo_path():
-    print(
-        f"the demo is here: {os.path.abspath(os.path.join(PATH, os.pardir))}/demo.ipynb"
-    )
+    print(f"{os.path.abspath(os.path.join(PATH, os.pardir))}/demo.ipynb")
 
 
 def img_tensorize(im, input_format="RGB"):

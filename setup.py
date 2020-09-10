@@ -9,33 +9,20 @@ from setuptools.command.install import install
 class Develop(develop):
     def run(self):
         try:
-            call(["./scripts/checkpoint"])
+            call([""])
         except Exception:
-            print("could not retrieve checkpoint")
+            print("")
         super().run()
 
 
 class Install(install):
     def run(self):
         try:
-            call(["./scripts/checkpoint"])
+            call([""])
         except Exception:
-            print("could not retrieve checkpoint")
+            print("")
         super().run()
 
-
-setup(
-    name="frcnn",
-    version="1.0.0",
-    # cmdclass={"develop": Develop, "install": Install},
-    author="Antonio Mendoza",
-    author_email="avmendoz@cs.unc.edu",
-    # package_dir={"": "src"},
-    scripts=["scripts/checkpoint"],
-    description="PyTorch implementation of faster-rcnn",
-    long_description=open("README.md").read(),
-    packages=find_packages(),
-)
 
 install_requires = [
     "torch",
@@ -46,8 +33,18 @@ install_requires = [
     "matplotlib",
     "opencv-python",
     "requests",
-    "fnmatch",
     "tqdm",
     "wget",
-    "reguests",
+    "filelock"
 ]
+setup(
+    name="frcnn",
+    version="1.0.0",
+    # cmdclass={"develop": Develop, "install": Install},
+    author="Antonio Mendoza",
+    author_email="avmendoz@cs.unc.edu",
+    description="PyTorch implementation of faster-rcnn",
+    long_description=open("README.md").read(),
+    packages=find_packages(),
+    install_requires=install_requires,
+),

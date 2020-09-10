@@ -32,10 +32,7 @@ from torchvision.ops import boxes as box_ops
 from torchvision.ops import nms
 
 
-try:
-    from .utils import WEIGHTS_NAME, Config, cached_path, hf_bucket_url, is_remote_url, load_checkpoint
-except ImportError:
-    from utils import WEIGHTS_NAME, Config, cached_path, hf_bucket_url, is_remote_url, load_checkpoint
+from .utils import WEIGHTS_NAME, Config, cached_path, hf_bucket_url, is_remote_url, load_checkpoint
 
 
 # other:
