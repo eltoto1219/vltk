@@ -1,7 +1,7 @@
 # finally-frcnn
 
 ```
-git clone git+https://github.com/eltoto1219/finally-frcnn.git && cd finally-frcnn
+git clone https://github.com/eltoto1219/finally-frcnn.git && cd finally-frcnn
 pip install -e .
 ```
 
