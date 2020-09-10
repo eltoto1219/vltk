@@ -36,6 +36,8 @@ install_requires = [
     "tqdm",
     "wget",
     "filelock",
+    "transformers @ git+https://github.com/huggingface/transformers.git/tree/master",
+    "jupyter",
 ]
 setup(
     name="frcnn",
