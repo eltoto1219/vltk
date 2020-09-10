@@ -35,7 +35,7 @@ install_requires = [
     "requests",
     "tqdm",
     "wget",
-    "filelock"
+    "filelock",
 ]
 setup(
     name="frcnn",
@@ -45,6 +45,6 @@ setup(
     author_email="avmendoz@cs.unc.edu",
     description="PyTorch implementation of faster-rcnn",
     long_description=open("README.md").read(),
-    packages=find_packages(),
+    packages=["frcnn", "tests"],
     install_requires=install_requires,
 ),
