@@ -36,7 +36,8 @@ install_requires = [
     "tqdm",
     "wget",
     "filelock",
-    "transformers @ git+https://github.com/huggingface/transformers.git/tree/master",
+    "transformers @ git+https://github.com/huggingface/transformers.git",
+    "datasets @ git+https://github.com/huggingface/datasets.git",
     "jupyter",
 ]
 setup(

@@ -21,5 +21,11 @@ class TestFRCNNForwardPass(unittest.TestCase):
         # Run the actual model
         image_preprocess = Preprocess(frcnn_cfg)
         images, sizes, scales_yx = image_preprocess(URL)
-        output_dict = frcnn(images, sizes, scales_yx=scales_yx)
-        output_dict = output_dict[0]  # we only want the first image
+        output_dict = frcnn(
+            images,
+            sizes,
+            scales_yx=scales_yx,
+            padding="max_detections",
+            max_detections=frcnn_cfg.max_detections,
+            return_tensors="np",
+        )

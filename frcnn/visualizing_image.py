@@ -18,14 +18,13 @@
 import colorsys
 import io
 
+import cv2
 import matplotlib as mpl
 import matplotlib.colors as mplc
 import matplotlib.figure as mplfigure
 import numpy as np
 import torch
 from matplotlib.backends.backend_agg import FigureCanvasAgg
-
-import cv2
 
 from .utils import img_tensorize
 
@@ -110,7 +109,19 @@ class SingleImageViz:
     ):
         if len(boxes.shape) > 2:
             boxes = boxes[0]
-        boxes = boxes.numpy()
+        if len(obj_ids.shape) > 1:
+            obj_ids = obj_ids[0]
+        if len(obj_scores.shape) > 1:
+            obj_scores = obj_scores[0]
+        if len(attr_ids.shape) > 1:
+            attr_ids = attr_ids[0]
+        if len(attr_scores.shape) > 1:
+            attr_scores = attr_scores[0]
+        if isinstance(boxes, torch.Tensor):
+            boxes = boxes.numpy()
+        if isinstance(boxes, list):
+            boxes = np.array(boxes)
+        assert isinstance(boxes, np.ndarray)
         areas = np.prod(boxes[:, 2:] - boxes[:, :2], axis=1)
         sorted_idxs = np.argsort(-areas).tolist()
         boxes = boxes[sorted_idxs] if boxes is not None else None
@@ -118,6 +129,7 @@ class SingleImageViz:
         obj_scores = obj_scores[sorted_idxs] if obj_scores is not None else None
         attr_ids = attr_ids[sorted_idxs] if attr_ids is not None else None
         attr_scores = attr_scores[sorted_idxs] if attr_scores is not None else None
+
         assigned_colors = [self._random_color(maximum=1) for _ in range(len(boxes))]
         assigned_colors = [assigned_colors[idx] for idx in sorted_idxs]
         if obj_ids is not None:

@@ -19,7 +19,7 @@ import itertools
 import math
 import os
 from abc import ABCMeta, abstractmethod
-from collections import namedtuple
+from collections import OrderedDict, namedtuple
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -31,11 +31,48 @@ from torchvision.ops import RoIPool
 from torchvision.ops import boxes as box_ops
 from torchvision.ops import nms
 
-
 from .utils import WEIGHTS_NAME, Config, cached_path, hf_bucket_url, is_remote_url, load_checkpoint
 
 
 # other:
+def pad_list_tensors(list_tensors, preds_per_image, max_detections=None, return_tensors=None, padding=None, pad_value=0):
+    assert return_tensors in {"pt", "np", None}
+    assert padding in {"max_detections", "max_batch", None}
+    new = []
+    if padding is None:
+        if return_tensors is None:
+            return list_tensors
+        elif return_tensors == "pt":
+            return torch.Tensor(list_tensors)
+        else:
+            return np.array(list_tensors)
+    if padding == "max_detections":
+        assert max_detections is not None, "specify max number of detections per batch"
+    elif padding == "max_batch":
+        max_detections = max(preds_per_image)
+    for i in range(len(list_tensors)):
+        too_small = False
+        tensor_i = list_tensors.pop(i)
+        if tensor_i.ndim < 2:
+            too_small = True
+            tensor_i = tensor_i.unsqueeze(-1)
+        assert isinstance(tensor_i, torch.Tensor)
+        tensor_i = F.pad(input=tensor_i, pad=(0, 0, 0, max_detections - preds_per_image[i]), mode="constant", value=pad_value)
+        if too_small:
+            tensor_i = tensor_i.squeeze(-1)
+        if return_tensors is None:
+            tensor_i = tensor_i.list()
+        elif return_tensors == "np":
+            tensor_i == tensor_i.numpy()
+        new.append(tensor_i)
+    if return_tensors == "np":
+        return np.stack(new, axis=0)
+    elif return_tensors == "pt":
+        return torch.stack(new, dim=0)
+    else:
+        return list_tensors
+
+
 def batched_nms(boxes, scores, idxs, iou_threshold):
     """
     Same as torchvision.ops.boxes.batched_nms, but safer.
@@ -1196,15 +1233,16 @@ class ROIOutputs(object):
                 max_boxes[:, 0::2] *= scale_yx[1]
                 max_boxes[:, 1::2] *= scale_yx[0]
 
-            final_results.append({
-                "boxes": max_boxes,
-                "obj_ids": classes,
-                "obj_scores": max_scores,
-                "attr_ids": attrs[ids],
-                "attr_scores": attr_probs[ids],
-                "roi_features": features[i][ids]
-            })
-        return final_results
+            final_results.append((
+                max_boxes,
+                classes,
+                max_scores,
+                attrs[ids],
+                attr_probs[ids],
+                features[i][ids]
+            ))
+        boxes, classes, class_probs, attrs, attr_probs, roi_features = map(list, zip(*final_results))
+        return boxes, classes, class_probs, attrs, attr_probs, roi_features
 
     def training(self, obj_logits, attr_logits, box_deltas, pred_boxes, features, sizes):
         pass
@@ -1659,29 +1697,6 @@ class GeneralizedRCNN(nn.Module):
         self.roi_outputs = ROIOutputs(cfg)
         self.to(self.device)
 
-    '''
-    @staticmethod
-    def from_pretrained(config=None, checkpoint=None, random_weights=False, strict=False):
-        if config is None:
-            cfg = load_config()
-        else:
-            if isinstance(config, Config):
-                cfg = config
-            else:
-                cfg = load_config(config=config)
-
-        model = GeneralizedRCNN(cfg)
-        if random_weights:
-            return model
-        else:
-            if checkpoint is not None:
-                model.load_state_dict(load_checkpoint(checkpoint=checkpoint), strict=strict)
-                return model
-            else:
-                model.load_state_dict(load_checkpoint(), strict=strict)
-                return model
-        '''
-
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
         config = kwargs.pop("config", None)
@@ -1802,27 +1817,6 @@ class GeneralizedRCNN(nn.Module):
         if metadata is not None:
             state_dict._metadata = metadata
 
-        '''
-        # PyTorch's `_load_from_state_dict` does not copy parameters in a module's descendants
-        # so we need to apply the function recursively.
-        def load(module: nn.Module):
-            local_metadata = {}
-            module._load_from_state_dict(
-                state_dict,
-                local_metadata,
-                True,
-                missing_keys,
-                unexpected_keys,
-                error_msgs,
-            )
-            for name, child in module._modules.items():
-                if child is not None:
-                    load(child)
-
-        # Make sure we are able to load base models as well as derived models (with heads)
-        model_to_load = model
-        load(model_to_load)
-        '''
         model_to_load = model
         model_to_load.load_state_dict(state_dict)
 
@@ -1867,7 +1861,11 @@ class GeneralizedRCNN(nn.Module):
 
         return model
 
-    def forward(self, images, image_shapes, gt_boxes=None, proposals=None, scales_yx=None):
+    def forward(self, images, image_shapes, gt_boxes=None, proposals=None, scales_yx=None, **kwargs):
+        '''
+        kwargs:
+            max_detections, return_tensors, padding, pad_value
+        '''
         if self.training:
             raise NotImplementedError()
         return self.inference(
@@ -1875,11 +1873,12 @@ class GeneralizedRCNN(nn.Module):
             image_shapes=image_shapes,
             gt_boxes=gt_boxes,
             proposals=proposals,
-            scales_yx=scales_yx
+            scales_yx=scales_yx,
+            **kwargs
         )
 
     @torch.no_grad()
-    def inference(self, images, image_shapes, gt_boxes=None, proposals=None, scales_yx=None):
+    def inference(self, images, image_shapes, gt_boxes=None, proposals=None, scales_yx=None, **kwargs):
         # run images through bacbone
         features = self.backbone(images)
 
@@ -1902,7 +1901,7 @@ class GeneralizedRCNN(nn.Module):
         )
 
         # prepare FRCNN Outputs and select top proposals
-        results = self.roi_outputs(
+        boxes, classes, class_probs, attrs, attr_probs, roi_features = self.roi_outputs(
             obj_logits=obj_logits,
             attr_logits=attr_logits,
             box_deltas=box_deltas,
@@ -1912,4 +1911,31 @@ class GeneralizedRCNN(nn.Module):
             scales=scales_yx
         )
 
-        return results
+        # will we pad???
+        subset_kwargs = {
+            "max_detections": kwargs.get("max_detections", None),
+            "return_tensors": kwargs.get("return_tensors", None),
+            "pad_value": kwargs.get("pad_value", 0),
+            "padding": kwargs.get("padding", None)
+        }
+        preds_per_image = torch.tensor([p.size(0) for p in boxes])
+        boxes = pad_list_tensors(boxes, preds_per_image, **subset_kwargs)
+        classes = pad_list_tensors(classes, preds_per_image, **subset_kwargs)
+        class_probs = pad_list_tensors(class_probs, preds_per_image, **subset_kwargs)
+        attrs = pad_list_tensors(attrs, preds_per_image, **subset_kwargs)
+        attr_probs = pad_list_tensors(attr_probs, preds_per_image, **subset_kwargs)
+        roi_features = pad_list_tensors(roi_features, preds_per_image, **subset_kwargs)
+        subset_kwargs["padding"] = None
+        preds_per_image = pad_list_tensors(preds_per_image, None, **subset_kwargs)
+        sizes = pad_list_tensors(image_shapes.tolist(), None, **subset_kwargs)
+        # use "f'{foo=}'.split('=')[0]" to get name of var and make function to turn into ordered dict, only in python3.8 or later
+        return OrderedDict({
+            "obj_ids": classes,
+            "obj_probs": class_probs,
+            "attr_ids": attrs,
+            "attr_probs": attr_probs,
+            "boxes": boxes,
+            "sizes": sizes,
+            "preds_per_image": preds_per_image,
+            "roi_features": roi_features
+        })
