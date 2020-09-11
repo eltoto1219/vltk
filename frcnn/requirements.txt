@@ -113,7 +113,6 @@ distlib==0.3.0
 distro==1.4.0
 entrypoints==0.3
 filelock==3.0.12
--e git+https://github.com/eltoto1219/finally-frcnn.git@03974cc3505b2110fb837ba13ebf8969340d9d14#egg=frcnn
 future==0.18.2
 html5lib==1.0.1
 idna==2.8
