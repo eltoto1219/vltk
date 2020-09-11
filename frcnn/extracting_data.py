@@ -1,4 +1,5 @@
 import getopt
+import json
 import os
 
 # import numpy as np
@@ -7,6 +8,7 @@ from collections import OrderedDict
 
 import datasets
 import numpy as np
+import torch
 
 from frcnn import Config, GeneralizedRCNN, Preprocess
 
@@ -17,6 +19,7 @@ USAGE:
 """
 
 
+TEST = True
 CONFIG = Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
 DEFAULT_SCHEMA = datasets.Features(
     OrderedDict(
@@ -49,9 +52,10 @@ class Extract:
     def __init__(self, argv=sys.argv[1:]):
         inputdir = None
         outputfile = None
+        subset_list = None
         batch_size = 1
         opts, args = getopt.getopt(
-            argv, "i:o:b:", ["inputdir=", "outfile=", "batch_size="]
+            argv, "i:o:b:s", ["inputdir=", "outfile=", "batch_size=", "subset_list="]
         )
         print(opts)
         for opt, arg in opts:
@@ -61,16 +65,32 @@ class Extract:
                 outputfile = arg
             elif opt in ("-b", "--batch_size"):
                 batch_size = int(arg)
+            elif opt in ("-s", "--subset_list"):
+                subset_list = arg
+
         assert inputdir is not None  # and os.path.isdir(inputdir), f"{inputdir}"
         assert outputfile is not None and not os.path.isfile(
             outputfile
         ), f"{outputfile}"
+        if subset_list is not None:
+            with open(os.path.realpath(subset_list)) as f:
+                self.subset_list = set(
+                    map(lambda x: self._vqa_file_split()[0], tryload(f))
+                )
+        else:
+            self.subset_list = None
+            print(self.subset_list)
 
         self.config = CONFIG
+        if torch.cuda.is_available():
+            self.config.model.device = "cuda"
+        print(self.config.model.device)
         self.inputdir = os.path.realpath(inputdir)
         self.outputfile = os.path.realpath(outputfile)
         self.preprocess = Preprocess(self.config)
-        self.model = GeneralizedRCNN.from_pretrained("unc-nlp/frcnn-vg-finetuned")
+        self.model = GeneralizedRCNN.from_pretrained(
+            "unc-nlp/frcnn-vg-finetuned", config=self.config
+        )
         self.batch = batch_size if batch_size != 0 else 1
         self.schema = DEFAULT_SCHEMA
 
@@ -83,7 +103,10 @@ class Extract:
     def file_generator(self):
         batch = []
         for i, file in enumerate(os.listdir(self.inputdir)):
+            if self.subset_list is not None and i not in self.subset_list:
+                continue
             if (i % self.batch) == self.batch - 1:
+                print("good")
                 yield list(map(list, zip(*batch)))
             else:
                 batch.append(self._vqa_file_split(file))
@@ -92,31 +115,50 @@ class Extract:
 
     def __call__(self):
         # make writer
-        writer = datasets.ArrowWriter(features=self.schema, path=self.outputfile)
+        if not TEST:
+            writer = datasets.ArrowWriter(features=self.schema, path=self.outputfile)
         # do file generator
         for img_ids, filepaths in self.file_generator:
             images, sizes, scales_yx = self.preprocess(filepaths)
-            output_dict = self.model(
-                images,
-                sizes,
-                scales_yx=scales_yx,
-                padding="max_detections",
-                max_detections=self.config.MAX_DETECTIONS,
-                pad_value=0,
-                return_tensors="np",
-            )
-            output_dict["iid"] = np.array(img_ids)
-            batch = self.schema.encode_batch(output_dict)
-            writer.write_batch(batch)
+            if not TEST:
+                output_dict = self.model(
+                    images,
+                    sizes,
+                    scales_yx=scales_yx,
+                    padding="max_detections",
+                    max_detections=self.config.MAX_DETECTIONS,
+                    pad_value=0,
+                    return_tensors="np",
+                )
+                output_dict["iid"] = np.array(img_ids)
+                batch = self.schema.encode_batch(output_dict)
+                writer.write_batch(batch)
 
-        # finalizer the writer
-        num_examples, num_bytes = writer.finalize()
-        print(f"Success! You wrote {num_examples} entry(s) and {num_bytes} bytes")
+            # finalizer the writer
+        if not TEST:
+            num_examples, num_bytes = writer.finalize()
+            print(f"Success! You wrote {num_examples} entry(s) and {num_bytes} bytes")
+
+
+def tryload(stream):
+    try:
+        data = json.load(stream)
+        try:
+            data = list(data.keys())
+        except Exception:
+            data = [d["img_id"] for d in data]
+    except Exception:
+        try:
+            data = eval(stream.read())
+        except Exception:
+            data = stream.read().split("\n")
+    return data
 
 
 if __name__ == "__main__":
     extract = Extract(sys.argv[1:])
     extract()
-    dataset = datasets.Dataset.from_file(extract.outputfile)
-    # wala!
-    # print(np.array(dataset[0:2]["roi_features"]).shape)
+    if not TEST:
+        dataset = datasets.Dataset.from_file(extract.outputfile)
+        # wala!
+        # print(np.array(dataset[0:2]["roi_features"]).shape)

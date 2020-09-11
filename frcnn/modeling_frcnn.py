@@ -27,9 +27,8 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 from torch.nn.modules.batchnorm import BatchNorm2d
-from torchvision.ops import RoIPool
-from torchvision.ops import boxes as box_ops
-from torchvision.ops import nms
+from torchvision.ops import RoIPool, nms
+from torchvision.ops.boxes import batched_nms
 
 from .utils import WEIGHTS_NAME, Config, cached_path, hf_bucket_url, is_remote_url, load_checkpoint
 
@@ -73,30 +72,10 @@ def pad_list_tensors(list_tensors, preds_per_image, max_detections=None, return_
         return list_tensors
 
 
-def batched_nms(boxes, scores, idxs, iou_threshold):
-    """
-    Same as torchvision.ops.boxes.batched_nms, but safer.
-    """
-    assert boxes.shape[-1] == 4
-    # TODO may need better strategy.
-    # Investigate after having a fully-cuda NMS op.
-    if len(boxes) < 40000:
-        return box_ops.batched_nms(boxes, scores, idxs, iou_threshold)
-
-    result_mask = scores.new_zeros(scores.size(), dtype=torch.bool)
-    for id in torch.unique(idxs).cpu().tolist():
-        mask = (idxs == id).nonzero().view(-1)
-        keep = nms(boxes[mask], scores[mask], iou_threshold)
-        result_mask[mask[keep]] = True
-    keep = result_mask.nonzero().view(-1)
-    keep = keep[scores[keep].argsort(descending=True)]
-    return keep
-
-
+# will probably see massive speed up if we can do 4D NMS instead of going through a loop.
 def do_nms(boxes, scores, image_shape, score_thresh, nms_thresh, mind, maxd):
     scores = scores[:, :-1]
     num_bbox_reg_classes = boxes.shape[1] // 4
-    # Convert to Boxes to use the `clip` function ...
     boxes = boxes.reshape(-1, 4)
     _clip_box(boxes, image_shape)
     boxes = boxes.view(-1, num_bbox_reg_classes, 4)  # R x C x 4
@@ -109,7 +88,7 @@ def do_nms(boxes, scores, image_shape, score_thresh, nms_thresh, mind, maxd):
     max_boxes = boxes[idxs]     # Select max boxes according to the max scores.
 
     # Apply NMS
-    keep = batched_nms(max_boxes, max_scores, nms_thresh)
+    keep = nms(max_boxes, max_scores, nms_thresh)
     keep = keep[:maxd]
     if keep.shape[-1] >= mind and keep.shape[-1] <= maxd:
         max_boxes, max_scores = max_boxes[keep], max_scores[keep]
@@ -1200,6 +1179,7 @@ class ROIOutputs(object):
         zipped = zip(boxes_all, obj_scores_all, attr_probs_all, attrs_all, sizes)
         for i, (boxes, obj_scores, attr_probs, attrs, size) in enumerate(zipped):
             for nms_t in self.nms_thresh:
+                '''
                 scores = obj_scores[:, :-1]
                 num_bbox_reg_classes = boxes.shape[1] // 4
                 boxes_j = boxes.reshape(-1, 4)
@@ -1221,12 +1201,11 @@ class ROIOutputs(object):
                 if ids.shape[-1] >= self.min_detections and ids.shape[-1] <= self.max_detections:
                     break
 
-                """
+                '''
                 outputs = do_nms(boxes, obj_scores, size, self.score_thresh, nms_t, self.min_detections, self.max_detections)
                 if outputs is not None:
                     max_boxes, max_scores, classes, ids = outputs
                     break
-                """
 
             if scales is not None:
                 scale_yx = scales[i]

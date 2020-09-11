@@ -34,13 +34,14 @@ from pathlib import Path
 from urllib.parse import urlparse
 from zipfile import ZipFile, is_zipfile
 
-import cv2
 import numpy as np
 import requests
-import wget
 from filelock import FileLock
 from PIL import Image
 from tqdm.auto import tqdm
+
+import cv2
+import wget
 from yaml import Loader, dump, load
 
 
@@ -220,11 +221,13 @@ class Config:
             if resolved_config_file is None:
                 raise EnvironmentError
 
-            config_file = Config.load_yaml(resolved_config_file)
-
         except EnvironmentError:
-            msg = "Can't load config for"
-            raise EnvironmentError(msg)
+            # try laoding from file
+            try:
+                config_file = Config.load_yaml(config_file)
+            except Exception:
+                msg = "Can't load config for"
+                raise EnvironmentError(msg)
 
         if resolved_config_file == config_file:
             print("loading configuration file from path")
@@ -513,7 +516,11 @@ def get_data(query, delim=","):
     assert isinstance(query, str)
     if os.path.isfile(query):
         with open(query) as f:
-            data = eval(f.read())
+            data = f.read()
+            try:
+                data = eval(data)
+            except Exception:
+                data = data.split("\n")
     else:
         req = requests.get(query)
         try:

@@ -18,13 +18,15 @@
 import colorsys
 import io
 
-import cv2
 import matplotlib as mpl
 import matplotlib.colors as mplc
 import matplotlib.figure as mplfigure
 import numpy as np
 import torch
 from matplotlib.backends.backend_agg import FigureCanvasAgg
+from PIL import Image
+
+import cv2
 
 from .utils import img_tensorize
 
@@ -198,6 +200,12 @@ class SingleImageViz:
             )
         else:
             self.fig.savefig(saveas)
+
+    def show(self, fmt="jpg"):
+        a = self._get_buffer()
+        a = np.uint8(np.clip(a, 0, 255))
+        pil = Image.fromarray(a)
+        pil.show()
 
     def _create_text_labels_attr(self, classes, scores, attr_classes, attr_scores):
         labels = [self.id2obj[i] for i in classes]
