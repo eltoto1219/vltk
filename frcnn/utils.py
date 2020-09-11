@@ -568,3 +568,7 @@ def img_tensorize(im, input_format="RGB"):
     if input_format == "RGB":
         img = img[:, :, ::-1]
     return img
+
+
+def chunk(images, batch=1):
+    return (images[i : i + batch] for i in range(0, len(images), batch))

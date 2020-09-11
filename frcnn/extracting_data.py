@@ -1,5 +1,8 @@
+import getopt
 import os
-import tempfile
+
+# import numpy as np
+import sys
 from collections import OrderedDict
 
 import datasets
@@ -8,13 +11,13 @@ import numpy as np
 from frcnn import Config, GeneralizedRCNN, Preprocess
 
 
-# import numpy as np
+"""
+USAGE:
+``python extracting_data.py -i <img_dir> -o <dataset_file>.datasets <batch_size>``
+"""
 
 
-TEST = True
 CONFIG = Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
-BATCH = 32
-URL = "https://vqa.cloudcv.org/media/test2014/COCO_test2014_000000168437.jpg"
 DEFAULT_SCHEMA = datasets.Features(
     OrderedDict(
         {
@@ -42,60 +45,78 @@ DEFAULT_SCHEMA = datasets.Features(
 )
 
 
-def get_images(path=URL):
-    if not os.path.isdir(path):
-        if not isinstance(path, list):
-            listdir = [path]
-    else:
-        listdir = os.listdir(os.getcwd())
-    for i in range(len(listdir)):
-        string = listdir.pop(i)
-        cur = os.path.join(path, string)
-        if not os.path.isfile(cur):
-            cur = string
-        listdir.insert(i, (i, cur))
-    return listdir
-
-
-def chunk(images, batch=BATCH):
-    return (images[i : i + batch] for i in range(0, len(images), batch))
-
-
-if __name__ == "__main__":
-    # init model
-    model = GeneralizedRCNN.from_pretrained("unc-nlp/frcnn-vg-finetuned")
-    image_processor = Preprocess(CONFIG)
-
-    # open writer
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        writer = datasets.ArrowWriter(
-            features=DEFAULT_SCHEMA, path=os.path.join(tmp_dir, "temp.arrow")
+class Extract:
+    def __init__(self, argv=sys.argv[1:]):
+        inputdir = None
+        outputfile = None
+        batch_size = 1
+        opts, args = getopt.getopt(
+            argv, "i:o:b:", ["inputdir=", "outfile=", "batch_size="]
         )
+        print(opts)
+        for opt, arg in opts:
+            if opt in ("-i", "--inputdir"):
+                inputdir = arg
+            elif opt in ("-o", "--outfile"):
+                outputfile = arg
+            elif opt in ("-b", "--batch_size"):
+                batch_size = int(arg)
+        assert inputdir is not None  # and os.path.isdir(inputdir), f"{inputdir}"
+        assert outputfile is not None and not os.path.isfile(
+            outputfile
+        ), f"{outputfile}"
 
-        # extract the data
-        for imgs in chunk(get_images()):
-            ids, batch = list(map(list, zip(*imgs)))
-            images, sizes, scales_yx = image_processor(batch)
-            output_dict = model(
+        self.config = CONFIG
+        self.inputdir = os.path.realpath(inputdir)
+        self.outputfile = os.path.realpath(outputfile)
+        self.preprocess = Preprocess(self.config)
+        self.model = GeneralizedRCNN.from_pretrained("unc-nlp/frcnn-vg-finetuned")
+        self.batch = batch_size if batch_size != 0 else 1
+        self.schema = DEFAULT_SCHEMA
+
+    def _vqa_file_split(self, file):
+        img_id = int(file.split(".")[0].split("_")[-1])
+        filepath = os.path.join(self.inputdir, file)
+        return (img_id, filepath)
+
+    @property
+    def file_generator(self):
+        batch = []
+        for i, file in enumerate(os.listdir(self.inputdir)):
+            if (i % self.batch) == self.batch - 1:
+                yield list(map(list, zip(*batch)))
+            else:
+                batch.append(self._vqa_file_split(file))
+        for i in range(1):
+            yield list(map(list, zip(*batch)))
+
+    def __call__(self):
+        # make writer
+        writer = datasets.ArrowWriter(features=self.schema, path=self.outputfile)
+        # do file generator
+        for img_ids, filepaths in self.file_generator:
+            images, sizes, scales_yx = self.preprocess(filepaths)
+            output_dict = self.model(
                 images,
                 sizes,
                 scales_yx=scales_yx,
                 padding="max_detections",
-                max_detections=CONFIG.MAX_DETECTIONS,
+                max_detections=self.config.MAX_DETECTIONS,
                 pad_value=0,
                 return_tensors="np",
             )
-            if TEST:
-                output_dict["iid"] = [np.random.randint(1)] * len(
-                    output_dict["preds_per_image"]
-                )
-
-            batch = DEFAULT_SCHEMA.encode_batch(output_dict)
+            output_dict["iid"] = np.array(img_ids)
+            batch = self.schema.encode_batch(output_dict)
             writer.write_batch(batch)
 
         # finalizer the writer
         num_examples, num_bytes = writer.finalize()
-        dataset = datasets.Dataset.from_file(os.path.join(tmp_dir, "temp.arrow"))
+        print(f"Success! You wrote {num_examples} entry(s) and {num_bytes} bytes")
 
-# and wala!!!
-print(np.array(dataset[0:2]["roi_features"]).shape)
+
+if __name__ == "__main__":
+    extract = Extract(sys.argv[1:])
+    extract()
+    dataset = datasets.Dataset.from_file(extract.outputfile)
+    # wala!
+    # print(np.array(dataset[0:2]["roi_features"]).shape)
