@@ -19,7 +19,7 @@ USAGE:
 """
 
 
-TEST = True
+TEST = False
 CONFIG = Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
 DEFAULT_SCHEMA = datasets.Features(
     OrderedDict(
@@ -31,7 +31,7 @@ DEFAULT_SCHEMA = datasets.Features(
                 length=CONFIG.MAX_DETECTIONS, feature=datasets.Value("float32")
             ),
             "boxes": datasets.Array2D((CONFIG.MAX_DETECTIONS, 4), dtype="float32"),
-            "iid": datasets.Value("int32"),
+            "img_id": datasets.Value("int32"),
             "obj_ids": datasets.Sequence(
                 length=CONFIG.MAX_DETECTIONS, feature=datasets.Value("float32")
             ),
@@ -57,7 +57,6 @@ class Extract:
         opts, args = getopt.getopt(
             argv, "i:o:b:s", ["inputdir=", "outfile=", "batch_size=", "subset_list="]
         )
-        print(opts)
         for opt, arg in opts:
             if opt in ("-i", "--inputdir"):
                 inputdir = arg
@@ -79,12 +78,10 @@ class Extract:
                 )
         else:
             self.subset_list = None
-            print(self.subset_list)
 
         self.config = CONFIG
         if torch.cuda.is_available():
             self.config.model.device = "cuda"
-        print(self.config.model.device)
         self.inputdir = os.path.realpath(inputdir)
         self.outputfile = os.path.realpath(outputfile)
         self.preprocess = Preprocess(self.config)
@@ -105,11 +102,12 @@ class Extract:
         for i, file in enumerate(os.listdir(self.inputdir)):
             if self.subset_list is not None and i not in self.subset_list:
                 continue
-            if (i % self.batch) == self.batch - 1:
-                print("good")
-                yield list(map(list, zip(*batch)))
-            else:
-                batch.append(self._vqa_file_split(file))
+            batch.append(self._vqa_file_split(file))
+            if len(batch) == self.batch:
+                temp = batch
+                batch = []
+                yield list(map(list, zip(*temp)))
+
         for i in range(1):
             yield list(map(list, zip(*batch)))
 
@@ -118,26 +116,29 @@ class Extract:
         if not TEST:
             writer = datasets.ArrowWriter(features=self.schema, path=self.outputfile)
         # do file generator
-        for img_ids, filepaths in self.file_generator:
+        for i, (img_ids, filepaths) in enumerate(self.file_generator):
             images, sizes, scales_yx = self.preprocess(filepaths)
+            output_dict = self.model(
+                images,
+                sizes,
+                scales_yx=scales_yx,
+                padding="max_detections",
+                max_detections=self.config.MAX_DETECTIONS,
+                pad_value=0,
+                return_tensors="np",
+                location="cpu"
+            )
+            output_dict["boxes"] = output_dict.pop("normalized_boxes")
             if not TEST:
-                output_dict = self.model(
-                    images,
-                    sizes,
-                    scales_yx=scales_yx,
-                    padding="max_detections",
-                    max_detections=self.config.MAX_DETECTIONS,
-                    pad_value=0,
-                    return_tensors="np",
-                )
-                output_dict["iid"] = np.array(img_ids)
+                output_dict["img_id"] = np.array(img_ids)
                 batch = self.schema.encode_batch(output_dict)
                 writer.write_batch(batch)
-
+            if TEST:
+                break
             # finalizer the writer
         if not TEST:
             num_examples, num_bytes = writer.finalize()
-            print(f"Success! You wrote {num_examples} entry(s) and {num_bytes} bytes")
+            print(f"Success! You wrote {num_examples} entry(s) and {num_bytes >> 20} mb")
 
 
 def tryload(stream):
@@ -161,4 +162,4 @@ if __name__ == "__main__":
     if not TEST:
         dataset = datasets.Dataset.from_file(extract.outputfile)
         # wala!
-        # print(np.array(dataset[0:2]["roi_features"]).shape)
+        #print(np.array(dataset[0:2]["roi_features"]).shape)
