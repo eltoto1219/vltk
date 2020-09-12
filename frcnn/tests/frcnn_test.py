@@ -12,9 +12,7 @@ class TestFRCNNForwardPass(unittest.TestCase):
     def test_forward(self):
 
         # load models and model components
-        frcnn_cfg = Config.from_pretrained(
-            "/home/eltoto/finally-frcnn/tests/config.yaml"
-        )
+        frcnn_cfg = Config.from_pretrained(f"{PATH}/config.yaml")
         frcnn = GeneralizedRCNN.from_pretrained("unc-nlp/frcnn-vg-finetuned")
         frcnn.roi_outputs.nms_thresh = [0.5, 1.0, 0.1]
         frcnn.roi_outputs.score_thresh = 0.2

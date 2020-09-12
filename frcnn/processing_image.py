@@ -19,12 +19,11 @@ import os
 import sys
 from typing import Tuple
 
+import cv2
 import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
-
-import cv2
 
 from .utils import get_image_from_url, img_tensorize
 
@@ -148,7 +147,7 @@ class Preprocess:
                 raise NotImplementedError()
             # pad
             images, sizes = self.pad(images)
-            scales_yx = torch.true_divide(raw_sizes, sizes).tolist()
+            scales_yx = torch.true_divide(raw_sizes, sizes)
             if single_image:
                 return images[0], sizes[0], scales_yx[0]
             else:

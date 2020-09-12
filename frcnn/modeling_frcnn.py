@@ -27,13 +27,23 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 from torch.nn.modules.batchnorm import BatchNorm2d
-from torchvision.ops import RoIPool, nms
-from torchvision.ops.boxes import batched_nms
+from torchvision.ops import RoIPool
+from torchvision.ops.boxes import batched_nms, nms
 
 from .utils import WEIGHTS_NAME, Config, cached_path, hf_bucket_url, is_remote_url, load_checkpoint
 
 
 # other:
+def norm_box(boxes, raw_sizes):
+    if not isinstance(boxes, torch.Tensor):
+        normalized_boxes = boxes.copy()
+    else:
+        normalized_boxes = boxes.clone()
+    normalized_boxes[:, :, (0, 2)] /= raw_sizes[:, 1]
+    normalized_boxes[:, :, (1, 3)] /= raw_sizes[:, 0]
+    return normalized_boxes
+
+
 def pad_list_tensors(list_tensors, preds_per_image, max_detections=None, return_tensors=None, padding=None, pad_value=0):
     assert return_tensors in {"pt", "np", None}
     assert padding in {"max_detections", "max_batch", None}
@@ -42,7 +52,10 @@ def pad_list_tensors(list_tensors, preds_per_image, max_detections=None, return_
         if return_tensors is None:
             return list_tensors
         elif return_tensors == "pt":
-            return torch.Tensor(list_tensors)
+            if not isinstance(list_tensors, torch.Tensor):
+                return torch.stack(list_tensors)
+            else:
+                return list_tensors
         else:
             return np.array(list_tensors)
     if padding == "max_detections":
@@ -66,16 +79,16 @@ def pad_list_tensors(list_tensors, preds_per_image, max_detections=None, return_
         new.append(tensor_i)
     if return_tensors == "np":
         return np.stack(new, axis=0)
-    elif return_tensors == "pt":
+    elif return_tensors == "pt" and not isinstance(new, torch.Tensor):
         return torch.stack(new, dim=0)
     else:
         return list_tensors
 
 
-# will probably see massive speed up if we can do 4D NMS instead of going through a loop.
 def do_nms(boxes, scores, image_shape, score_thresh, nms_thresh, mind, maxd):
     scores = scores[:, :-1]
     num_bbox_reg_classes = boxes.shape[1] // 4
+    # Convert to Boxes to use the `clip` function ...
     boxes = boxes.reshape(-1, 4)
     _clip_box(boxes, image_shape)
     boxes = boxes.view(-1, num_bbox_reg_classes, 4)  # R x C x 4
@@ -372,12 +385,12 @@ def assign_boxes_to_levels(
 
 # Helper Classes
 class _NewEmptyTensorOp(torch.autograd.Function):
-    @staticmethod
+    @ staticmethod
     def forward(ctx, x, new_shape):
         ctx.shape = x.shape
         return x.new_empty(new_shape)
 
-    @staticmethod
+    @ staticmethod
     def backward(ctx, grad):
         shape = ctx.shape
         return _NewEmptyTensorOp.apply(grad, shape), None
@@ -784,11 +797,11 @@ class BasicStem(nn.Module):
             x = F.max_pool2d(x, kernel_size=3, stride=2, padding=1)
         return x
 
-    @property
+    @ property
     def out_channels(self):
         return self.conv1.out_channels
 
-    @property
+    @ property
     def stride(self):
         return 4  # = stride 2 conv -> stride 2 max pool
 
@@ -889,11 +902,11 @@ class Backbone(nn.Module, metaclass=ABCMeta):
     def __init__(self):
         super().__init__()
 
-    @abstractmethod
+    @ abstractmethod
     def forward(self):
         pass
 
-    @property
+    @ property
     def size_divisibility(self):
         """
         Some backbones require the input height and width to be divisible by a specific integer. This is
@@ -911,17 +924,17 @@ class Backbone(nn.Module, metaclass=ABCMeta):
             for name in self._out_features
         }
 
-    @property
+    @ property
     def out_features(self):
         """deprecated"""
         return self._out_features
 
-    @property
+    @ property
     def out_feature_strides(self):
         """deprecated"""
         return {f: self._out_feature_strides[f] for f in self._out_features}
 
-    @property
+    @ property
     def out_feature_channels(self):
         """deprecated"""
         return {f: self._out_feature_channels[f] for f in self._out_features}
@@ -1004,7 +1017,7 @@ class ResNet(Backbone):
             for name in self._out_features
         }
 
-    @staticmethod
+    @ staticmethod
     def make_stage(
         block_class,
         num_blocks,
@@ -1165,7 +1178,7 @@ class ROIOutputs(object):
         attr_probs, attrs = attr_logits.max(-1)
         return attr_probs.split(preds_per_image, dim=0), attrs.split(preds_per_image, dim=0)
 
-    @torch.no_grad()
+    @ torch.no_grad()
     def inference(self, obj_logits, attr_logits, box_deltas, pred_boxes, features, sizes, scales=None):
         # only the pred boxes is the
         preds_per_image = [p.size(0) for p in pred_boxes]
@@ -1179,29 +1192,6 @@ class ROIOutputs(object):
         zipped = zip(boxes_all, obj_scores_all, attr_probs_all, attrs_all, sizes)
         for i, (boxes, obj_scores, attr_probs, attrs, size) in enumerate(zipped):
             for nms_t in self.nms_thresh:
-                '''
-                scores = obj_scores[:, :-1]
-                num_bbox_reg_classes = boxes.shape[1] // 4
-                boxes_j = boxes.reshape(-1, 4)
-                _clip_box(boxes_j, size)
-                boxes_j = boxes_j.view(-1, num_bbox_reg_classes, 4)  # R x C x 4
-                filter_mask = scores > self.score_thresh  # R x K
-                filter_inds = filter_mask.nonzero(as_tuple=True)
-                filter_inds = torch.transpose(torch.stack(filter_inds), -1, -2)
-                if num_bbox_reg_classes == 1:
-                    max_boxes = boxes_j[filter_inds[:, 0], 0]
-                else:
-                    max_boxes = boxes_j[filter_mask]
-                max_scores = scores[filter_mask]
-                keep = batched_nms(max_boxes, max_scores, filter_inds[:, 1], nms_t)
-                keep = keep[:self.max_detections]
-                max_boxes, max_scores, filter_inds = (max_boxes[keep], max_scores[keep], filter_inds[keep])
-                classes = filter_inds[:, 1]
-                ids = filter_inds[:, 0]
-                if ids.shape[-1] >= self.min_detections and ids.shape[-1] <= self.max_detections:
-                    break
-
-                '''
                 outputs = do_nms(boxes, obj_scores, size, self.score_thresh, nms_t, self.min_detections, self.max_detections)
                 if outputs is not None:
                     max_boxes, max_scores, classes, ids = outputs
@@ -1859,6 +1849,7 @@ class GeneralizedRCNN(nn.Module):
     @torch.no_grad()
     def inference(self, images, image_shapes, gt_boxes=None, proposals=None, scales_yx=None, **kwargs):
         # run images through bacbone
+        original_sizes = image_shapes * scales_yx
         features = self.backbone(images)
 
         # generate proposals if none are available
@@ -1906,8 +1897,8 @@ class GeneralizedRCNN(nn.Module):
         roi_features = pad_list_tensors(roi_features, preds_per_image, **subset_kwargs)
         subset_kwargs["padding"] = None
         preds_per_image = pad_list_tensors(preds_per_image, None, **subset_kwargs)
-        sizes = pad_list_tensors(image_shapes.tolist(), None, **subset_kwargs)
-        # use "f'{foo=}'.split('=')[0]" to get name of var and make function to turn into ordered dict, only in python3.8 or later
+        sizes = pad_list_tensors(image_shapes, None, **subset_kwargs)
+        normalized_boxes = norm_box(boxes, original_sizes)
         return OrderedDict({
             "obj_ids": classes,
             "obj_probs": class_probs,
@@ -1916,5 +1907,6 @@ class GeneralizedRCNN(nn.Module):
             "boxes": boxes,
             "sizes": sizes,
             "preds_per_image": preds_per_image,
-            "roi_features": roi_features
+            "roi_features": roi_features,
+            "normalized_boxes": normalized_boxes
         })
