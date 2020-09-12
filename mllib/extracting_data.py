@@ -10,7 +10,7 @@ import datasets
 import numpy as np
 import torch
 
-from frcnn import Config, GeneralizedRCNN, Preprocess
+from mllib import Config, GeneralizedRCNN, Preprocess
 
 
 """

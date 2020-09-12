@@ -41,13 +41,13 @@ install_requires = [
     "jupyter",
 ]
 setup(
-    name="frcnn",
+    name="mllib",
     version="1.0.0",
     # cmdclass={"develop": Develop, "install": Install},
     author="Antonio Mendoza",
     author_email="avmendoz@cs.unc.edu",
     description="PyTorch implementation of faster-rcnn",
     long_description=open("README.md").read(),
-    packages=["frcnn", "tests"],
+    packages=["mllib", "mllib/tests"],
     install_requires=install_requires,
 ),

@@ -1,7 +1,7 @@
 import os
 import unittest
 
-from frcnn import Config, GeneralizedRCNN, Preprocess, SingleImageViz, get_data
+from mllib import Config, GeneralizedRCNN, Preprocess, SingleImageViz, get_data
 
 
 PATH = os.path.dirname(os.path.realpath(__file__))

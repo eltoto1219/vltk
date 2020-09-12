@@ -1,7 +1,7 @@
 import os
 import unittest
 
-from frcnn import get_data
+from mllib import get_data
 
 
 PATH = os.path.dirname(os.path.realpath(__file__))
