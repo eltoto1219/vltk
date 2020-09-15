@@ -42,7 +42,7 @@ class MMF(Dataset):
         super().__init__()
         self.max_length = sent_length
         self.arrow_dataset = datasets.Dataset.from_file(arrow_file)
-        self.id2idx = {k:i for i, k in enumerate(self.arrow_dataset["img_id"])}
+        self.refresh_idx2id
         self.arrow_dataset.set_format(type="numpy", output_all_columns=True)
         self.text_file = text_file
         self.text_data = [self.mmf_txt_format(json.loads(i)) for i in open(text_file)]
@@ -56,6 +56,10 @@ class MMF(Dataset):
 
     def __len__(self):
         return len(self.text_data)
+    
+    @property
+    def refresh_idx2id(self):
+        self.id2idx = {k:i for i, k in enumerate(self.arrow_dataset["img_id"])}
 
     @torch.no_grad()
     def __getitem__(self, i):
@@ -93,6 +97,8 @@ class MMFLoader(DataLoader):
             shuffle=shuffle,
             batch_size=batch_size
         )
+        if shuffle:
+            self.dataset.refresh_idx2id
 
 
 if __name__ == "__main__":
