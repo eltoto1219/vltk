@@ -109,20 +109,22 @@ class SingleImageViz:
     def draw_boxes(
         self, boxes, obj_ids=None, obj_scores=None, attr_ids=None, attr_scores=None
     ):
-        if len(boxes.shape) > 2:
-            boxes = boxes[0]
-        if len(obj_ids.shape) > 1:
-            obj_ids = obj_ids[0]
-        if len(obj_scores.shape) > 1:
-            obj_scores = obj_scores[0]
-        if len(attr_ids.shape) > 1:
-            attr_ids = attr_ids[0]
-        if len(attr_scores.shape) > 1:
-            attr_scores = attr_scores[0]
         if isinstance(boxes, torch.Tensor):
             boxes = boxes.numpy()
         if isinstance(boxes, list):
             boxes = np.array(boxes)
+        if len(boxes.shape) > 2:
+            boxes = boxes[0]
+        if obj_ids is not None and attr_scores is not None:
+            if len(obj_ids.shape) > 1:
+                obj_ids = obj_ids[0]
+            if len(obj_scores.shape) > 1:
+                obj_scores = obj_scores[0]
+            if len(attr_ids.shape) > 1:
+                attr_ids = attr_ids[0]
+            if len(attr_scores.shape) > 1:
+                attr_scores = attr_scores[0]
+
         assert isinstance(boxes, np.ndarray)
         areas = np.prod(boxes[:, 2:] - boxes[:, :2], axis=1)
         sorted_idxs = np.argsort(-areas).tolist()
@@ -138,9 +140,10 @@ class SingleImageViz:
             labels = self._create_text_labels_attr(
                 obj_ids, obj_scores, attr_ids, attr_scores
             )
-            for i in range(len(boxes)):
-                color = assigned_colors[i]
-                self.add_box(boxes[i], color)
+        for i in range(len(boxes)):
+            color = assigned_colors[i]
+            self.add_box(boxes[i], color)
+            if obj_ids is not None:
                 self.draw_labels(labels[i], boxes[i], color)
 
     def draw_labels(self, label, box, color):

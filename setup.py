@@ -39,6 +39,7 @@ install_requires = [
     "transformers @ git+https://github.com/huggingface/transformers.git",
     "datasets @ git+https://github.com/huggingface/datasets.git",
     "jupyter",
+    "pynvml"
 ]
 setup(
     name="mllib",

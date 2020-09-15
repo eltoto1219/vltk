@@ -1,14 +1,18 @@
 import getopt
 import json
 import os
+from pynvml.smi import nvidia_smi
 
 # import numpy as np
 import sys
 from collections import OrderedDict
+from subprocess import Popen, PIPE
+from tqdm import tqdm
 
 import datasets
 import numpy as np
 import torch
+from pynvml.smi import nvidia_smi
 
 from mllib import Config, GeneralizedRCNN, Preprocess
 
@@ -17,6 +21,9 @@ from mllib import Config, GeneralizedRCNN, Preprocess
 USAGE:
 ``python extracting_data.py -i <img_dir> -o <dataset_file>.datasets <batch_size>``
 """
+
+#consider one image -> many questions, or one image one questions
+#will need to test the effectiveness of grouping by questions
 
 
 TEST = False
@@ -55,7 +62,7 @@ class Extract:
         subset_list = None
         batch_size = 1
         opts, args = getopt.getopt(
-            argv, "i:o:b:s", ["inputdir=", "outfile=", "batch_size=", "subset_list="]
+            argv, "i:o:b:s", ["inputdir=", "outfile=", "batch_size="]
         )
         for opt, arg in opts:
             if opt in ("-i", "--inputdir"):
@@ -64,8 +71,6 @@ class Extract:
                 outputfile = arg
             elif opt in ("-b", "--batch_size"):
                 batch_size = int(arg)
-            elif opt in ("-s", "--subset_list"):
-                subset_list = arg
 
         assert inputdir is not None  # and os.path.isdir(inputdir), f"{inputdir}"
         assert outputfile is not None and not os.path.isfile(
@@ -80,16 +85,26 @@ class Extract:
             self.subset_list = None
 
         self.config = CONFIG
-        if torch.cuda.is_available():
-            self.config.model.device = "cuda"
+        # EDIT SETTINGS HERE
+        # self.config.roi_heads.nms_thresh_test = [0.2]
+        # self.config.roi_heads.score_thresh_test = 0.1
+        # self.config.min_detections = 0
+        # self.config.max_detections = 36
         self.inputdir = os.path.realpath(inputdir)
         self.outputfile = os.path.realpath(outputfile)
+        self.num = int(Popen(f"ls {self.inputdir}|wc -l", shell=True, stdout=PIPE).communicate()[0])
         self.preprocess = Preprocess(self.config)
         self.model = GeneralizedRCNN.from_pretrained(
             "unc-nlp/frcnn-vg-finetuned", config=self.config
         )
+        if torch.cuda.is_available():
+            self.dev_id = sorted([(i, d["fb_memory_usage"]["free"]) for i, d in
+                    enumerate(nvidia_smi.getInstance().DeviceQuery("memory.free")["gpu"])],
+                    key = lambda x: x[0])[-1][0]
+            self.model.cuda(self.dev_id)
         self.batch = batch_size if batch_size != 0 else 1
         self.schema = DEFAULT_SCHEMA
+        self.progress = tqdm(unit_scale=True, total=self.num, desc="Extracting")
 
     def _vqa_file_split(self, file):
         img_id = int(file.split(".")[0].split("_")[-1])
@@ -118,6 +133,10 @@ class Extract:
         # do file generator
         for i, (img_ids, filepaths) in enumerate(self.file_generator):
             images, sizes, scales_yx = self.preprocess(filepaths)
+            if torch.cuda.is_available():
+                images, sizes, scales_yx = (
+                    images.cuda(self.dev_id),sizes.cuda(self.dev_id),scales_yx.cuda(self.dev_id)
+                )
             output_dict = self.model(
                 images,
                 sizes,
@@ -133,7 +152,8 @@ class Extract:
                 output_dict["img_id"] = np.array(img_ids)
                 batch = self.schema.encode_batch(output_dict)
                 writer.write_batch(batch)
-            if TEST:
+                self.progress.update(self.batch)
+            else:
                 break
             # finalizer the writer
         if not TEST:
