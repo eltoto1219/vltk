@@ -189,6 +189,10 @@ class MMF(Dataset):
 
     @property
     def refresh_idx2id(self):
+        self.id2idx = {k:i for i, k in enumerate(self.arrow_dataset["img_id"])}
+
+    @property
+    def refresh_idx2id(self):
         self.id2idx = {k: i for i, k in enumerate(self.arrow_dataset["img_id"])}
 
     def _get_img_path(self, img_id):
