@@ -253,8 +253,10 @@ def find_top_rpn_proposals(
     nms_thresh,
     pre_nms_topk,
     post_nms_topk,
-    min_box_side_len,
-    training,
+    min_box_side_len=15,
+    training=False,
+    scales_yx=None,
+    ignorey=None,
 ):
     """Args:
         proposals (list[Tensor]): (L, N, Hi*Wi*A, 4).
@@ -289,7 +291,6 @@ def find_top_rpn_proposals(
 
         # each is N x topk
         topk_proposals_i = proposals_i[batch_idx[:, None], topk_idx]  # N x topk x 4
-
         topk_proposals.append(topk_proposals_i)
         topk_scores.append(topk_scores_i)
         level_ids.append(
@@ -307,10 +308,53 @@ def find_top_rpn_proposals(
     for n, image_size in enumerate(image_sizes):
         boxes = topk_proposals[n]
         scores_per_img = topk_scores[n]
+        # ignore y-range here
+        if ignorey is not None and scales_yx is not None:
+            assert ignorey.ndim == 3
+            for ignoreyij in ignorey[n]:
+                ignoreyij = ignoreyij.unsqueeze(0).repeat_interleave(boxes.size(0), dim=0) * 1/(scales_yx[n, 1])
+
+                keep = torch.bitwise_and(torch.le(ignoreyij[:,1], boxes[:,3]),
+                    torch.ge(ignoreyij[:,0], boxes[:,1])
+                )
+                keep= keep== 0
+                boxes = boxes[keep]
+                ignoreyij = ignoreyij[keep]
+                scores_per_img= scores_per_img[keep]
+                level_ids = level_ids[keep]
+
+                box_ignore_above =  torch.bitwise_and(torch.gt(boxes[:,1], ignoreyij[:,
+                    1]), torch.gt(boxes[:,3], ignoreyij[:,0]))
+                box_ignore_below =  torch.bitwise_and(
+                    torch.le(boxes[:,3], ignoreyij[:, 0]),
+                    torch.gt(boxes[:,3], ignoreyij[:,0])
+                )
+                ignore_clip_range= torch.bitwise_or(box_ignore_below,box_ignore_above)
+                to_clip = ignore_clip_range == 0
+
+                clip_top= torch.bitwise_and(
+                    to_clip,
+                    torch.lt(
+                        torch.abs(ignoreyij[:,1] - boxes[:,3]),
+                        torch.abs(ignoreyij[:,0] - boxes[:, 1]),
+                    )
+                )
+                clip_bottom= torch.bitwise_and(
+                    to_clip,
+                    torch.lt(
+                        torch.abs(ignoreyij[:,0] - boxes[:, 1]),
+                        torch.abs(ignoreyij[:,1] - boxes[:,3]),
+                    )
+                )
+                boxes[clip_bottom, 1] = int(ignoreyij[0, 1])
+                boxes[clip_top, 3] = int(ignoreyij[0, 0])
+
         # I will have to take a look at the boxes clip method
         _clip_box(boxes, image_size)
         # filter empty boxes
         keep = _nonempty_boxes(boxes, threshold=min_box_side_len)
+
+
         lvl = level_ids
         if keep.sum().item() != len(boxes):
             boxes, scores_per_img, lvl = (
@@ -318,6 +362,7 @@ def find_top_rpn_proposals(
                 scores_per_img[keep],
                 level_ids[keep],
             )
+
 
         keep = batched_nms(boxes, scores_per_img, lvl, nms_thresh)
         keep = keep[:post_nms_topk]
@@ -484,7 +529,7 @@ class Box2BoxTransform(object):
         ), "Input boxes to Box2BoxTransform are not valid!"
         return deltas
 
-    def apply_deltas(self, deltas, boxes):
+    def apply_deltas(self, deltas, boxes, ignorey=None, scales_yx=None):
         """
         Apply transformation `deltas` (dx, dy, dw, dh) to `boxes`.
         Args:
@@ -648,6 +693,8 @@ class RPNOutputs(object):
         boundary_threshold=0,
         gt_boxes=None,
         smooth_l1_beta=0.0,
+        ignorey=None,
+        scales_yx=None
     ):
         """
         Args:
@@ -663,12 +710,14 @@ class RPNOutputs(object):
             gt_boxes (list[Boxes], optional): A list of N elements.
             smooth_l1_beta (float): The transition point between L1 and L2 lossn. When set to 0, the loss becomes L1. When +inf, it is ignored
         """
+        self.scales_yx=scales_yx
         self.box2box_transform = box2box_transform
         self.anchor_matcher = anchor_matcher
         self.batch_size_per_image = batch_size_per_image
         self.positive_fraction = positive_fraction
         self.pred_objectness_logits = pred_objectness_logits
         self.pred_anchor_deltas = pred_anchor_deltas
+        self.ignorey = ignorey
 
         self.anchors = anchors
         self.gt_boxes = gt_boxes
@@ -696,7 +745,7 @@ class RPNOutputs(object):
                 .reshape(-1, B)
             )
             proposals_i = self.box2box_transform.apply_deltas(
-                pred_anchor_deltas_i, anchors_i
+                pred_anchor_deltas_i, anchors_i, self.ignorey, self.scales_yx
             )
             # Append feature map proposals with shape (N, Hi*Wi*A, B)
             proposals.append(proposals_i.view(N, -1, B))
@@ -1548,7 +1597,8 @@ class RPN(nn.Module):
     def training(self, images, image_shapes, features, gt_boxes):
         pass
 
-    def inference(self, outputs, images, image_shapes, features, gt_boxes=None):
+    def inference(self, outputs, images, image_shapes, features, gt_boxes=None,
+            scales_yx=None, ignorey=None):
         outputs = find_top_rpn_proposals(
             outputs.predict_proposals(),
             outputs.predict_objectness_logits(),
@@ -1559,6 +1609,8 @@ class RPN(nn.Module):
             self.post_nms_topk[self.training],
             self.min_box_side_len,
             self.training,
+            scales_yx=scales_yx,
+            ignorey=ignorey
         )
 
         results = []
@@ -1571,7 +1623,8 @@ class RPN(nn.Module):
         (proposal_boxes, logits) = tuple(map(list, zip(*results)))
         return proposal_boxes, logits
 
-    def forward(self, images, image_shapes, features, gt_boxes=None):
+    def forward(self, images, image_shapes, features, gt_boxes=None, ignorey=None,
+            scales_yx=None):
         """
         Args:
             images (torch.Tensor): input images of length `N`
@@ -1594,6 +1647,8 @@ class RPN(nn.Module):
             self.boundary_threshold,
             gt_boxes,
             self.smooth_l1_beta,
+            ignorey=ignorey,
+            scales_yx=scales_yx
         )
         # For RPN-only models, the proposals are the final output
 
@@ -1601,7 +1656,8 @@ class RPN(nn.Module):
             raise NotImplementedError()
             return self.training(outputs, images, image_shapes, features, gt_boxes)
         else:
-            return self.inference(outputs, images, image_shapes, features, gt_boxes)
+            return self.inference(outputs, images, image_shapes, features, gt_boxes,
+                    ignorey=ignorey, scales_yx=scales_yx)
 
 
 class FastRCNNOutputLayers(nn.Module):
@@ -1846,7 +1902,8 @@ class GeneralizedRCNN(nn.Module):
 
         return model
 
-    def forward(self, images, image_shapes, gt_boxes=None, proposals=None, scales_yx=None, **kwargs):
+    def forward(self, images, image_shapes, gt_boxes=None, proposals=None,
+            scales_yx=None, ignorey=None,**kwargs):
         '''
         kwargs:
             max_detections (int), return_tensors {"np", "pt", None}, padding {None,
@@ -1860,11 +1917,13 @@ class GeneralizedRCNN(nn.Module):
             gt_boxes=gt_boxes,
             proposals=proposals,
             scales_yx=scales_yx,
+            ignorey=ignorey,
             **kwargs
         )
 
     @torch.no_grad()
-    def inference(self, images, image_shapes, gt_boxes=None, proposals=None, scales_yx=None, **kwargs):
+    def inference(self, images, image_shapes, gt_boxes=None, proposals=None,
+            scales_yx=None, ignorey=None, **kwargs):
         # run images through bacbone
         original_sizes = image_shapes * scales_yx
         features = self.backbone(images)
@@ -1875,7 +1934,9 @@ class GeneralizedRCNN(nn.Module):
                 images,
                 image_shapes,
                 features,
-                gt_boxes
+                gt_boxes,
+                ignorey,
+                scales_yx
             )
         else:
             assert proposals is not None

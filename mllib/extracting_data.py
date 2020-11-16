@@ -25,6 +25,24 @@ USAGE:
 #consider one image -> many questions, or one image one questions
 #will need to test the effectiveness of grouping by questions
 
+DEV = (
+    sorted(
+        [
+            (i, d["fb_memory_usage"]["free"])
+            for i, d in enumerate(
+                nvidia_smi.getInstance().DeviceQuery("memory.free")["gpu"]
+            )
+        ],
+        key=lambda x: x[0],
+    )[-1][0]
+    if torch.cuda.is_available()
+    else -1
+)
+
+DEV = f"cuda:{0}" if DEV > 0 else "cpu"
+print(DEV)
+
+
 
 TEST = False
 CONFIG = Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
@@ -60,15 +78,18 @@ class Extract:
         inputdir = None
         outputfile = None
         subset_list = None
+        y_ignore = None
         batch_size = 1
         opts, args = getopt.getopt(
-            argv, "i:o:b:s", ["inputdir=", "outfile=", "batch_size="]
+                argv, "i:o:y:b", ["inputdir=", "outfile=", "y_ignore=", "batch_size="]
         )
         for opt, arg in opts:
             if opt in ("-i", "--inputdir"):
                 inputdir = arg
             elif opt in ("-o", "--outfile"):
                 outputfile = arg
+            elif opt in ("-y", "--yignore"):
+                y_ignore = arg
             elif opt in ("-b", "--batch_size"):
                 batch_size = int(arg)
 
@@ -85,6 +106,7 @@ class Extract:
             self.subset_list = None
 
         self.config = CONFIG
+        self.y_ignore = None if y_ignore is None else json.load(open(y_ignore))
         # EDIT SETTINGS HERE
         # self.config.roi_heads.nms_thresh_test = [0.2]
         # self.config.roi_heads.score_thresh_test = 0.1
@@ -98,10 +120,8 @@ class Extract:
             "unc-nlp/frcnn-vg-finetuned", config=self.config
         )
         if torch.cuda.is_available():
-            self.dev_id = sorted([(i, d["fb_memory_usage"]["free"]) for i, d in
-                    enumerate(nvidia_smi.getInstance().DeviceQuery("memory.free")["gpu"])],
-                    key = lambda x: x[0])[-1][0]
-            self.model.cuda(self.dev_id)
+            self.dev_id = DEV
+            self.model.to(self.dev_id)
         self.batch = batch_size if batch_size != 0 else 1
         self.schema = DEFAULT_SCHEMA
         self.progress = tqdm(unit_scale=True, total=self.num, desc="Extracting")
@@ -132,10 +152,15 @@ class Extract:
             writer = datasets.ArrowWriter(features=self.schema, path=self.outputfile)
         # do file generator
         for i, (img_ids, filepaths) in enumerate(self.file_generator):
+            ignorey=None
+            if self.y_ignore is not None:
+                ignorey = []
+                for i in img_ids:
+                    ignorey.append(torch.Tensor(self.y_ingnore[i]))
             images, sizes, scales_yx = self.preprocess(filepaths)
             if torch.cuda.is_available():
                 images, sizes, scales_yx = (
-                    images.cuda(self.dev_id),sizes.cuda(self.dev_id),scales_yx.cuda(self.dev_id)
+                    images.to(self.dev_id),sizes.to(self.dev_id),scales_yx.to(self.dev_id)
                 )
             output_dict = self.model(
                 images,
@@ -145,7 +170,8 @@ class Extract:
                 max_detections=self.config.MAX_DETECTIONS,
                 pad_value=0,
                 return_tensors="np",
-                location="cpu"
+                location="cpu",
+                ignorey=ignorey
             )
             output_dict["boxes"] = output_dict.pop("normalized_boxes")
             if not TEST:
