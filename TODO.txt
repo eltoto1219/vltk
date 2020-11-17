@@ -1,0 +1,44 @@
+the main commands for "run" will be:
+1. model
+2. extract features
+3. test
+4. view (perhaps we will nest this at some point)
+
+okay so now for all the configs, lets use python dataclasses, each for:
+1. environment variables (lets see if we can permantenly change this within the package) --> I can python packages have a state.
+2. the data variables
+3. the command specific variables expirment/extract/
+4. the expirmennt/extract/test varibles
+
+
+I wonder if it is possilbe to keep a branch private?
+perhaps, we can just point to a model file that will need to conform to some specific design guidelines
+either in config or in package state
+lets set stored "model" variables which point to specific models
+lets default to this libraries "main run" script.
+
+far far into the future we can consdier running pipelines for extraction + training + val + test pipelines
+
+
+develop methodology: do not code unless will be used immidiately, on a "as needed" basis
+
+okay so for tommorrow, we will need to
+1. develop until ready to deploy on dgx
+2. get new feature extraction prepared in new pipeline
+3. make compatible with the "transformer library"
+4. once compatible with the transformer library, we will have to make the lxmert features compatible with arrow dataset
+5. then we will have to make the dataloader compatible with handling multiple arrow datasets
+6. once all of that is done, we will have to make the custom dataclass configs ready for the new model
+7. once the custom config type options are done, move on to implementing the visual bert stuff.
+8. add visual bert to library, and booststrap + make a custom visual bert + transformer pretraining type thing
+9. add 16 bit percsision if needed
+10. at this point, both models should be ready to go
+(figure out how to to quickly redeploy docker images)
+(also figure out how to to prevent vim from opening empty buffers once and for all smh)
+1. make new docker image to account for new python libraries needed to run expiemrent
+2. once each expiememnt is running, we can check tail of each respective/unique logging file
+
+
+perhaps, what we can also do is: if we are on dgx: --> auto generate requriements for yaml file (how to generate yaml file in python)
+add to todo later on:
+1. how to

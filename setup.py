@@ -1,6 +1,6 @@
 from subprocess import call
 
-from setuptools import find_packages, setup
+from setuptools import setup
 from setuptools.command.develop import develop
 from setuptools.command.install import install
 
@@ -24,31 +24,16 @@ class Install(install):
         super().run()
 
 
-install_requires = [
-    "torch",
-    "torchvision",
-    "pyaml",
-    "numpy",
-    "pillow",
-    "matplotlib",
-    "opencv-python",
-    "requests",
-    "tqdm",
-    "wget",
-    "filelock",
-    "transformers @ git+https://github.com/huggingface/transformers.git",
-    "datasets @ git+https://github.com/huggingface/datasets.git",
-    "jupyter",
-    "pynvml"
-]
 setup(
     name="mllib",
     version="1.0.0",
+    # this command is to be used if we want to auto run any scripts
     # cmdclass={"develop": Develop, "install": Install},
+    entry_points={"console_scripts": ["run = cli.cli:main"]},
     author="Antonio Mendoza",
     author_email="avmendoz@cs.unc.edu",
-    description="PyTorch implementation of faster-rcnn",
+    description="Personal AI library for quick projects",
     long_description=open("README.md").read(),
-    packages=["mllib", "mllib/tests"],
-    install_requires=install_requires,
-),
+    packages=["cli", "mllib", "mllib/tests"],
+    install_requires=[],
+)
