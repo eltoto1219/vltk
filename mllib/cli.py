@@ -1,7 +1,7 @@
 from fire import Fire
 import os
 
-PATH = "/".join(os.path.dirname(os.path.realpath(__file__)).split("/")[:-1])
+PATH = os.path.dirname(os.path.realpath(__file__))
 
 class Arguments(object):
     """ class to handle cli arguments"""

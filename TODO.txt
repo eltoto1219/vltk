@@ -6,10 +6,18 @@ the main commands for "run" will be:
 
 okay so now for all the configs, lets use python dataclasses, each for:
 1. environment variables (lets see if we can permantenly change this within the package) --> I can python packages have a state.
+#okay for the dataclass object, we will need to find some way to serialize that object automatically if it is initialzed with anything else than the global defaults
+#actually, we will need to serialize a yaml file which contains all of the "global" variables, by default, it will unserialize the pickle file every single time,
+#and then if any of the global args don't match up with the args passed, then okay, we can change that easy
+#seriously get back to lysandre this week. If dont have time, atleast text him to let him know what is up.
 2. the data variables
 3. the command specific variables expirment/extract/
 4. the expirmennt/extract/test varibles
-
+5.1 okay, once we set up image dirs (defaults to name of the dir, but also, we can specify if we really want)
+5.2 then we can run the extract script for each  respective dataset, and then we can combine to fit specific pretrainig corpra for specific projects
+5.3 hrm, I wondered what I was gonna say ... Oh. how will we valdiate available dataset names?
+5.4 how will we assign specific datasets for speicfic causes (lets give each dataset a "vision-language" property that specifies "dataset x is for doing a specific thing"
+5.5 okay and then, what we will do next is have to validate command line options for specific python command groups
 
 I wonder if it is possilbe to keep a branch private?
 perhaps, we can just point to a model file that will need to conform to some specific design guidelines

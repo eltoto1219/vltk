@@ -1,8 +1,7 @@
 README.md
 setup.py
-cli/__init__.py
-cli/cli.py
 mllib/__init__.py
+mllib/cli.py
 mllib/dataloader.py
 mllib/extracting_data.py
 mllib/modeling_frcnn.py
@@ -10,6 +9,7 @@ mllib/modeling_uniter.py
 mllib/processing_image.py
 mllib/run.py
 mllib/utils.py
+mllib/vanilla_lxmert.py
 mllib/visualizing_image.py
 mllib.egg-info/PKG-INFO
 mllib.egg-info/SOURCES.txt
