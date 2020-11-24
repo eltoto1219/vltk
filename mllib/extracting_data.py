@@ -106,12 +106,6 @@ class Extract:
             self.subset_list = None
 
         self.config = CONFIG
-        self.y_ignore = None if y_ignore is None else json.load(open(y_ignore))
-        # EDIT SETTINGS HERE
-        # self.config.roi_heads.nms_thresh_test = [0.2]
-        # self.config.roi_heads.score_thresh_test = 0.1
-        # self.config.min_detections = 0
-        # self.config.max_detections = 36
         self.inputdir = os.path.realpath(inputdir)
         self.outputfile = os.path.realpath(outputfile)
         self.num = int(Popen(f"ls {self.inputdir}|wc -l", shell=True, stdout=PIPE).communicate()[0])

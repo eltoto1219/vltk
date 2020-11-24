@@ -50,3 +50,9 @@ okay so for tommorrow, we will need to
 perhaps, what we can also do is: if we are on dgx: --> auto generate requriements for yaml file (how to generate yaml file in python)
 add to todo later on:
 1. how to
+
+
+
+
+ON THE FLY TODO:
+look into grousp vs commands. should the env config really be there?
