@@ -39,3 +39,12 @@ class Environment:
             )
     data_dir: str = '/playpen1/home/avmendoz/data'
     output_dir: str = '/playpen1/home/avmendoz/outputs'
+    gpus: int = 1
+
+
+    def __init__(self, **kwargs):
+        for field in fields(self):
+            str_field = field.name
+            if str_field in kwargs:
+                setattr(self, str_field, kwargs.get(str_field))
+

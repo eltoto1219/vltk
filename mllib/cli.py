@@ -1,7 +1,9 @@
+import torch
 from fire import Fire
 import os
 from .configs import Environment, ROIFeaturesFRCNN
 from dataclasses import fields
+from .extracting_data import Extract
 
 PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -13,7 +15,9 @@ class Arguments(object):
     """ class to handle cli arguments"""
 
     def __init__(self, **kwargs):
-        self.environment_config = Environment()
+        if not torch.cuda.is_available():
+            kwargs["gpus"] = -1
+        self.environment_config = Environment(**kwargs)
         for field in fields(self.environment_config):
             str_field = field.name
             if str_field in kwargs:
@@ -24,13 +28,10 @@ class Arguments(object):
         pass
 
     def extract(self, model, input_dir, out_file):
-        self.extract_config = ROIFeaturesFRCNN(input_dir, out_file, **self.flags)
-        '''
-        init the model here
-        once the model is started
-        then pass the model and all the other things to the extract class
-        '''
-        print(self.extract_config, self.environment_config)
+        self.extract_config = ROIFeaturesFRCNN(out_file, input_dir, **self.flags)
+        extractor = Extract(self.environment_config, self.extract_config)
+        print("initialized extractor, now starting run ...")
+        extractor()
 
 
 def main():

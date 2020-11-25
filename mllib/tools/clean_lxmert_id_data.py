@@ -3,8 +3,8 @@ import json
 
 
 #get all of the path data here
-coco_path = '/playpen1/home/avmendoz/coco/imgs/'
-vg_path  = '/playpen1/home/avmendoz/vg/imgs/'
+coco_path = '/playpen1/home/avmendoz/data/coco/imgs/'
+vg_path  = '/playpen1/home/avmendoz/data/vg/imgs/'
 
 coco_imgs = (os.path.join(coco_path, "train2017"), os.path.join(coco_path, "val2017"))
 vg_data = json.load(open(f'{vg_path[:-5]}/image_data.json'))
@@ -15,18 +15,23 @@ vg_coco_urls= [entry["url"] for entry in vg_data if entry["coco_id"] is not None
 split_stuff = lambda x: os.path.join(vg_path,  '/'.join(x.split("/")[-2:]))
 coco_combine = lambda x, y: os.path.join(coco_imgs[y], x)
 
+
+
 #these are the three pathes that we want
 #expand capability of dataloader to handle list of image paths, or, list of image directories
-vg_only_data = set([split_stuff(x) for x in vg_only_urls])
-coco_val_data =set([coco_combine(x, 1) for x in os.listdir(coco_imgs[1])])
-coco_train_data = set([coco_combine(x, 0) for x in os.listdir(coco_imgs[0])])
+# vg_only_data = set([split_stuff(x) for x in vg_only_urls])
+# coco_val_data =set([coco_combine(x, 1) for x in os.listdir(coco_imgs[1])])
+#coco_train_data = set([coco_combine(x, 0) for x in os.listdir(coco_imgs[0])])
 
-#vg_only_ids= set([entry["url"].split('/')[-1][:-4] for entry in vg_data if entry["coco_id"] is None])
-#vg_coco_ids = set([entry["url"].split('/')[-1][:-4] for entry in vg_data if entry["coco_id"] is not None])
-#coco_get_ids = lambda x: x.split('.')[0]
-#vg_coco_data = set([split_stuff(x) for x in vg_coco_urls])
-#coco_val_ids = set([coco_get_ids(x) for x in os.listdir(coco_imgs[1])])
-#coco_train_ids = set([coco_get_ids(x) for x in os.listdir(coco_imgs[0])])
+vg_only_ids= set([entry["url"].split('/')[-1][:-4] for entry in vg_data if entry["coco_id"] is None])
+vg_coco_ids = set([entry["url"].split('/')[-1][:-4] for entry in vg_data if entry["coco_id"] is not None])
+coco_get_ids = lambda x: x.split('.')[0]
+vg_coco_data = set([split_stuff(x) for x in vg_coco_urls])
+coco_val_ids = set([coco_get_ids(x) for x in os.listdir(coco_imgs[1])])
+coco_train_ids = set([coco_get_ids(x) for x in os.listdir(coco_imgs[0])])
+open("vg_only_ids.txt", "w").writelines([f'{item}\n' for item in vg_only_ids])
+open("coco_train_ids", "w").writelines([f'{item}\n' for item in coco_train_ids])
+open("coco_val_ids.txt", "w").writelines([f'{item}\n' for item in coco_val_ids])
 
 '''
 mval_coco_lxmert = set(map(lambda x: x["img_id"].split('_')[-1], json.load(open('/playpen1/home/avmendoz/lxmertdata/mscoco_minival.json'))))
