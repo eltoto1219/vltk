@@ -195,7 +195,6 @@ class BaseDataset(Dataset):
             self.labels
         ), f"{self.num_labels} {len(self.labels)}"
         assert len(self.label2lid) == self.num_labels
-        raise Exception(self.id2idx["vg"])
 
     @property
     def random_ind(self):
