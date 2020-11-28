@@ -12,34 +12,9 @@ import datasets
 import numpy as np
 import torch
 from pynvml.smi import nvidia_smi
-from mllib import Config, GeneralizedRCNN, Preprocess
-
-CONFIG = Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
-DEFAULT_SCHEMA = datasets.Features(
-    OrderedDict(
-        {
-            "attr_ids": datasets.Sequence(
-                length=CONFIG.MAX_DETECTIONS, feature=datasets.Value("float32")
-            ),
-            "attr_probs": datasets.Sequence(
-                length=CONFIG.MAX_DETECTIONS, feature=datasets.Value("float32")
-            ),
-            "boxes": datasets.Array2D((CONFIG.MAX_DETECTIONS, 4), dtype="float32"),
-            "img_id": datasets.Value("int32"),
-            "obj_ids": datasets.Sequence(
-                length=CONFIG.MAX_DETECTIONS, feature=datasets.Value("float32")
-            ),
-            "obj_probs": datasets.Sequence(
-                length=CONFIG.MAX_DETECTIONS, feature=datasets.Value("float32")
-            ),
-            "roi_features": datasets.Array2D(
-                (CONFIG.MAX_DETECTIONS, 2048), dtype="float32"
-            ),
-            "sizes": datasets.Sequence(length=2, feature=datasets.Value("float32")),
-            "preds_per_image": datasets.Value(dtype="int32"),
-        }
-    )
-)
+from .utils import Config
+from .modeling_frcnn import GeneralizedRCNN
+from .processing_image import Preprocess
 
 
 class Extract:
@@ -49,26 +24,36 @@ class Extract:
         self.env = env
         self.config = config
         if ids is not None:
-            self.ids = set([x for x in open(ids).readlines()])
-        self.device = self.env.gpus
+            self.ids = set([x.replace("\n", "") for x in open(ids).readlines()])
+        if self.env.gpus == -1:
+            self.device = "cpu"
+        else:
+            self.device = "cuda"
         self.batch_size = self.config.batch_size
         self.data_dir = os.path.join(self.env.data_dir, self.config.input_dir)
         self.output_file = os.path.join(self.env.data_dir, self.config.out_file)
         print(f"will write to: {self.output_file}")
         if self.batch_size == 0:
             self.batch_size = 1
-        self.schema = DEFAULT_SCHEMA
-        self.progress = tqdm(unit_scale=True, desc="Extracting")
-        self.model = GeneralizedRCNN.from_pretrained("unc-nlp/frcnn-vg-finetuned")
+        self.model_config = Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
+        self.model = GeneralizedRCNN.from_pretrained("unc-nlp/frcnn-vg-finetuned", config=self.model_config)
+        self.model.to(self.device)
         self.preprocess = Preprocess(self.model.config)
+        self.schema = schema_factory(self.model.config.max_detections)
+
+    def get_files(self):
+        file_list = []
+        for path, subdirs, files in os.walk(self.data_dir):
+            for name in files:
+                file_list.append(os.path.join(path, name))
+        return file_list
 
     @property
     def file_generator(self):
         batch = []
-        # do this later:
-        #for path, subdirs, files in os.walk(self.data_dir):
-        #print("GT")
-        for file in os.listdir(self.data_dir):
+        files = self.get_files()
+        self.progress = tqdm(unit_scale=True, desc="Extracting", total=len(files))
+        for file in files:
             file = os.path.join(self.data_dir, file)
             file_id = file.split("/")[-1].split(".")[0]
             if hasattr(self, "ids") and file_id not in self.ids:
@@ -93,7 +78,7 @@ class Extract:
 
             if torch.cuda.is_available():
                 images, sizes, scales_yx = (
-                        images.cuda(),sizes.cuda(),scales_yx.cuda()
+                        images.to(self.device),sizes.to(self.device),scales_yx.to(self.device)
                 )
             output_dict = self.model(
                 images,
@@ -113,6 +98,35 @@ class Extract:
 
         num_examples, num_bytes = writer.finalize()
         print(f"Success! You wrote {num_examples} entry(s) and {num_bytes >> 20} mb")
+
+
+def schema_factory(max_detections):
+    return datasets.Features(
+        OrderedDict(
+            {
+                "attr_ids": datasets.Sequence(
+                    length=max_detections, feature=datasets.Value("float32")
+                ),
+                "attr_probs": datasets.Sequence(
+                    length=max_detections, feature=datasets.Value("float32")
+                ),
+                "boxes": datasets.Array2D((max_detections, 4), dtype="float32"),
+                "img_id": datasets.Value("int32"),
+                "obj_ids": datasets.Sequence(
+                    length=max_detections, feature=datasets.Value("float32")
+                ),
+                "obj_probs": datasets.Sequence(
+                    length=max_detections, feature=datasets.Value("float32")
+                ),
+                "roi_features": datasets.Array2D(
+                    (max_detections, 2048), dtype="float32"
+                ),
+                "sizes": datasets.Sequence(length=2, feature=datasets.Value("float32")),
+                "preds_per_image": datasets.Value(dtype="int32"),
+            }
+        )
+    )
+
 
 
 

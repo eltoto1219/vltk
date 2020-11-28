@@ -1818,18 +1818,15 @@ class GeneralizedRCNN(nn.Module):
         else:
             resolved_archive_file = None
 
-        # Instantiate model.
-        '''
-        quickfix: force model to cuda cuz it doesnt seem to work downstream
-        '''
-        config.device = "cuda:0"
+
+        #config.device = "cuda:0"
         model = cls(config)
-        model.cuda()
+        #model.cuda()
 
         if state_dict is None:
             try:
                 try:
-                    state_dict = torch.load(resolved_archive_file, map_location=torch.device(config.device))
+                    state_dict = torch.load(resolved_archive_file, map_location=torch.device(model.config.model.device))
                 except Exception:
                     state_dict = load_checkpoint(resolved_archive_file)
 
