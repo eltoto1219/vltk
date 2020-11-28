@@ -15,17 +15,15 @@
  See the License for the specific language governing permissions and
  limitations under the License.import copy
  """
-import os
 import sys
 from typing import Tuple
 
-import cv2
 import numpy as np
 import torch
 import torch.nn.functional as F
 from PIL import Image
 
-from .utils import get_image_from_url, img_tensorize
+from .utils import img_tensorize
 
 
 class ResizeShortestEdge:
@@ -64,10 +62,9 @@ class ResizeShortestEdge:
             if img.dtype == np.uint8:
                 pil_image = Image.fromarray(img)
                 pil_image = pil_image.resize((neww, newh), Image.BILINEAR)
-                ret = np.asarray(pil_image)
+                img = np.asarray(pil_image)
             else:
-                shape = img.shape
-                img = img.permute(2, 0, 1).unsqueeze(0)# 3, 0, 1)  # hw(c) -> nchw
+                img = img.permute(2, 0, 1).unsqueeze(0)  # 3, 0, 1)  # hw(c) -> nchw
                 img = F.interpolate(
                     img, (newh, neww), mode=self.interp_method, align_corners=False
                 ).squeeze(0)
@@ -112,21 +109,24 @@ class Preprocess:
 
         return torch.stack(images), torch.tensor(image_sizes)
 
-    def __call__(self, images, single_image=False):
+    def __call__(self, images, img_ids, single_image=False):
         with torch.no_grad():
+            tensor_imgs = []
             if not isinstance(images, list):
                 images = [images]
             if single_image:
                 assert len(images) == 1
             for i in range(len(images)):
                 if isinstance(images[i], torch.Tensor):
-                    images.insert(i, images.pop(i).to(self.device).float())
+                    tensor_imgs.append(images[i].to(self.device).float())
                 elif not isinstance(images[i], torch.Tensor):
-                    images.insert(
-                        i, torch.as_tensor(img_tensorize(images.pop(i),
-                            input_format=self.input_format)).to(self.device).float()
-                    )
+                    img = img_tensorize(images[i], input_format=self.input_format)
+                    if img is not None:
+                        tensor_imgs.append(torch.as_tensor(img).to(self.device).float())
+                    else:
+                        img_ids.pop(i)
             # resize smallest edge
+            images = tensor_imgs
             raw_sizes = torch.tensor([im.shape[:2] for im in images])
             images = self.aug(images)
             # transpose images and convert to torch tensors
@@ -142,9 +142,9 @@ class Preprocess:
             # pad
             scales_yx = torch.true_divide(raw_sizes, sizes)
             if single_image:
-                return images[0], sizes[0], scales_yx[0]
+                return img_ids[0], images[0], sizes[0], scales_yx[0]
             else:
-                return images, sizes, scales_yx
+                return img_ids, images, sizes, scales_yx
 
 
 def _scale_box(boxes, scale_yx):

@@ -34,16 +34,14 @@ from pathlib import Path
 from urllib.parse import urlparse
 from zipfile import ZipFile, is_zipfile
 
+import cv2
 import numpy as np
 import requests
+import wget
 from filelock import FileLock
 from PIL import Image
 from tqdm.auto import tqdm
-
-import cv2
-import wget
 from yaml import Loader, dump, load
-
 
 try:
     import torch
@@ -268,7 +266,11 @@ def hf_bucket_url(model_id: str, filename: str, use_cdn=True) -> str:
 
 
 def http_get(
-    url, temp_file, proxies=None, resume_size=0, user_agent=None,
+    url,
+    temp_file,
+    proxies=None,
+    resume_size=0,
+    user_agent=None,
 ):
     ua = "python/{}".format(sys.version.split()[0])
     if _torch_available:
@@ -286,7 +288,11 @@ def http_get(
     content_length = response.headers.get("Content-Length")
     total = resume_size + int(content_length) if content_length is not None else None
     progress = tqdm(
-        unit="B", unit_scale=True, total=total, initial=resume_size, desc="Downloading",
+        unit="B",
+        unit_scale=True,
+        total=total,
+        initial=resume_size,
+        desc="Downloading",
     )
     for chunk in response.iter_content(chunk_size=1024):
         if chunk:  # filter out keep-alive new chunks
@@ -566,14 +572,15 @@ def get_demo_path():
 
 def img_tensorize(im, input_format="RGB"):
     assert isinstance(im, str)
-    if os.path.isfile(im):
-        img = cv2.imread(im)
-    else:
-        img = get_image_from_url(im)
-        assert img is not None, f"could not connect to: {im}"
-    #img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    #if input_format == "RGB":
-    img = img[:, :, ::1]
+    # if os.path.isfile(im):
+    img = cv2.imread(im)
+    if img is not None:
+        # else:
+        #     img = get_image_from_url(im)
+        #     assert img is not None, f"could not connect to: {im}"
+        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # if input_format == "RGB":
+        img = img[:, :, ::1]
     return img
 
 

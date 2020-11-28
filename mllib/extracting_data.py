@@ -76,7 +76,7 @@ class Extract:
         writer = datasets.ArrowWriter(features=self.schema, path=self.output_file)
         # do file generator
         for img_ids, filepaths in self.file_generator:
-            images, sizes, scales_yx = self.preprocess(filepaths)
+            img_ids, images, sizes, scales_yx = self.preprocess(filepaths, img_ids)
 
             if torch.cuda.is_available():
                 images, sizes, scales_yx = (
