@@ -30,6 +30,7 @@ class Extract:
             self.device = "cuda"
         self.batch_size = self.config.batch_size
         self.data_dir = os.path.join(self.env.data_dir, self.config.input_dir)
+        assert os.path.isdir(self.data_dir)
         self.output_file = os.path.join(self.env.data_dir, self.config.out_file)
         print(f"will write to: {self.output_file}")
         if self.batch_size == 0:
