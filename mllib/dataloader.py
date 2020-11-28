@@ -37,6 +37,20 @@ ANS_CONVERT = {
 }
 
 
+def get_file_path(data_dir, relative_path):
+    files = []
+    fp = os.path.join(data_dir, relative_path)
+    if os.path.isdir(fp):
+        for x in os.listdir(fp):
+            files.append(os.path.join(fp, x))
+    elif os.path.isfile(fp):
+        files.append(fp)
+    else:
+        raise Exception(fp)
+
+    return files
+
+
 def convert_answer(ans):
     if len(ans) == 0:
         return ""
@@ -54,12 +68,6 @@ def convert_answer(ans):
     return ans
 
 
-def load_arrow(file_list):
-    return datasets.concatenate_datasets(
-        [datasets.Dataset.from_file(x) for x in file_list]
-    )
-
-
 def load_images(img_dirs):
     imgid2file = {}
     return imgid2file
@@ -71,27 +79,28 @@ def load_temp_lxmert(
     dataset_config,
 ):
     data_dir = global_config.data_dir
-    coco_imgs = pathes_config.coco_imgs
-    vg_imgs = pathes_config.vg_imgs
-    coco_train_arrow = pathes_config.coco_train_arrow
-    coco_valid_arrow = pathes_config.coco_valid_arrow
-    vg_arrow = pathes_config.vg_arrow
-    split = dataset_config.split
 
-    coco_valid = datasets.Dataset.from_file(os.path.join(data_dir, coco_valid_arrow))
-    coco_train = datasets.Dataset.from_file(os.path.join(data_dir, coco_train_arrow))
+    coco_valid = datasets.Dataset.from_file(
+        os.path.join(data_dir, pathes_config.coco_valid_arrow)
+    )
+    coco_train = datasets.Dataset.from_file(
+        os.path.join(data_dir, pathes_config.coco_train_arrow)
+    )
     coco = datasets.concatenate_datasets([coco_valid, coco_train])
-    vg = datasets.Dataset.from_file(os.path.join(data_dir, vg_arrow))
+    vg = datasets.Dataset.from_file(os.path.join(data_dir, pathes_config.vg_arrow))
     arrow_dict = {"coco": coco, "vg": vg}
 
-    img_dirs = [os.path.join(data_dir, coco_imgs), os.path.join(data_dir, vg_imgs)]
+    img_dirs = [
+        os.path.join(data_dir, pathes_config.coco_imgs),
+        os.path.join(data_dir, pathes_config.vg_imgs),
+    ]
 
-    if split in ("pretrain", "train", "finetune"):
-        files = [os.path.join(data_dir, x) for x in pathes_config.temp_lxmert_train]
-    elif split in ("eval", "evaluation", "validation", "val"):
-        files = [os.path.join(data_dir, pathes_config.temp_lxmert_eval)]
+    if dataset_config.split in ("pretrain", "train", "finetune"):
+        files = get_file_path(data_dir, pathes_config.temp_lxmert_train)
+    elif dataset_config.split in ("eval", "evaluation", "validation", "val"):
+        files = get_file_path(data_dir, pathes_config.temp_lxmert_eval)
     else:
-        files = [os.path.join(data_dir, pathes_config.temp_lxmert_test)]
+        files = get_file_path(data_dir, pathes_config.temp_lxmert_test)
 
     labels = os.path.join(data_dir, pathes_config.temp_lxmert_answers)
     label_data = json.load(open(labels))
@@ -138,12 +147,15 @@ def collate_tensor(columns):
 
 class BaseDataset(Dataset):
     @get_duration
-    def __init__(self, dataset_name, dataset_config, pathes_config, global_config):
+    def __init__(
+        self, dataset_name, dataset_config, pathes_config, global_config, loss_config
+    ):
         super().__init__()
         # setup stuff
         self.dataset_config = dataset_config
         self.pathes_config = pathes_config
         self.global_config = global_config
+        self.loss_config = loss_config
 
         files, img_dirs, arrow_dict, labels = DATASET2DATA[dataset_name](
             pathes_config,
@@ -171,11 +183,11 @@ class BaseDataset(Dataset):
         self.tokenizer_args = {
             "padding": "max_length",
             "max_length": self.dataset_config.sent_length,
-            "truncation": True,
-            "return_token_type_ids": True,
-            "return_attention_mask": True,
-            "add_special_tokens": True,
-            "return_tensors": "pt",
+            "truncation": self.dataset_config.truncate_sentence,
+            "return_token_type_ids": self.dataset_config.return_token_type_ids,
+            "return_attention_mask": self.dataset_config.return_attention_mask,
+            "add_special_tokens": self.dataset_config.add_special_tokens,
+            "return_tensors": self.dataset_config.return_tensors,
         }
         self.never_split = set()
         self.tokenizer = LxmertTokenizer.from_pretrained(
@@ -183,26 +195,35 @@ class BaseDataset(Dataset):
         )
 
         self.mask_id = self.tokenizer.mask_token_id
-        self.ignore_id = self.tokenizer.pad_token_id
-        self.pad_id = self.ignore_id
-        self.do_sentence_matching = True
-        self.do_language_masking = True
+        self.ignore_id = self.dataset_config.ignore_id
+        self.pad_id = self.tokenizer.pad_token_id
+        self.do_sentence_matching = self.loss_config.msm
+        self.do_language_masking = self.loss_config.mlm
         self.label2lid = {}
-        self.num_labels = 0
-        self.load_text_files
-        self.refresh_id2idx
+        self.num_labels = 0  # it self counts
+        self.load_text_files()
+        self.refresh_id2idx()
         assert self.num_labels <= len(
             self.labels
         ), f"{self.num_labels} {len(self.labels)}"
         assert len(self.label2lid) == self.num_labels
 
     @property
-    def random_ind(self):
-        return self.tokenizer.convert_tokens_to_ids(
-            random.choice(list(self.tokenizer.vocab.items()))[0]
+    def special_ids(self):
+        return set(
+            [
+                int(self.tokenizer.unk_token_id),
+                int(self.tokenizer.sep_token_id),
+                int(self.tokenizer.pad_token_id),
+                int(self.tokenizer.cls_token_id),
+                int(self.tokenizer.mask_token_id),
+            ]
         )
 
-    @property
+    def random_ind(self):
+        token = random.choice(list(self.tokenizer.vocab.items()))
+        return int(token[-1])
+
     def refresh_id2idx(self):
         for dset in self.arrow_dict:
             self.id2idx[dset] = {
@@ -210,7 +231,6 @@ class BaseDataset(Dataset):
             }
 
     # later lets move this into that mapping fucnction for custom stuff
-    @property
     def load_text_files(self):
         name2dset = {
             "mscoco": "coco",
@@ -269,7 +289,7 @@ class BaseDataset(Dataset):
 
     def matched_sentence_modeling(self, entry):
         is_matched = 1
-        if random.random() < 0.5:
+        if random.random() < self.dataset_config.sentence_match_rate:
             is_matched = 0
             other_datum = self.text_data[random.randint(0, len(self.text_data) - 1)]
             while other_datum["img_id"] == entry["img_id"]:
@@ -288,18 +308,21 @@ class BaseDataset(Dataset):
         mask_id = self.mask_id
         masked_sequence = input_ids
         masked_inds = torch.zeros(input_ids.shape)
-        word_mask_rate = 0.15
+        # do random_sampling instead of iteration: faster
         for i in range(len(masked_sequence)):
-            ind = masked_sequence[i]
-            random_id = self.random_ind
+            ind = int(masked_sequence[i])
+            random_id = self.random_ind()
+            while random_id in self.special_ids:
+                random_id = self.random_ind()
             prob = random.random()
-            ratio = word_mask_rate
-            if prob < ratio:
+            ratio = self.dataset_config.word_mask_rate
+            if prob < ratio and ind not in self.special_ids:
                 prob /= ratio
                 if prob < 0.8:
                     masked_sequence[i] = mask_id
                 elif prob < 0.9:
                     masked_sequence[i] = random_id
+                assert ind not in self.special_ids
                 masked_inds[i] = ind
             else:
                 masked_inds[i] = ignore_id
@@ -358,7 +381,13 @@ class BaseDataset(Dataset):
 
 class BaseLoader(DataLoader):
     def __init__(
-        self, dataset_name, dataset_config, loader_config, global_config, pathes_config
+        self,
+        dataset_name,
+        dataset_config,
+        loader_config,
+        global_config,
+        pathes_config,
+        loss_config,
     ):
         shuffle = loader_config.shuffle
         split = dataset_config.split
@@ -370,7 +399,7 @@ class BaseLoader(DataLoader):
         return_tensor = loader_config.collate_pytorch
         super().__init__(
             dataset=BaseDataset(
-                dataset_name, dataset_config, pathes_config, global_config
+                dataset_name, dataset_config, pathes_config, global_config, loss_config
             ),
             collate_fn=collate_tensor if return_tensor else collate_list,
             drop_last=drop_last,
@@ -381,7 +410,7 @@ class BaseLoader(DataLoader):
         )
 
         if shuffle:
-            self.dataset.refresh_id2idx
+            self.dataset.refresh_id2idx()
 
     @staticmethod
     def toCuda(batch):

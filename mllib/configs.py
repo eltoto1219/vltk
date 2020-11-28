@@ -1,5 +1,5 @@
 import os
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, fields
 
 
 @dataclass
@@ -40,6 +40,18 @@ class GlobalConfig:
 
 
 @dataclass
+class LossConfig:
+    msm: bool = True  # matched_sentence_modeling
+    mlm: bool = True  # masked_language_modeling
+
+    def __init__(self, **kwargs):
+        for f in fields(self):
+            str_field = f.name
+            if str_field in kwargs:
+                setattr(self, str_field, kwargs.get(str_field))
+
+
+@dataclass
 class DataConfig:
     sent_length: int = 20
     max_objects: int = 36
@@ -53,6 +65,17 @@ class DataConfig:
     use_arrow: bool = True
     num_attrs: int = 400
     num_objects: int = 1600
+    ignore_id: int = -100
+    word_mask_rate: float = 0.15
+    feature_mask_rate: float = 0.15
+    random_feature_rate: float = 0.10
+    random_word_rate: float = 0.10
+    sentence_match_rate: float = 0.50
+    truncate_sentence: bool = True
+    return_token_type_ids: bool = True
+    add_special_tokens: bool = True
+    return_tensors: str = "pt"
+    return_attention_mask: bool = True
 
     def __init__(self, **kwargs):
         for f in fields(self):
@@ -81,20 +104,16 @@ class LoaderConfig:
 class PathesConfig:
     coco_imgs: str = "coco/"
     vg_imgs: str = "vg/"
+    vqa: str = "vqa/"
+    gqa: str = "gqa/"
+    vq_qa: str = "vg_qa/"
+    vg_captions: str = "vg_captions/"
+    coco_captions: str = "coco_captions/"
     coco_train_arrow: str = "arrow/coco_train2017.arrow"
     coco_valid_arrow: str = "arrow/coco_val2017.arrow"
     vg_arrow: str = "arrow/vg.arrow"
-    vqa: str = "vqa/"
-    gqa: str = "gqa/"
-    coco_captions: str = "coco_captions/"
-    vg_captions: str = "vg_captions/"
-    vq_qa: str = "vg_qa/"
     temp_lxmert_answers: str = "labels/lxmert_answers.json"
-    temp_lxmert_train: tuple = (
-        "lxmert_data/vgnococo.json",
-        "lxmert_data/mscoco_train.json",
-        "lxmert_data/mscoco_nominival.json",
-    )
+    temp_lxmert_train: tuple = "lxmert_data/train/"
     temp_lxmert_eval: str = "lxmert_data/mscoco_minival.json"
     temp_lxmert_test: str = ""
     label_file: str = ""

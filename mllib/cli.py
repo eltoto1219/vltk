@@ -5,8 +5,8 @@ import torch
 from fire import Fire
 from tqdm import tqdm
 
-from .configs import (DataConfig, GlobalConfig, LoaderConfig, PathesConfig,
-                      ROIFeaturesFRCNN)
+from .configs import (DataConfig, GlobalConfig, LoaderConfig, LossConfig,
+                      PathesConfig, ROIFeaturesFRCNN)
 from .dataloader import BaseLoader
 from .extracting_data import Extract
 
@@ -48,17 +48,36 @@ class Arguments(object):
         pathes_config = PathesConfig(**self.flags)
         loader_config = LoaderConfig(**self.flags)
         global_config = self.global_config
+        loss_config = LossConfig(**self.flags)
         print("loaded all configs and flags")
 
         loader = BaseLoader(
-            dataset, dataset_config, loader_config, global_config, pathes_config
+            dataset,
+            dataset_config,
+            loader_config,
+            global_config,
+            pathes_config,
+            loss_config,
         )
         print("intialized loader and dataset")
 
         for x in tqdm(loader):
             if not full_pass:
-                for k, v in x.items():
-                    print(k, v.shape)
+                input_ids = x["input_ids"]
+                masked_inds = x["masked_inds"]
+                label = x["label"]
+                is_matched = x["is_matched"]
+                img_id = x["img_id"]
+                sents = []
+                for x in input_ids:
+                    sents.append(loader.dataset.tokenizer.convert_ids_to_tokens(x))
+                print("input_ids", input_ids)
+                print("sents", sents)
+                print("masked_inds", masked_inds)
+                print("img_id", img_id)
+                print("is_matched", is_matched)
+                print("label", label)
+                print("special", loader.dataset.special_ids)
                 break
 
 
