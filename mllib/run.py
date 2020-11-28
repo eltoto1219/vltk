@@ -1,36 +1,39 @@
 # coding=utf-8
-from mmf.common.registry import registry
-from collections import namedtuple
-import os
-import torch
-from tqdm import tqdm
-from dataloader import MMFLoader
-from transformers import (
-        #LxmertForQuestionAnswering,
-        get_linear_schedule_with_warmup,AdamW)
 import datetime
-from sklearn.metrics import roc_curve, auc, roc_auc_score
-from modeling_uniter import VisualBertForQuestionAnswering, VisualBertConfig
+import os
+from collections import namedtuple
+
+import torch
+from mmf.common.registry import registry
+from sklearn.metrics import auc, roc_auc_score, roc_curve
+from tqdm import tqdm
+from transformers import (AdamW,  # LxmertForQuestionAnswering,
+                          get_linear_schedule_with_warmup)
+
+from dataloader import MMFLoader
+from modeling_uniter import VisualBertConfig, VisualBertForQuestionAnswering
+
 TEST = False
 NAME = ""
 
 torch.manual_seed(1)
 
 d = {
-    'position_embeddings_visual',
-    'visual_embeddings_type',
-    'image_text_alignment',
-    'segment_ids',
-    'visual_embeddings',
-    'visual_pos',
-    'attention_mask',
-    'input_ids',
-    'input_mask',
-    'position_embeddings_visual'
+    "position_embeddings_visual",
+    "visual_embeddings_type",
+    "image_text_alignment",
+    "segment_ids",
+    "visual_embeddings",
+    "visual_pos",
+    "attention_mask",
+    "input_ids",
+    "input_mask",
+    "position_embeddings_visual",
 }
 
+
 class cheat(dict):
-    def __init__(self,  d):
+    def __init__(self, d):
         for k, v in d.items():
             setattr(self, k, v)
 
@@ -38,13 +41,12 @@ class cheat(dict):
         self.__dict__[k] = v
 
 
+tup = namedtuple("tup", d)
 
 
-tup = namedtuple('tup', d)
-
-
-def train(model, optim, train_data, valid_data, outfile, warmup=None, epochs=8,
-        scheduler=None):
+def train(
+    model, optim, train_data, valid_data, outfile, warmup=None, epochs=8, scheduler=None
+):
     add_header = True
     for epoch in range(epochs):
         total = 0.0
@@ -61,10 +63,10 @@ def train(model, optim, train_data, valid_data, outfile, warmup=None, epochs=8,
                 labels=b["label"],
                 token_type_ids=b["token_type_ids"],
                 image_text_alignment=b["obj_input_ids"],
-                extras=b.get("extras", None)
+                extras=b.get("extras", None),
             )
             raise Exception(output.attentions)
-            '''
+            """
 
             d = cheat({
                 'position_embeddings_visual': None,
@@ -78,12 +80,11 @@ def train(model, optim, train_data, valid_data, outfile, warmup=None, epochs=8,
                 'image_text_alignment': None
             })
             output = model(d)
-            '''
+            """
 
-
-            labels=b["label"]
+            labels = b["label"]
             loss = output.loss
-            #logit = output["scores"]
+            # logit = output["scores"]
             logit = output.question_answering_score
             # loss = torch.nn.functional.cross_entropy(logit, labels)
             loss.backward()
@@ -94,7 +95,7 @@ def train(model, optim, train_data, valid_data, outfile, warmup=None, epochs=8,
             right += (score.eq(pred.long())).sum()
             total += float(train_data.batch_size)
             # torch.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
-            #norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 0.25)
+            # norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 0.25)
             if warmup is not None:
                 warmup.step()
             optim.step()
@@ -108,8 +109,6 @@ def train(model, optim, train_data, valid_data, outfile, warmup=None, epochs=8,
             if scheduler is not None:
                 scheduler.step()
 
-
-
         val_acc = inference(model, valid_data)
         if add_header:
             add_header = False
@@ -119,8 +118,10 @@ def train(model, optim, train_data, valid_data, outfile, warmup=None, epochs=8,
                 f.write(f"Date: {date} \n")
                 f.flush()
 
-        log_str = f"\tEpoch {epoch}: train {(right/total*100):0.2f} % val"\
-        f" {(val_acc[0]):0.2f} % roc {(val_acc[1]):0.2f} %\n"
+        log_str = (
+            f"\tEpoch {epoch}: train {(right/total*100):0.2f} % val"
+            f" {(val_acc[0]):0.2f} % roc {(val_acc[1]):0.2f} %\n"
+        )
         print(log_str)
         if not TEST:
             with open(outfile, "a") as f:
@@ -145,14 +146,14 @@ def inference(model, loader):
         model.eval()
         b = loader.toCuda(b)
         output = model(
-                input_ids=b["input_ids"],
-                visual_feats=b["roi_features"],
-                visual_pos=b["boxes"],
-                attention_mask=b["attention_mask"],
-                token_type_ids=b["token_type_ids"],
-                image_text_alignment=b["obj_input_ids"]
-            )
-        '''
+            input_ids=b["input_ids"],
+            visual_feats=b["roi_features"],
+            visual_pos=b["boxes"],
+            attention_mask=b["attention_mask"],
+            token_type_ids=b["token_type_ids"],
+            image_text_alignment=b["obj_input_ids"],
+        )
+        """
         d = cheat({
             'position_embeddings_visual': None,
             'visual_embeddings_type': None,
@@ -165,18 +166,19 @@ def inference(model, loader):
             'image_text_alignment': None
         })
         output = model(d)
-        '''
+        """
 
         logit = output.question_answering_score
         # logit = output["scores"]
-        logit= torch.nn.functional.softmax(logit, dim=-1)
+        logit = torch.nn.functional.softmax(logit, dim=-1)
         score = b["label"]
-        logit, pred= logit.max(-1)
+        logit, pred = logit.max(-1)
         right += (score.eq(pred.long())).sum()
-        total +=  float(loader.batch_size)
+        total += float(loader.batch_size)
         scores = torch.cat((scores, score.detach().cpu()), dim=0)
         preds = torch.cat((preds, pred.detach().cpu()), dim=0)
-    return right/total * 100, roc_auc_score(scores.numpy(), preds.numpy())
+    return right / total * 100, roc_auc_score(scores.numpy(), preds.numpy())
+
 
 if __name__ == "__main__":
 
@@ -195,14 +197,16 @@ if __name__ == "__main__":
     #         "visual_bert.finetuned.hateful_memes"
     #     )
     # model.training_head_type = "finetuning"
-    #model.resize_num_qa_labels(2)
+    # model.resize_num_qa_labels(2)
     model = model.cuda()
     optim = AdamW(list(model.parameters()), 1e-04)
     # warmup = get_linear_schedule_with_warmup(optim, num_warmup_steps=1000,
     #         num_training_steps=22000)
-    warmup=None
-    scheduler = torch.optim.lr_scheduler.StepLR(optim, step_size=200, gamma=0.9, last_epoch=-1)
-    #scheduler = None
+    warmup = None
+    scheduler = torch.optim.lr_scheduler.StepLR(
+        optim, step_size=200, gamma=0.9, last_epoch=-1
+    )
+    # scheduler = None
     train_data = MMFLoader(
         "train.jsonl",
         "arrow/mmf.arrow",
@@ -222,8 +226,16 @@ if __name__ == "__main__":
         sent_length=20,
         batch_size=32,
         collate_pt=True,
-        num_workers=0
+        num_workers=0,
     )
 
-    train(model, optim, train_data, val_data, outfile, warmup=warmup, epochs=6,
-            scheduler=scheduler)
+    train(
+        model,
+        optim,
+        train_data,
+        val_data,
+        outfile,
+        warmup=warmup,
+        epochs=6,
+        scheduler=scheduler,
+    )

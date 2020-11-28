@@ -3,6 +3,7 @@ from dataclasses import fields
 
 import torch
 from fire import Fire
+from tqdm import tqdm
 
 from .configs import (DataConfig, GlobalConfig, LoaderConfig, PathesConfig,
                       ROIFeaturesFRCNN)
@@ -42,7 +43,7 @@ class Arguments(object):
         print("initialized extractor, now starting run ...")
         extractor()
 
-    def data(self, dataset):
+    def data(self, dataset, full_pass=False):
         dataset_config = DataConfig(**self.flags)
         pathes_config = PathesConfig(**self.flags)
         loader_config = LoaderConfig(**self.flags)
@@ -54,8 +55,11 @@ class Arguments(object):
         )
         print("intialized loader and dataset")
 
-        entry = next(loader)
-        print(entry.keys())
+        for x in tqdm(loader):
+            if not full_pass:
+                for k, v in x.items():
+                    print(k, v.shape)
+                break
 
 
 def main():

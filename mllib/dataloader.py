@@ -3,7 +3,7 @@ import json
 import os
 import random
 import timeit
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 import datasets
 import numpy as np
@@ -17,6 +17,41 @@ Links to the aux data
 https://raw.githubusercontent.com/airsplay/py-bottom-up-attention/master/demo/data/genome/1600-400-20/objects_vocab.txt
 https://raw.githubusercontent.com/airsplay/py-bottom-up-attention/master/demo/data/genome/1600-400-20/attributes_vocab.txt
 """
+
+ANS_CONVERT = {
+    "a man": "man",
+    "the man": "man",
+    "a woman": "woman",
+    "the woman": "woman",
+    "one": "1",
+    "two": "2",
+    "three": "3",
+    "four": "4",
+    "five": "5",
+    "six": "6",
+    "seven": "7",
+    "eight": "8",
+    "nine": "9",
+    "ten": "10",
+    "grey": "gray",
+}
+
+
+def convert_answer(ans):
+    if len(ans) == 0:
+        return ""
+    ans = ans.lower()
+    if ans[-1] == ".":
+        ans = ans[:-1].strip()
+    if ans.startswith("a "):
+        ans = ans[2:].strip()
+    if ans.startswith("an "):
+        ans = ans[3:].strip()
+    if ans.startswith("the "):
+        ans = ans[4:].strip()
+    if ans in ANS_CONVERT:
+        ans = ANS_CONVERT[ans]
+    return ans
 
 
 def load_arrow(file_list):
@@ -43,20 +78,26 @@ def load_temp_lxmert(
     vg_arrow = pathes_config.vg_arrow
     split = dataset_config.split
 
+    coco_valid = datasets.Dataset.from_file(os.path.join(data_dir, coco_valid_arrow))
+    coco_train = datasets.Dataset.from_file(os.path.join(data_dir, coco_train_arrow))
+    coco = datasets.concatenate_datasets([coco_valid, coco_train])
+    vg = datasets.Dataset.from_file(os.path.join(data_dir, vg_arrow))
+    arrow_dict = {"coco": coco, "vg": vg}
+
     img_dirs = [os.path.join(data_dir, coco_imgs), os.path.join(data_dir, vg_imgs)]
-    arrow_files = [
-        os.path.join(data_dir, coco_valid_arrow),
-        os.path.join(data_dir, coco_train_arrow),
-        os.path.join(data_dir, vg_arrow),
-    ]
+
     if split in ("pretrain", "train", "finetune"):
-        files = [os.path.join(data_dir, pathes_config.temp_lxmert_train)]
+        files = [os.path.join(data_dir, x) for x in pathes_config.temp_lxmert_train]
     elif split in ("eval", "evaluation", "validation", "val"):
         files = [os.path.join(data_dir, pathes_config.temp_lxmert_eval)]
     else:
         files = [os.path.join(data_dir, pathes_config.temp_lxmert_test)]
 
-    return files, img_dirs, arrow_files
+    labels = os.path.join(data_dir, pathes_config.temp_lxmert_answers)
+    label_data = json.load(open(labels))
+    label_set = set([convert_answer(ans["ans"]) for ans in label_data])
+
+    return files, img_dirs, arrow_dict, label_set
 
 
 DATASET2DATA = {"temp_lxmert": load_temp_lxmert}
@@ -104,25 +145,29 @@ class BaseDataset(Dataset):
         self.pathes_config = pathes_config
         self.global_config = global_config
 
-        files, img_dirs, arrow_files = DATASET2DATA[dataset_name](
+        files, img_dirs, arrow_dict, labels = DATASET2DATA[dataset_name](
             pathes_config,
             global_config,
             dataset_config,
         )
+        print("loaded_files_and_image_dirs")
+        self.id2idx = defaultdict(dict)
+        self.labels = labels
         self.text_files = files
         self.text_data = []
-        self.arrow_datasets = None
-        self.img_files = None
         if dataset_config.use_arrow:
-            self.arrow_datasets = load_arrow(arrow_files)
+            self.arrow_dict = arrow_dict
+            self.img_files = None
         else:
             self.img_files = load_images(img_dirs)
+            self.arrow_dataset = None
 
         self.img_format = self.dataset_config.img_format
 
         # handles specific datasettings
         self.max_objs = self.dataset_config.max_objects
-        self.arrow_dataset.set_format(type="numpy", output_all_columns=True)
+        for k in self.arrow_dict:
+            self.arrow_dict[k].set_format(type="numpy", output_all_columns=True)
         self.tokenizer_args = {
             "padding": "max_length",
             "max_length": self.dataset_config.sent_length,
@@ -137,13 +182,20 @@ class BaseDataset(Dataset):
             "unc-nlp/lxmert-base-uncased", never_split=self.never_split
         )
 
-        self.load_text_files
-        self.refresh_idx2id
-        self.mask_token = self.tokenizer.mask_token_id
-        self.ignore_ind = self.tokenizer.pad_token_id
-        self.pad_ind = self.ignore_ind
+        self.mask_id = self.tokenizer.mask_token_id
+        self.ignore_id = self.tokenizer.pad_token_id
+        self.pad_id = self.ignore_id
         self.do_sentence_matching = True
         self.do_language_masking = True
+        self.label2lid = {}
+        self.num_labels = 0
+        self.load_text_files
+        self.refresh_id2idx
+        assert self.num_labels <= len(
+            self.labels
+        ), f"{self.num_labels} {len(self.labels)}"
+        assert len(self.label2lid) == self.num_labels
+        raise Exception(self.id2idx["vg"])
 
     @property
     def random_ind(self):
@@ -152,83 +204,108 @@ class BaseDataset(Dataset):
         )
 
     @property
-    def refresh_idx2id(self):
-        self.id2idx = {k: i for i, k in enumerate(self.arrow_dataset["img_id"])}
+    def refresh_id2idx(self):
+        for dset in self.arrow_dict:
+            self.id2idx[dset] = {
+                str(k): i for i, k in enumerate(self.arrow_dict[dset]["img_id"])
+            }
 
     # later lets move this into that mapping fucnction for custom stuff
     @property
     def load_text_files(self):
-        self.lid2label = {}
-        self.num_labels = 0
-        dsets = ("visual7w", "gqa", "vqa", "mscoco")
+        name2dset = {
+            "mscoco": "coco",
+            "vg": "vg",
+            "visual7w": "vg",
+            "gqa": "vg",
+            "vqa": "coco",
+        }
+        print("loading text data")
         for text in tqdm(self.text_files):
-            data = json.load(open(text))
-            img_id = data["img_id"].split("_")[-1]
-            for dset in dsets:
-                if data.get("labelf", False) and data["labelf"].get(dset, False):
-                    for sent, label in zip(data["labelf"], data["sentf"]):
-                        label = next(label.keys())
-                        if label in self.lid2label:
-                            lid = self.lid2label[label]
+            data_split = json.load(open(text))
+            for data in data_split:
+                img_id = data["img_id"].split("_")[-1]
+                sentf = data["sentf"]
+                for sents_cat, sents in sentf.items():
+                    dset = name2dset[sents_cat]
+                    if sents_cat in data["labelf"]:
+                        labels = data["labelf"][sents_cat]
+                    else:
+                        labels = None
+                    for sent_idx, sent in enumerate(sents):
+                        entry = {"img_id": img_id, "text": sent, "dset": dset}
+                        if labels is not None:
+                            label = labels[sent_idx]
+                            in_label_set = False
+                            if not len(label) == 0:
+                                label = OrderedDict(
+                                    {
+                                        k: v
+                                        for k, v in sorted(
+                                            label.items(),
+                                            key=lambda item: item[1],
+                                            reverse=True,
+                                        )
+                                    }
+                                )
+                                for k in label.keys():
+                                    k = convert_answer(k)
+                                    if k in self.labels or k in self.label2lid:
+                                        in_label_set = True
+                                        label = k
+                                        break
+                                if in_label_set:
+                                    if label not in self.label2lid:
+                                        lid = self.num_labels
+                                        self.label2lid[label] = lid
+                                        self.num_labels += 1
+                                    else:
+                                        lid = self.label2lid[label]
+                                else:
+                                    lid = self.ignore_id
                         else:
-                            lid = self.num_labels
-                            self.lid2[label] = lid
-                            self.num_labels += 1
-                        entry = {
-                            "img_id": img_id,
-                            "sent": sent,
-                            "label": torch.tensor(lid),
-                        }
-                else:
-                    for sent in data["sentf"]:
-                        entry = {
-                            "img_id": img_id,
-                            "sent": sent,
-                            "label": torch.tensor(self.ignore_ind),
-                        }
+                            lid = self.ignore_id
+                        entry["label"] = torch.tensor(lid)
+                        self.text_data.append(entry)
 
-                self.text_data.append(entry)
+    def matched_sentence_modeling(self, entry):
+        is_matched = 1
+        if random.random() < 0.5:
+            is_matched = 0
+            other_datum = self.text_data[random.randint(0, len(self.text_data) - 1)]
+            while other_datum["img_id"] == entry["img_id"]:
+                other_datum = self.text_data[random.randint(0, len(self.text_data) - 1)]
+            sent = other_datum["text"]
+            entry["text"] = sent
+        if not is_matched:
+            entry["label"] = torch.tensor(self.ignore_id)
 
-        def matched_sentence_modeling(self, entry):
-            is_matched = 1
-            if random.random() < 0.5:
-                is_matched = 0
-                other_datum = self.data[random.randint(0, len(self.text_data) - 1)]
-                while other_datum["img_id"] == img_id:
-                    other_datum = self.text_data[
-                        random.randint(0, len(self.text_data) - 1)
-                    ]
-                sent = other_datum["sent"]
-                entry["sent"] = sent
-            if not is_matched:
-                entry["label"] = torch.tensor(self.ignore_ind)
+        is_matched = torch.tensor(is_matched)
+        entry["is_matched"] = is_matched
+        return entry
 
-            is_matched = torch.tensor(is_matched)
-            entry["is_matched"] = is_matched
-            return entry
+    def masked_language_modeling(self, input_ids):
+        ignore_id = self.ignore_id
+        mask_id = self.mask_id
+        masked_sequence = input_ids
+        masked_inds = torch.zeros(input_ids.shape)
+        word_mask_rate = 0.15
+        for i in range(len(masked_sequence)):
+            ind = masked_sequence[i]
+            random_id = self.random_ind
+            prob = random.random()
+            ratio = word_mask_rate
+            if prob < ratio:
+                prob /= ratio
+                if prob < 0.8:
+                    masked_sequence[i] = mask_id
+                elif prob < 0.9:
+                    masked_sequence[i] = random_id
+                masked_inds[i] = ind
+            else:
+                masked_inds[i] = ignore_id
 
-        def masked_language_modeling(self, input_ids):
-            ignore_ind = self.ignore_ind
-            mask_ind = self.mask_ind
-            masked_sequence = input_ids
-            masked_inds = torch.zeroes(input_ids.shape)
-            word_mask_rate = 0.15
-            for i in range(len(masked_sequence)):
-                ind = masked_sequence[i]
-                random_ind = self.random_ind
-                prob = random.random()
-                ratio = word_mask_rate
-                if prob < ratio:
-                    prob /= ratio
-                    if prob < 0.8:
-                        masked_sequence[i] = mask_ind
-                    elif prob < 0.9:
-                        masked_sequence[i] = random_ind
-                    masked_inds.append(ind)
-                else:
-                    masked_inds.append(ignore_ind)
-
-            return masked_inds, masked_sequence
+        return masked_inds, masked_sequence
 
     def __len__(self):
         return len(self.text_data)
@@ -236,10 +313,19 @@ class BaseDataset(Dataset):
     @torch.no_grad()
     def __getitem__(self, i):
         entry = self.text_data[i]
-        img_id = entry.pop("img_id")
-        img_idx = self.id2idx[img_id]
-        img_data = self.arrow_dataset[img_idx]
-        assert img_id == img_data["img_id"], f"ids {img_id} != {img_data['img_id']}"
+        img_id = entry.get("img_id").lstrip("0")
+        dset = entry.get("dset")
+        img_idx = self.id2idx[dset].get(img_id, None)
+        if img_idx is None and dset == "vg":
+            dset = "coco"
+            img_idx = self.id2idx["coco"].get(img_id)
+            if img_idx is None:
+                print("no id")
+                pass
+        img_data = self.arrow_dict[dset][img_idx]
+        assert str(img_id) == str(
+            img_data["img_id"]
+        ), f"ids {img_id} != {img_data['img_id']}"
         for k in img_data:
             if isinstance(img_data[k], np.ndarray):
                 img_data[k] = torch.from_numpy(img_data[k].copy())
@@ -248,9 +334,9 @@ class BaseDataset(Dataset):
 
         if self.do_sentence_matching:
             entry = self.matched_sentence_modeling(entry)
-            img_data["is_matched"] = entry.pop("is_matched")
+            img_data["is_matched"] = entry.get("is_matched")
 
-        inputs = self.tokenizer(entry.pop("text"), **self.tokenizer_args)
+        inputs = self.tokenizer(entry.get("text"), **self.tokenizer_args)
         img_data["input_ids"] = inputs.input_ids.squeeze(0)
         img_data["attention_mask"] = inputs.attention_mask.squeeze(0)
         img_data["token_type_ids"] = inputs.token_type_ids.squeeze(0)
@@ -259,11 +345,11 @@ class BaseDataset(Dataset):
                 entry["label"] = torch.tensor(entry["label"])
             else:
                 raise Exception(f"entry is of type: {type(entry['label'])}")
-        img_data["label"] = entry.pop("label")
-        img_data["roi_features"] = img_data.pop("roi_features")[: self.max_objs]
+        img_data["label"] = entry.get("label")
+        img_data["roi_features"] = img_data.get("roi_features")[: self.max_objs]
 
         if self.do_language_masking:
-            input_ids = img_data.pop("input_ids")
+            input_ids = img_data.get("input_ids")
             masked_inds, masked_sequence = self.masked_language_modeling(input_ids)
             img_data["input_ids"] = masked_sequence
             img_data["masked_inds"] = masked_inds
@@ -296,7 +382,7 @@ class BaseLoader(DataLoader):
         )
 
         if shuffle:
-            self.dataset.refresh_idx2id
+            self.dataset.refresh_id2idx
 
     @staticmethod
     def toCuda(batch):

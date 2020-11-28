@@ -1,24 +1,23 @@
 import getopt
 import json
 import os
-from pynvml.smi import nvidia_smi
-
 # import numpy as np
 import sys
 from collections import OrderedDict
-from subprocess import Popen, PIPE
-from tqdm import tqdm
+from subprocess import PIPE, Popen
+
 import datasets
 import numpy as np
 import torch
 from pynvml.smi import nvidia_smi
-from .utils import Config
+from tqdm import tqdm
+
 from .modeling_frcnn import GeneralizedRCNN
 from .processing_image import Preprocess
+from .utils import Config
 
 
 class Extract:
-
     def __init__(self, env, config, ids=None):
 
         self.env = env
@@ -36,7 +35,9 @@ class Extract:
         if self.batch_size == 0:
             self.batch_size = 1
         self.model_config = Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
-        self.model = GeneralizedRCNN.from_pretrained("unc-nlp/frcnn-vg-finetuned", config=self.model_config)
+        self.model = GeneralizedRCNN.from_pretrained(
+            "unc-nlp/frcnn-vg-finetuned", config=self.model_config
+        )
         self.model.to(self.device)
         self.preprocess = Preprocess(self.model.config)
         self.schema = schema_factory(self.model.config.max_detections)
@@ -78,7 +79,9 @@ class Extract:
 
             if torch.cuda.is_available():
                 images, sizes, scales_yx = (
-                        images.to(self.device),sizes.to(self.device),scales_yx.to(self.device)
+                    images.to(self.device),
+                    sizes.to(self.device),
+                    scales_yx.to(self.device),
                 )
             output_dict = self.model(
                 images,
@@ -128,10 +131,8 @@ def schema_factory(max_detections):
     )
 
 
-
-
-#add the following to tests later
-'''
+# add the following to tests later
+"""
 if __name__ == "__main__":
     extract = Extract(sys.argv[1:])
     extract()
@@ -139,4 +140,4 @@ if __name__ == "__main__":
         dataset = datasets.Dataset.from_file(extract.outputfile)
         # wala!
         #print(np.array(dataset[0:2]["roi_features"]).shape)
-'''
+"""
