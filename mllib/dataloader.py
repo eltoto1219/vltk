@@ -73,10 +73,38 @@ def load_images(img_dirs):
     return imgid2file
 
 
+def load_temp_gqa(
+    pathes_config,
+    global_config,
+    dataset_config,
+    split,
+):
+    data_dir = global_config.data_dir
+    vg = datasets.Dataset.from_file(os.path.join(data_dir, pathes_config.vg_arrow))
+    arrow_dict = {"gqa": vg}
+
+    img_dirs = [
+        os.path.join(data_dir, pathes_config.vg_imgs),
+    ]
+
+    if split in ("pretrain", "train", "finetune"):
+        files = get_file_path(data_dir, pathes_config.gqa_train)
+    elif split in ("eval", "evaluation", "validation", "val"):
+        files = get_file_path(data_dir, pathes_config.gqa_val)
+    else:
+        files = get_file_path(data_dir, pathes_config.gqa_test)
+
+    labels = os.path.join(data_dir, pathes_config.gqa_answers)
+    label_set = json.load(open(labels))
+
+    return files, img_dirs, arrow_dict, label_set
+
+
 def load_temp_lxmert(
     pathes_config,
     global_config,
     dataset_config,
+    split,
 ):
     data_dir = global_config.data_dir
 
@@ -109,7 +137,7 @@ def load_temp_lxmert(
     return files, img_dirs, arrow_dict, label_set
 
 
-DATASET2DATA = {"temp_lxmert": load_temp_lxmert}
+DATASET2DATA = {"temp_lxmert": load_temp_lxmert, "gqa": load_temp_gqa}
 
 
 def get_duration(func):
@@ -148,19 +176,25 @@ def collate_tensor(columns):
 class BaseDataset(Dataset):
     @get_duration
     def __init__(
-        self, dataset_name, dataset_config, pathes_config, global_config, loss_config
+        self,
+        dataset_name,
+        dataset_config,
+        pathes_config,
+        global_config,
+        train_config,
+        split=None,
     ):
         super().__init__()
         # setup stuff
+        self.dataset_name = dataset_name
         self.dataset_config = dataset_config
         self.pathes_config = pathes_config
         self.global_config = global_config
-        self.loss_config = loss_config
+        self.train_config = train_config
+        self.split = dataset_config.split if split is None else split
 
         files, img_dirs, arrow_dict, labels = DATASET2DATA[dataset_name](
-            pathes_config,
-            global_config,
-            dataset_config,
+            pathes_config, global_config, dataset_config, self.split
         )
         print("loaded_files_and_image_dirs")
         self.id2idx = defaultdict(dict)
@@ -197,8 +231,8 @@ class BaseDataset(Dataset):
         self.mask_id = self.tokenizer.mask_token_id
         self.ignore_id = self.dataset_config.ignore_id
         self.pad_id = self.tokenizer.pad_token_id
-        self.do_sentence_matching = self.loss_config.msm
-        self.do_language_masking = self.loss_config.mlm
+        self.do_sentence_matching = self.train_config.msm
+        self.do_language_masking = self.train_config.mlm
         self.label2lid = {}
         self.num_labels = 0  # it self counts
         self.load_text_files()
@@ -239,53 +273,68 @@ class BaseDataset(Dataset):
             "gqa": "vg",
             "vqa": "coco",
         }
-        print("loading text data")
-        for text in tqdm(self.text_files):
-            data_split = json.load(open(text))
-            for data in data_split:
-                img_id = data["img_id"].split("_")[-1]
-                sentf = data["sentf"]
-                for sents_cat, sents in sentf.items():
-                    dset = name2dset[sents_cat]
-                    if sents_cat in data["labelf"]:
-                        labels = data["labelf"][sents_cat]
-                    else:
-                        labels = None
-                    for sent_idx, sent in enumerate(sents):
-                        entry = {"img_id": img_id, "text": sent, "dset": dset}
-                        if labels is not None:
-                            label = labels[sent_idx]
-                            in_label_set = False
-                            if not len(label) == 0:
-                                label = OrderedDict(
-                                    {
-                                        k: v
-                                        for k, v in sorted(
-                                            label.items(),
-                                            key=lambda item: item[1],
-                                            reverse=True,
-                                        )
-                                    }
-                                )
-                                for k in label.keys():
-                                    k = convert_answer(k)
-                                    if k in self.labels or k in self.label2lid:
-                                        in_label_set = True
-                                        label = k
-                                        break
-                                if in_label_set:
-                                    if label not in self.label2lid:
-                                        lid = self.num_labels
-                                        self.label2lid[label] = lid
-                                        self.num_labels += 1
-                                    else:
-                                        lid = self.label2lid[label]
-                                else:
-                                    lid = self.ignore_id
+        if self.dataset_name == "temp_lxmert":
+            print("loading text data")
+            for text in tqdm(self.text_files):
+                data_split = json.load(open(text))
+                for data in data_split:
+                    img_id = data["img_id"].split("_")[-1]
+                    sentf = data["sentf"]
+                    for sents_cat, sents in sentf.items():
+                        dset = name2dset[sents_cat]
+                        if sents_cat in data["labelf"]:
+                            labels = data["labelf"][sents_cat]
                         else:
-                            lid = self.ignore_id
-                        entry["label"] = torch.tensor(lid)
-                        self.text_data.append(entry)
+                            labels = None
+                        for sent_idx, sent in enumerate(sents):
+                            entry = {"img_id": img_id, "text": sent, "dset": dset}
+                            if labels is not None:
+                                label = labels[sent_idx]
+                                in_label_set = False
+                                if not len(label) == 0:
+                                    label = OrderedDict(
+                                        {
+                                            k: v
+                                            for k, v in sorted(
+                                                label.items(),
+                                                key=lambda item: item[1],
+                                                reverse=True,
+                                            )
+                                        }
+                                    )
+                                    for k in label.keys():
+                                        k = convert_answer(k)
+                                        if k in self.labels or k in self.label2lid:
+                                            in_label_set = True
+                                            label = k
+                                            break
+                                    if in_label_set:
+                                        if label not in self.label2lid:
+                                            lid = self.num_labels
+                                            self.label2lid[label] = lid
+                                            self.num_labels += 1
+                                        else:
+                                            lid = self.label2lid[label]
+                                    else:
+                                        lid = self.ignore_id
+                            else:
+                                lid = self.ignore_id
+                            entry["label"] = torch.tensor(lid)
+                            self.text_data.append(entry)
+        elif self.dataset_name == "gqa":
+            self.label2lid = self.labels
+            self.num_labels = len(self.labels)
+            for text in tqdm(self.text_files):
+                data_split = json.load(open(text))
+                for data in data_split:
+                    img_id = data["img_id"].split("_")[-1]
+                    entry = {"img_id": img_id, "text": data["sent"], "dset": "gqa"}
+                    try:
+                        label = next(iter(data["label"].keys()))
+                    except StopIteration:
+                        continue
+                    entry["label"] = self.labels(label)
+                    self.text_data.append(entry)
 
     def matched_sentence_modeling(self, entry):
         is_matched = 1
@@ -387,19 +436,28 @@ class BaseLoader(DataLoader):
         loader_config,
         global_config,
         pathes_config,
-        loss_config,
+        train_config,
+        split=None,
     ):
+        batch_size = train_config.train_batch_size
         shuffle = loader_config.shuffle
-        split = dataset_config.split
+        split = dataset_config.split if split is None else split
         shuffle = shuffle if (split in ("pretrain", "train")) else 0
         num_workers = loader_config.num_workers
+        if split == "eval":
+            num_workers = 0
+            batch_size = train_config.val_batch_size
         drop_last = loader_config.drop_last
         pin_memory = loader_config.pin_memory
-        batch_size = loader_config.batch_size
         return_tensor = loader_config.collate_pytorch
         super().__init__(
             dataset=BaseDataset(
-                dataset_name, dataset_config, pathes_config, global_config, loss_config
+                dataset_name,
+                dataset_config,
+                pathes_config,
+                global_config,
+                train_config,
+                split=split,
             ),
             collate_fn=collate_tensor if return_tensor else collate_list,
             drop_last=drop_last,
@@ -418,167 +476,3 @@ class BaseLoader(DataLoader):
             v = batch.get(k)
             batch[k] = v.cuda()
         return batch
-
-
-'''
-class MMF(Dataset):
-    @get_duration
-    def __init__(self, text_file, arrow_file, sent_length=20, max_objs=36, **kwargs):
-        super().__init__()
-
-        self.percent = kwargs.pop("percent", 1.0)
-        self.arrow_dataset = datasets.Dataset.from_file(arrow_file)
-        self.refresh_idx2id
-        self.max_objs = max_objs
-        self.arrow_dataset.set_format(type="numpy", output_all_columns=True)
-        self.text_file = text_file
-        text_data = [self.mmf_txt_format(json.loads(i)) for i in open(text_file)]
-        self.text_data = text_data[:int(len(text_data) * self.percent)]
-        self.tokenizer_args = {
-            "padding": kwargs.pop("padding", "max_length"),
-            "max_length": kwargs.pop("max_length", sent_length),
-            "truncation": kwargs.pop("trunctation", True),
-            "return_token_type_ids": kwargs.pop("return_token_type_ids", True),
-            "return_attention_mask": kwargs.pop("return_attention_mask", True),
-            "add_special_tokens": kwargs.pop("add_special_tokens", True),
-            "return_tensors": kwargs.pop("return_tensors", "pt"),
-        }
-        self.never_split = set()
-        attrs = kwargs.pop("attrs", False)
-        self.attrs = [l.replace("\n", "") for l in open(attrs)] if attrs else None
-        if self.attrs is not None:
-            self.never_split.union(attrs)
-        objs = kwargs.pop("objs", False)
-        self.objs = [l.replace("\n", "") for l in open(objs)] if objs else None
-        if self.objs is not None:
-            self.never_split.union(objs)
-        self.img_dir = kwargs.pop("img_dir", None)
-        self.extract_text = kwargs.pop("extract_text", False)
-        img_format = kwargs.pop("img_format", None)
-        self.img_format = img_format if img_format is not None else "jpg"
-        self.add_aux_data =  kwargs.pop("add_aux_data", False)
-
-        self.lxmert_tokenizer = LxmertTokenizer.from_pretrained(
-            "unc-nlp/lxmert-base-uncased",
-            never_split=self.never_split
-        )
-        extras = kwargs.pop("extras", False)
-        self.extras = {int(k):v for k, v in json.load(open(extras)).items()} if extras else None
-        if extras:
-            self.text_data = [d for d in self.text_data if d[-1] in self.extras]
-    def mmf_txt_format(self, entry: dict):
-        return (int(entry["label"]), entry["text"], int(entry["id"]))
-
-    def mmf_imgid_format(self, filename: str):
-        return int(filename.split(".")[0])
-
-    @torch.no_grad()
-    def mmf_extras(self, iid: int):
-        assert self.extras is not None
-        entry = self.extras[iid]
-        classification = EXTRAS.index(entry["classification"])
-        truth = torch.Tensor([classification]).long()
-        return truth
-
-    def process_aux(self, label_inds: torch.Tensor, aux_type: str):
-        aux = getattr(self, aux_type, None)
-        assert aux is not None
-        aargs = {
-            "return_tensors": "pt",
-            "padding": "max_length",
-            "return_attention_mask": True,
-            "add_special_tokens": False,
-            "truncation": True,
-            "max_length": self.max_objs
-        }
-        aux_batch = " ".join([
-            aux[int(i)].split(",")[0].replace(" ", "")
-            for i in label_inds.int().tolist()
-        ])
-        aux_batch = self.lxmert_tokenizer(aux_batch, **aargs)
-        aux_batch.input_ids = aux_batch.input_ids.permute(1,0)
-        aux_batch.token_type_ids = aux_batch.token_type_ids.permute(1,0)
-        aux_batch.attention_mask= aux_batch.attention_mask.permute(1,0)
-        return aux_batch
-
-    def view_aux_data_as_text(self, lxmert_label_inds):
-        """
-        this is decieving becuase huggingface uses the wordpiece tokenizer which splits
-        compound words (ex: "toothbrush" to "tooth" "##brush") and then truncates
-        anything over 36 objects, so the objtects/attributes will not be perfectly
-        aliged
-        """
-        # note, the label inds have already been converted to lxmert at this point
-        if lxmert_label_inds.ndim == 1:
-            return self.lxmert_tokenizer.convert_ids_to_tokens(
-                lxmert_label_inds.int().tolist(), skip_special_tokens=True
-            )
-        else:
-            return [
-                self.lxmert_tokenizer.convert_ids_to_tokens(l, skip_special_tokens=True)
-                for l in lxmert_label_inds.int().tolist()
-            ]
-
-    def __len__(self):
-        return len(self.text_data)
-
-    @property
-    def refresh_idx2id(self):
-        self.id2idx = {k:i for i, k in enumerate(self.arrow_dataset["img_id"])}
-
-    @property
-    def refresh_idx2id(self):
-        self.id2idx = {k: i for i, k in enumerate(self.arrow_dataset["img_id"])}
-
-    def _get_img_path(self, img_id):
-        img_id = str(int(img_id)) + f".{self.img_format}"
-        assert self.img_dir is not None
-        for i in range(12):
-            tmp_id = "0" * i + img_id
-            path = os.path.realpath(os.path.join(self.img_dir, tmp_id))
-            if os.path.isfile(path):
-                return path
-        raise Exception(f"no img found for id {path}, try different img_format?")
-
-    def _extract_text(self, img_id):
-            ignore = []
-            path = self._get_img_path(img_id)
-            results = full_img(path=path, ind=None)
-            for r in results:
-                ignore.append([r[1][1], r[1][3]])
-            return ignore
-
-    @torch.no_grad()
-    def __getitem__(self, i):
-        label, text, img_id = self.text_data[i]
-        img_idx = self.id2idx[img_id]
-        img_data = self.arrow_dataset[img_idx]
-        assert img_id == img_data["img_id"], f"ids {img_id} != {img_data['img_id']}"
-        for k in img_data:
-            if isinstance(img_data[k], np.ndarray):
-                img_data[k] = torch.from_numpy(img_data[k].copy())
-            elif isinstance(img_data[k], torch.Tensor):
-                img_data[k] = img_data[k].clone()
-        if self.extract_text:
-            img_data["ignore"] = torch.Tensor(self._extract_text(img_id))
-        inputs = self.lxmert_tokenizer(text, **self.tokenizer_args)
-        img_data["input_ids"] = inputs.input_ids.squeeze(0)
-        img_data["attention_mask"] = inputs.attention_mask.squeeze(0)
-        img_data["token_type_ids"] = inputs.token_type_ids.squeeze(0)
-        img_data["label"] = torch.tensor(label)
-        img_data["roi_features"] = img_data["roi_features"][:self.max_objs]
-        if self.extras:
-            img_data["extras"] = self.mmf_extras(img_id)
-        # returns the attr/obj ids except the tokenized inds are from the lxmert vocab
-        if self.attrs is not None and "attr_ids" in img_data:
-            img_data["attr_probs"] =  img_data["attr_probs"][:self.max_objs]
-            attr_dict = self.process_aux(img_data.get("attr_ids"), aux_type="attrs")
-            img_data["attr_input_ids"] = attr_dict.input_ids
-            img_data["attr_input_mask"] = attr_dict.attention_mask
-        if self.objs is not None and "obj_ids" in img_data:
-            img_data["obj_probs"] =  img_data["obj_probs"][:self.max_objs]
-            obj_dict = self.process_aux(img_data.get("obj_ids"), aux_type="objs")
-            img_data["obj_input_ids"] = obj_dict.input_ids
-            img_data["obj_input_mask"] = obj_dict.attention_mask
-        return img_data
-'''

@@ -18,6 +18,7 @@
 import colorsys
 import io
 
+import cv2
 import matplotlib as mpl
 import matplotlib.colors as mplc
 import matplotlib.figure as mplfigure
@@ -26,10 +27,7 @@ import torch
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from PIL import Image
 
-import cv2
-
-from .utils import img_tensorize
-
+from .legacy_utils import img_tensorize
 
 _SMALL_OBJ = 1000
 
@@ -163,11 +161,17 @@ class SingleImageViz:
         font_size *= 0.75 * self.font_size
 
         self.draw_text(
-            text=label, position=text_pos, color=lighter_color,
+            text=label,
+            position=text_pos,
+            color=lighter_color,
         )
 
     def draw_text(
-        self, text, position, color="g", ha="left",
+        self,
+        text,
+        position,
+        color="g",
+        ha="left",
     ):
         rotation = 0
         font_size = self.font_size
@@ -199,7 +203,8 @@ class SingleImageViz:
             saveas = self.saveas
         if saveas.lower().endswith(".jpg") or saveas.lower().endswith(".png"):
             cv2.imwrite(
-                saveas, self._get_buffer()[:, :, ::-1],
+                saveas,
+                self._get_buffer()[:, :, ::-1],
             )
         else:
             self.fig.savefig(saveas)

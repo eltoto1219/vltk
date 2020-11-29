@@ -7,41 +7,13 @@ import torch
 from mmf.common.registry import registry
 from sklearn.metrics import auc, roc_auc_score, roc_curve
 from tqdm import tqdm
-from transformers import (AdamW,  # LxmertForQuestionAnswering,
-                          get_linear_schedule_with_warmup)
+from transformers import AdamW  # LxmertForQuestionAnswering,
+from transformers import get_linear_schedule_with_warmup
 
 from dataloader import MMFLoader
 from modeling_uniter import VisualBertConfig, VisualBertForQuestionAnswering
 
-TEST = False
-NAME = ""
-
 torch.manual_seed(1)
-
-d = {
-    "position_embeddings_visual",
-    "visual_embeddings_type",
-    "image_text_alignment",
-    "segment_ids",
-    "visual_embeddings",
-    "visual_pos",
-    "attention_mask",
-    "input_ids",
-    "input_mask",
-    "position_embeddings_visual",
-}
-
-
-class cheat(dict):
-    def __init__(self, d):
-        for k, v in d.items():
-            setattr(self, k, v)
-
-    def __setattr__(self, k, v):
-        self.__dict__[k] = v
-
-
-tup = namedtuple("tup", d)
 
 
 def train(

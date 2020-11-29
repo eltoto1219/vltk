@@ -1,20 +1,43 @@
-import getopt
-import json
 import os
 # import numpy as np
-import sys
 from collections import OrderedDict
-from subprocess import PIPE, Popen
 
 import datasets
 import numpy as np
 import torch
-from pynvml.smi import nvidia_smi
 from tqdm import tqdm
 
+from .legacy_utils import Config
 from .modeling_frcnn import GeneralizedRCNN
 from .processing_image import Preprocess
-from .utils import Config
+
+
+def schema_factory(max_detections):
+    return datasets.Features(
+        OrderedDict(
+            {
+                "attr_ids": datasets.Sequence(
+                    length=max_detections, feature=datasets.Value("float32")
+                ),
+                "attr_probs": datasets.Sequence(
+                    length=max_detections, feature=datasets.Value("float32")
+                ),
+                "boxes": datasets.Array2D((max_detections, 4), dtype="float32"),
+                "img_id": datasets.Value("int32"),
+                "obj_ids": datasets.Sequence(
+                    length=max_detections, feature=datasets.Value("float32")
+                ),
+                "obj_probs": datasets.Sequence(
+                    length=max_detections, feature=datasets.Value("float32")
+                ),
+                "roi_features": datasets.Array2D(
+                    (max_detections, 2048), dtype="float32"
+                ),
+                "sizes": datasets.Sequence(length=2, feature=datasets.Value("float32")),
+                "preds_per_image": datasets.Value(dtype="int32"),
+            }
+        )
+    )
 
 
 class Extract:
@@ -97,39 +120,16 @@ class Extract:
             output_dict["boxes"] = output_dict.pop("normalized_boxes")
             output_dict["img_id"] = np.array(img_ids)
             batch = self.schema.encode_batch(output_dict)
-            writer.write_batch(batch)
+            try:
+                writer.write_batch(batch)
+            except Exception:
+                for k, v in output_dict.items():
+                    print(k, len(v))
+                raise Exception(f"all ids: {output_dict['img_id']}")
             self.progress.update(self.batch_size)
 
         num_examples, num_bytes = writer.finalize()
         print(f"Success! You wrote {num_examples} entry(s) and {num_bytes >> 20} mb")
-
-
-def schema_factory(max_detections):
-    return datasets.Features(
-        OrderedDict(
-            {
-                "attr_ids": datasets.Sequence(
-                    length=max_detections, feature=datasets.Value("float32")
-                ),
-                "attr_probs": datasets.Sequence(
-                    length=max_detections, feature=datasets.Value("float32")
-                ),
-                "boxes": datasets.Array2D((max_detections, 4), dtype="float32"),
-                "img_id": datasets.Value("int32"),
-                "obj_ids": datasets.Sequence(
-                    length=max_detections, feature=datasets.Value("float32")
-                ),
-                "obj_probs": datasets.Sequence(
-                    length=max_detections, feature=datasets.Value("float32")
-                ),
-                "roi_features": datasets.Array2D(
-                    (max_detections, 2048), dtype="float32"
-                ),
-                "sizes": datasets.Sequence(length=2, feature=datasets.Value("float32")),
-                "preds_per_image": datasets.Value(dtype="int32"),
-            }
-        )
-    )
 
 
 # add the following to tests later

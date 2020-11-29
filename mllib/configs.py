@@ -28,9 +28,11 @@ class GlobalConfig:
         if os.environ.get("HOME", False)
         else os.path.join(os.getcwd(), "logs")
     )
+    log_file: str = "logs.txt"
     data_dir: str = "/playpen1/home/avmendoz/data"
     output_dir: str = "/playpen1/home/avmendoz/outputs"
     gpus: int = 1
+    seed: int = 1
 
     def __init__(self, **kwargs):
         for f in fields(self):
@@ -40,9 +42,51 @@ class GlobalConfig:
 
 
 @dataclass
-class LossConfig:
+class ModelConfig:
+    from_transformers: bool = True
+    ckp_name_or_path: str = ""
+    ckp_transformers_ckp: str = "unc-nlp/lxmert-base-uncased"
+    load_epoch: int = 0
+
+    def __init__(self, **kwargs):
+        for f in fields(self):
+            str_field = f.name
+            if str_field in kwargs:
+                setattr(self, str_field, kwargs.get(str_field))
+
+
+@dataclass
+class PretrainConfig:
     msm: bool = True  # matched_sentence_modeling
     mlm: bool = True  # masked_language_modeling
+    qam: bool = False  # question_answer_modeling
+    train_batch_size: int = 32
+    eval_batch_size: int = 64
+
+    def __init__(self, **kwargs):
+        for f in fields(self):
+            str_field = f.name
+            if str_field in kwargs:
+                setattr(self, str_field, kwargs.get(str_field))
+
+
+@dataclass
+class TrainConfig:
+    epochs: int = 8
+    msm: bool = False  # matched_sentence_modeling
+    mlm: bool = False  # masked_language_modeling
+    qam: bool = True  # question_answer_modeling
+    opm: bool = False  # objedct_prediction_modeling
+    visual_attr_loss: bool = False
+    visual_obj_loss: bool = False
+    visual_feat_loss: bool = False
+    train_batch_size: int = 32
+    eval_batch_size: int = 64
+    test_batch_size: int = 64
+    known_labels: int = 1536
+    r_layers: int = 5
+    l_layers: int = 9
+    x_layers: int = 5
 
     def __init__(self, **kwargs):
         for f in fields(self):
@@ -90,7 +134,6 @@ class LoaderConfig:
     num_workers: int = 8
     drop_last: bool = True
     pin_memory: bool = True
-    batch_size: int = 128
     collate_pytorch: bool = True
 
     def __init__(self, **kwargs):
@@ -105,7 +148,10 @@ class PathesConfig:
     coco_imgs: str = "coco/"
     vg_imgs: str = "vg/"
     vqa: str = "vqa/"
-    gqa: str = "gqa/"
+    gqa_val: str = "temp_gqa/testdev.json"
+    gqa_train: str = "temp_gqa/train/"
+    gqa_test: str = ""
+    gqa_labels: str = ""
     vq_qa: str = "vg_qa/"
     vg_captions: str = "vg_captions/"
     coco_captions: str = "coco_captions/"

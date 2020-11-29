@@ -23,7 +23,7 @@ import torch
 import torch.nn.functional as F
 from PIL import Image
 
-from .utils import img_tensorize
+from .legacy_utils import img_tensorize
 
 
 class ResizeShortestEdge:
@@ -109,22 +109,25 @@ class Preprocess:
 
         return torch.stack(images), torch.tensor(image_sizes)
 
-    def __call__(self, images, img_ids, single_image=False):
+    def __call__(self, images, img_ids):
         with torch.no_grad():
             tensor_imgs = []
+            good_ids = []
             if not isinstance(images, list):
+                assert isinstance(images, str)
                 images = [images]
-            if single_image:
-                assert len(images) == 1
-            for i in range(len(images)):
-                if isinstance(images[i], torch.Tensor):
-                    tensor_imgs.append(images[i].to(self.device).float())
-                elif not isinstance(images[i], torch.Tensor):
-                    img = img_tensorize(images[i], input_format=self.input_format)
+            for img_id, img in zip(img_ids, images):
+                if isinstance(img, torch.Tensor):
+                    tensor_imgs.append(img.to(self.device).float())
+                    good_ids.append(img_id)
+                elif not isinstance(img, torch.Tensor):
+                    img = img_tensorize(img, input_format=self.input_format)
                     if img is not None:
                         tensor_imgs.append(torch.as_tensor(img).to(self.device).float())
+                        good_ids.append(img_id)
                     else:
-                        img_ids.pop(i)
+                        continue
+
             # resize smallest edge
             images = tensor_imgs
             raw_sizes = torch.tensor([im.shape[:2] for im in images])
@@ -141,10 +144,7 @@ class Preprocess:
                 raise NotImplementedError()
             # pad
             scales_yx = torch.true_divide(raw_sizes, sizes)
-            if single_image:
-                return img_ids[0], images[0], sizes[0], scales_yx[0]
-            else:
-                return img_ids, images, sizes, scales_yx
+            return good_ids, images, sizes, scales_yx
 
 
 def _scale_box(boxes, scale_yx):

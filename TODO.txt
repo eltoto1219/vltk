@@ -56,3 +56,4 @@ add to todo later on:
 
 ON THE FLY TODO:
 look into grousp vs commands. should the env config really be there?
+make wrapper to print unused flags for each command
