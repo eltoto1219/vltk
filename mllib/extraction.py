@@ -1,6 +1,7 @@
 import os
 # import numpy as np
 from collections import OrderedDict
+from copy import deepcopy
 
 import datasets
 import numpy as np
@@ -65,6 +66,7 @@ class Extract:
         self.model.to(self.device)
         self.preprocess = Preprocess(self.model.config)
         self.schema = schema_factory(self.model.config.max_detections)
+        self.skipped_ids = set()
 
     def get_files(self):
         file_list = []
@@ -100,7 +102,13 @@ class Extract:
         writer = datasets.ArrowWriter(features=self.schema, path=self.output_file)
         # do file generator
         for img_ids, filepaths in self.file_generator:
+            pre_ids = set(deepcopy(img_ids))
             img_ids, images, sizes, scales_yx = self.preprocess(filepaths, img_ids)
+            post_ids = set(deepcopy(img_ids))
+            skipped_ids = pre_ids - post_ids
+            if len(skipped_ids) > 0:
+                for sid in skipped_ids:
+                    self.skipped_ids.add(sid)
             if len(img_ids) == 0 or len(images) == 0:
                 continue
 
@@ -133,6 +141,8 @@ class Extract:
 
         num_examples, num_bytes = writer.finalize()
         print(f"Success! You wrote {num_examples} entry(s) and {num_bytes >> 20} mb")
+        print(f"ids skipped: {self.skipped_ids}")
+        print(f"num ids skipped: {len(self.skipped_ids)}")
 
 
 # add the following to tests later

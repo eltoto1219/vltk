@@ -69,6 +69,26 @@ for extraction, change it so that the acutual image id is not saved as int, but 
 that will allow for much more versatility, and delete leading zeros for coco stuff here too
 1. make sure bouding box normalization is correct for everything
 2. compare outputs (ie boundinf boxes + actual image features)
+3. migrate old frcnn config to new config
+4. will need to make a "transformers_compat" file for migration
+5. on top of making wrapper for log file genertation, make it so that new log is generated incase current log file is open
+6. clean up factory functions and make much more simple
+7. make is so that all datasplits are contained in one arrow file,
+8. confirm that if repeated path is listed in pathesconfig, we never load something twice
+9. seperate out masked lm modeling + masked sentence modeling
+9.1.(remember we want things to be as simple as possible and as much logic to be independent as we possibly can)
+10. upgrade all pip packages and make sure that only the ones listed in thre req file remain in there
+(we can re-add the "known dependencies" once we do this")
+10. move over to "fast tokenizers (sometime further into the future we can see if we want to do anything more advanced
+11. use same toekenizer for answers as is used for questions, we want equal treatement!
+12. if answer inds are not used in some split of the data, we will make the answer ids the same as those used in the huggingface vocab file
+13. if answers are multiple words, we will have some ind generator fucntion to make for deteminsitic id generation + confirm id is not used in hugingface lib
+14. actually, we will have to think about this later
+15. when  label file is not present, that is when we can  infer
+16. make global function in cli.py to handle setting env variables, it would be pointless to do in the actual config itslef
+17. also add in the docs that this libray was built for ultimate conviencence
+18. also the idea is that we want "flat config files", nested configs are disgusting
+19. export varibles + export aliases for ease of cd'ing around, also see if we can auto determine if there is a venv so we can auto make an alias for that too
 
 what to look out for:
 cfg.MODEL.RPN.POST_NMS_TOPK_TEST = 300
