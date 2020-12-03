@@ -1,4 +1,9 @@
 the main commands for "run" will be:
+
+also, we really want to feed split as a main parameter to the dataset thing,
+I feel as if this woudl make things a lot easier
+
+
 1. model
 2. extract features
 3. test
@@ -57,3 +62,38 @@ add to todo later on:
 ON THE FLY TODO:
 look into grousp vs commands. should the env config really be there?
 make wrapper to print unused flags for each command
+make "project" flag so user can define project name
+we want log file to go down into the second
+the log file will be a combination of project name + command + timestamps down to second
+for extraction, change it so that the acutual image id is not saved as int, but as a string,
+that will allow for much more versatility, and delete leading zeros for coco stuff here too
+1. make sure bouding box normalization is correct for everything
+2. compare outputs (ie boundinf boxes + actual image features)
+
+what to look out for:
+cfg.MODEL.RPN.POST_NMS_TOPK_TEST = 300
+cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.6
+cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.2
+for nms_thresh in np.arange(0.5, 1.0, 0.1):
+            instances, ids = fast_rcnn_inference_single_image(
+                boxes, probs, image.shape[1:],
+                score_thresh=0.2, nms_thresh=nms_thresh, topk_per_image=NUM_OBJECTS
+            )
+            if len(ids) == NUM_OBJECTS:
+                break
+without post_nms it oooks like the following:
+cfg.MODEL.RPN.POST_NMS_TOPK_TEST = 300
+cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.6
+cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.2
+
+
+
+other non proect to do:
+reajdust self with dgx and figure out how to redeploy docker container quickly
+okay, we also want to clean out configs further: get rid of redundant stuf
+
+
+----
+the whole paradigm of machine learning desing patters vs actual software engineering desingn patters is that
+it seems we want things to be a modular and indpeendnent as possible, so that is something that we want to
+maximize fo: hrm this sounds like something to write an essay about

@@ -128,6 +128,9 @@ class Preprocess:
                     else:
                         continue
 
+            if len(tensor_imgs) == 0:
+                return [], [], [], []
+
             # resize smallest edge
             images = tensor_imgs
             raw_sizes = torch.tensor([im.shape[:2] for im in images])

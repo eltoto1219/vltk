@@ -31,7 +31,7 @@ from torchvision.ops import RoIPool
 from torchvision.ops.boxes import batched_nms, nms
 
 from .legacy_utils import (WEIGHTS_NAME, Config, cached_path, hf_bucket_url,
-        is_remote_url, load_checkpoint)
+                           is_remote_url, load_checkpoint)
 
 
 # other:
@@ -1244,7 +1244,7 @@ class ROIOutputs(object):
         attr_probs, attrs = attr_logits.max(-1)
         return attr_probs.split(preds_per_image, dim=0), attrs.split(preds_per_image, dim=0)
 
-    @ torch.no_grad()
+    @torch.no_grad()
     def inference(self, obj_logits, attr_logits, box_deltas, pred_boxes, features, sizes, scales=None):
         # only the pred boxes is the
         preds_per_image = [p.size(0) for p in pred_boxes]

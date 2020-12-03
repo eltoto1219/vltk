@@ -4,10 +4,12 @@ from dataclasses import fields
 import torch
 from fire import Fire
 
-from .configs import (DataConfig, GlobalConfig, LoaderConfig, PathesConfig,
-                      ROIFeaturesFRCNN, TrainConfig)
+from .configs import (DataConfig, GlobalConfig, LoaderConfig, ModelConfig,
+                      PathesConfig, ROIFeaturesFRCNN, TrainConfig)
 from .data import Data
 from .extraction import Extract
+from .mapping import NAME2MODEL
+from .train import Trainer
 
 PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -19,6 +21,16 @@ def clean_flags(flags, config):
             flags.pop(str_field)
 
 
+def model_name_to_instance(model_name, dataset_config, run_config, model_config):
+    model = NAME2MODEL[model_name](
+        command_name="train",
+        model_config=model_config,
+        run_config=run_config,
+        dataset_config=dataset_config,
+    )
+    return model
+
+
 class Arguments(object):
     """ class to handle cli arguments"""
 
@@ -26,17 +38,31 @@ class Arguments(object):
         if not torch.cuda.is_available():
             kwargs["gpus"] = -1
         self.global_config = GlobalConfig(**kwargs)
-        clean_flags(kwargs, self.global_config)
         self.dataset_config = DataConfig(**kwargs)
-        clean_flags(kwargs, self.dataset_config)
         self.pathes_config = PathesConfig(**kwargs)
-        clean_flags(kwargs, self.pathes_config)
         self.loader_config = LoaderConfig(**kwargs)
-        clean_flags(kwargs, self.loader_config)
         self.flags = kwargs
 
-    def train(self, name, **kwargs):
-        pass
+    def train(self, model, dataset):
+        train_config = TrainConfig(**self.flags)
+        model_config = ModelConfig(**self.flags)
+        model = model_name_to_instance(
+            model_name=model,
+            dataset_config=self.dataset_config,
+            run_config=train_config,
+            model_config=model_config,
+        )
+        trainer = Trainer(
+            model=model,
+            dataset_name=dataset,
+            dataset_config=self.dataset_config,
+            train_config=train_config,
+            global_config=self.global_config,
+            pathes_config=self.pathes_config,
+            loader_config=self.loader_config,
+            model_config=model_config,
+        )
+        trainer()
 
     def evaluate(self, name, **kwargs):
         pass
@@ -67,7 +93,7 @@ class Arguments(object):
             pathes_config=self.pathes_config,
             train_config=train_config,
         )
-        assert hasattr(data, method)
+        # assert hasattr(data, method)
         method_to_call = getattr(data, method)
         method_to_call()
 

@@ -100,6 +100,8 @@ class Extract:
         # do file generator
         for img_ids, filepaths in self.file_generator:
             img_ids, images, sizes, scales_yx = self.preprocess(filepaths, img_ids)
+            if len(img_ids) == 0 or len(images) == 0:
+                continue
 
             if torch.cuda.is_available():
                 images, sizes, scales_yx = (

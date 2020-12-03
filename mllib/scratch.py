@@ -1,36 +1,30 @@
-# Build Class
-    # conf = LxmertConfig(num_qa_labels=1536)
-    # model = LxmertForQuestionAnswering(conf)
-    # model = model.from_pretrained("unc-nlp/lxmert-base-uncased", cache_dir="ssd-playpen/avmendoz")
-    # gqa = LxmertForQuestionAnswering.from_pretrained("unc-nlp/lxmert-base-uncased", cache_dir="ssd-playpen/avmendoz")
-    gqa = GQA()
-    # Test or Train
-    # if args.test is not None:
-    if True:
-        print("here")
-        args.fast = args.tiny = False  # Always loading all data in test
-        # if "submit" in args.test:
-        #     raise Exception("not testing")
-        #     gqa.predict(
-        #         get_tuple(
-        #             args.test, bs=args.batch_size, shuffle=False, drop_last=False
-        #         ),
-        #         dump=os.path.join(args.output, "submit_predict.json"),
-        #     )
-        if True:
-            result = gqa.evaluate(
-                get_tuple("valid", bs=32, shuffle=False, drop_last=False),
-                dump=os.path.join(args.output, "testdev_predict_aug.json"),
-            )
-            print(result)
-    else:
-        # raise Exception("model is not testing")
-        print("Train Oracle: %0.2f" % (gqa.oracle_score(gqa.train_tuple) * 100))
-        print("Splits in Train data:", gqa.train_tuple.dataset.splits)
-        if gqa.valid_tuple is not None:
-            print("whao")
-            print("Splits in Valid data:", gqa.valid_tuple.dataset.splits)
-            print("Valid Oracle: %0.2f" % (gqa.oracle_score(gqa.valid_tuple) * 100))
-        else:
-            print("DO NOT USE VALIDATION")
-        gqa.train(gqa.train_tuple, gqa.valid_tuple)
+import json
+import os
+
+from tqdm import tqdm
+
+data_dir = "/playpen1/home/avmendoz/data/"
+labels = os.path.join(data_dir, "temp_gqa/gqa_labels.json")
+train = os.path.join(data_dir, "temp_gqa/train/train.json")
+valid = os.path.join(data_dir, "temp_gqa/train/valid.json")
+testdev = os.path.join(data_dir, "temp_gqa/testdev.json")
+
+labels = json.load(open(labels))
+labels = set(labels.keys())
+train = json.load(open(train))
+valid = json.load(open(valid))
+testdev = json.load(open(testdev))
+
+data = []
+for x in tqdm([train, valid, testdev]):
+    for e in x:
+        data.append(e)
+data_labels = set()
+for x in tqdm(data):
+    label = x["label"]
+    label = next(iter(label.keys()))
+    data_labels.add(label)
+
+print(f"uniq data labels {len(data_labels)}")
+print(f"uniq gqa labels {len(labels)}")
+print(data_labels - labels)

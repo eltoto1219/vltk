@@ -80,7 +80,14 @@ def load_temp_gqa(
     split,
 ):
     data_dir = global_config.data_dir
-    vg = datasets.Dataset.from_file(os.path.join(data_dir, pathes_config.vg_arrow))
+    if split not in ("inference", "dev", "testdev", "eval", "evaluation"):
+        vg = datasets.Dataset.from_file(
+            os.path.join(data_dir, pathes_config.vg_train_arrow)
+        )
+    else:
+        vg = datasets.Dataset.from_file(
+            os.path.join(data_dir, pathes_config.vg_test_arrow)
+        )
     arrow_dict = {"gqa": vg}
 
     img_dirs = [
@@ -89,12 +96,20 @@ def load_temp_gqa(
 
     if split in ("pretrain", "train", "finetune"):
         files = get_file_path(data_dir, pathes_config.gqa_train)
-    elif split in ("eval", "evaluation", "validation", "val"):
+    elif split in (
+        "validation",
+        "val",
+        "valid",
+    ):
         files = get_file_path(data_dir, pathes_config.gqa_val)
+    elif split in ("inference", "dev", "testdev", "eval", "evaluation"):
+        files = get_file_path(data_dir, pathes_config.gqa_testdev)
     else:
         files = get_file_path(data_dir, pathes_config.gqa_test)
 
-    labels = os.path.join(data_dir, pathes_config.gqa_answers)
+    print(f"spits to be loaded: {files}")
+
+    labels = os.path.join(data_dir, pathes_config.gqa_labels)
     label_set = json.load(open(labels))
 
     return files, img_dirs, arrow_dict, label_set
@@ -196,7 +211,6 @@ class BaseDataset(Dataset):
         files, img_dirs, arrow_dict, labels = DATASET2DATA[dataset_name](
             pathes_config, global_config, dataset_config, self.split
         )
-        print("loaded_files_and_image_dirs")
         self.id2idx = defaultdict(dict)
         self.labels = labels
         self.text_files = files
@@ -206,7 +220,7 @@ class BaseDataset(Dataset):
             self.img_files = None
         else:
             self.img_files = load_images(img_dirs)
-            self.arrow_dataset = None
+            self.arrow_dict = None
 
         self.img_format = self.dataset_config.img_format
 
@@ -231,8 +245,8 @@ class BaseDataset(Dataset):
         self.mask_id = self.tokenizer.mask_token_id
         self.ignore_id = self.dataset_config.ignore_id
         self.pad_id = self.tokenizer.pad_token_id
-        self.do_sentence_matching = self.train_config.msm
-        self.do_language_masking = self.train_config.mlm
+        self.do_sentence_matching = self.train_config.task_matched
+        self.do_language_masking = self.train_config.task_mask_lm
         self.label2lid = {}
         self.num_labels = 0  # it self counts
         self.load_text_files()
@@ -240,7 +254,9 @@ class BaseDataset(Dataset):
         assert self.num_labels <= len(
             self.labels
         ), f"{self.num_labels} {len(self.labels)}"
-        assert len(self.label2lid) == self.num_labels
+        print("\nnum of examples:", len(self.text_data))
+        print("num labels:", self.num_labels, "\n")
+        self.check_unmatched_ids()
 
     @property
     def special_ids(self):
@@ -264,8 +280,47 @@ class BaseDataset(Dataset):
                 str(k): i for i, k in enumerate(self.arrow_dict[dset]["img_id"])
             }
 
+    def check_unmatched_ids(self):
+        arrow_img_ids = set()
+        unfound = set()
+        num_unfound = 0
+        for x in self.id2idx:
+            for k in self.id2idx[x].keys():
+                assert isinstance(k, str)
+                arrow_img_ids.add(k)
+        assert len(arrow_img_ids) == sum(
+            [len(self.id2idx[x]) for x in self.id2idx]
+        ), len(arrow_img_ids)
+        for x in self.text_data:
+            text_img_id = self.clean_imgid(x["img_id"])
+            assert isinstance(text_img_id, str)
+            if text_img_id not in arrow_img_ids:
+                unfound.add(text_img_id)
+                num_unfound += 1
+
+        p_unfound = num_unfound / len(self.text_data) * 100
+        print(f"text-img entries skipped: {num_unfound}")
+        print(f"img_ids not found: {sorted(unfound)}")
+        if p_unfound == float(100):
+            raise Exception(
+                f"100 {'%'} of img_ids in text data do not match img_ids in arrow dataset"
+            )
+        else:
+            print(f"removing {p_unfound}% of {self.split} data")
+            self.text_data = [
+                x
+                for x in self.text_data
+                if self.clean_imgid(x["img_id"]) not in unfound
+            ]
+            print(f"new num of text-img entries: {len(self.text_data)}")
+        del arrow_img_ids
+        del unfound
+        del num_unfound
+
     # later lets move this into that mapping fucnction for custom stuff
     def load_text_files(self):
+        ignored_labels = set()
+        num_ignored = 0
         name2dset = {
             "mscoco": "coco",
             "vg": "vg",
@@ -321,20 +376,33 @@ class BaseDataset(Dataset):
                                 lid = self.ignore_id
                             entry["label"] = torch.tensor(lid)
                             self.text_data.append(entry)
+
         elif self.dataset_name == "gqa":
             self.label2lid = self.labels
-            self.num_labels = len(self.labels)
+            self.num_labels = len(self.label2lid)
             for text in tqdm(self.text_files):
                 data_split = json.load(open(text))
                 for data in data_split:
                     img_id = data["img_id"].split("_")[-1]
                     entry = {"img_id": img_id, "text": data["sent"], "dset": "gqa"}
-                    try:
+                    label = data["label"]
+                    if isinstance(label, dict):
+                        if len(label) == 0:
+                            continue
+                    elif isinstance(label, str):
+                        label = {label: 1.0}
                         label = next(iter(data["label"].keys()))
-                    except StopIteration:
-                        continue
-                    entry["label"] = self.labels(label)
-                    self.text_data.append(entry)
+                    assert len(label) == 1
+                    for l, s in label.items():
+                        l = convert_answer(l)
+                        if l not in self.labels:
+                            num_ignored += 1
+                            ignored_labels.add(l)
+                            continue
+                        else:
+                            entry["label"] = torch.tensor(self.label2lid[l])
+                            self.text_data.append(entry)
+            print(f"num ignored: {num_ignored} ignored: {ignored_labels}")
 
     def matched_sentence_modeling(self, entry):
         is_matched = 1
@@ -378,21 +446,25 @@ class BaseDataset(Dataset):
 
         return masked_inds, masked_sequence
 
+    def clean_imgid(self, img_id):
+        return "".join([x for x in str(img_id).lstrip("0") if x.isdigit()])
+
     def __len__(self):
         return len(self.text_data)
 
     @torch.no_grad()
     def __getitem__(self, i):
         entry = self.text_data[i]
-        img_id = entry.get("img_id").lstrip("0")
+        img_id = self.clean_imgid(entry.get("img_id"))
         dset = entry.get("dset")
         img_idx = self.id2idx[dset].get(img_id, None)
-        if img_idx is None and dset == "vg":
+        if img_idx is None and dset == "vg" and "coco" in self.id2idx:
             dset = "coco"
             img_idx = self.id2idx["coco"].get(img_id)
             if img_idx is None:
-                print("no id")
-                pass
+                raise Exception(dset, img_idx, img_id)
+        elif img_idx is None:
+            raise Exception(dset, img_idx, img_id)
         img_data = self.arrow_dict[dset][img_idx]
         assert str(img_id) == str(
             img_data["img_id"]
@@ -446,17 +518,17 @@ class BaseLoader(DataLoader):
         num_workers = loader_config.num_workers
         if split == "eval":
             num_workers = 0
-            batch_size = train_config.val_batch_size
+            batch_size = train_config.eval_batch_size
         drop_last = loader_config.drop_last
         pin_memory = loader_config.pin_memory
         return_tensor = loader_config.collate_pytorch
         super().__init__(
             dataset=BaseDataset(
-                dataset_name,
-                dataset_config,
-                pathes_config,
-                global_config,
-                train_config,
+                dataset_name=dataset_name,
+                dataset_config=dataset_config,
+                pathes_config=pathes_config,
+                global_config=global_config,
+                train_config=train_config,
                 split=split,
             ),
             collate_fn=collate_tensor if return_tensor else collate_list,
