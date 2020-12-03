@@ -107,7 +107,7 @@ class DataConfig:
     use_raw_images: bool = False
     skip_eval: bool = False
     split: bool = "train"
-    evlal_split: bool = "eval"
+    eval_split: bool = "eval"
     valid_split: bool = "valid"
     use_arrow: bool = True
     num_attrs: int = 400
@@ -123,6 +123,7 @@ class DataConfig:
     add_special_tokens: bool = True
     return_tensors: str = "pt"
     return_attention_mask: bool = True
+    img_processor: str = "raw_img"
 
     def __init__(self, **kwargs):
         for f in fields(self):
@@ -148,6 +149,7 @@ class LoaderConfig:
 
 @dataclass
 class PathesConfig:
+    coco_test_imgs: str = "coco/test2017/"
     coco_imgs: str = "coco/"
     vg_imgs: str = "vg/"
     vqa: str = "vqa/"

@@ -89,6 +89,13 @@ that will allow for much more versatility, and delete leading zeros for coco stu
 17. also add in the docs that this libray was built for ultimate conviencence
 18. also the idea is that we want "flat config files", nested configs are disgusting
 19. export varibles + export aliases for ease of cd'ing around, also see if we can auto determine if there is a venv so we can auto make an alias for that too
+20. we also need to scope out public vs private models, we do not want to have people needing to upload their own research
+21. plan out what we need to do for auto g-drive uplaod + pulling + we can think about what we need to do incase other people want to upload to different places
+22. yaml file for custom exp settings
+23. add custom flags and/or yaml settigs to log run, so we can see changes from the default settings
+24. incase we want to see the default settings, we can dump them all to a file
+25. it will only re-write if there is a diffence in the previous file of if no dump file exists, so we will need to set up a checker function for this
+26. just pad to max size for now, afterwards, we can try max_padding the batch in colllate fucntion we can exp around with tomorrow
 
 what to look out for:
 cfg.MODEL.RPN.POST_NMS_TOPK_TEST = 300
@@ -117,3 +124,11 @@ okay, we also want to clean out configs further: get rid of redundant stuf
 the whole paradigm of machine learning desing patters vs actual software engineering desingn patters is that
 it seems we want things to be a modular and indpeendnent as possible, so that is something that we want to
 maximize fo: hrm this sounds like something to write an essay about
+
+---
+"""
+Links to the aux data
+https://raw.githubusercontent.com/airsplay/py-bottom-up-attention/master/demo/data/genome/1600-400-20/objects_vocab.txt
+https://raw.githubusercontent.com/airsplay/py-bottom-up-attention/master/demo/data/genome/1600-400-20/attributes_vocab.txt
+"""
+

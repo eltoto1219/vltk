@@ -54,6 +54,8 @@ class Trainer:
             split=dataset_config.split,
         )
 
+        self.split = dataset_config.split
+        self.eval_split = dataset_config.eval_split
         self.log = True
         self.dataset = self.loader.dataset
         self.scheduler = None

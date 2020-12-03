@@ -24,14 +24,13 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
+from mllib.legacy_utils import (WEIGHTS_NAME, Config, cached_path,
+                                hf_bucket_url, is_remote_url, load_checkpoint)
 from torch import nn
 from torch.nn import functional as F
 from torch.nn.modules.batchnorm import BatchNorm2d
 from torchvision.ops import RoIPool
 from torchvision.ops.boxes import batched_nms, nms
-
-from .legacy_utils import (WEIGHTS_NAME, Config, cached_path, hf_bucket_url,
-                           is_remote_url, load_checkpoint)
 
 
 # other:

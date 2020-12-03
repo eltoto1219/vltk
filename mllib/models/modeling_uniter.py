@@ -7,18 +7,14 @@ from typing import Optional, Tuple
 import torch
 from torch import nn
 from torch.nn import CrossEntropyLoss
-
 from transformers.activations import gelu, swish
 from transformers.configuration_utils import PretrainedConfig
 from transformers.file_utils import ModelOutput
-from transformers.modeling_utils import (
-    PreTrainedModel,
-    apply_chunking_to_forward,
-    find_pruneable_heads_and_indices,
-    prune_linear_layer,
-)
+from transformers.modeling_utils import (PreTrainedModel,
+                                         apply_chunking_to_forward,
+                                         find_pruneable_heads_and_indices,
+                                         prune_linear_layer)
 from transformers.tokenization_bert import BertTokenizer, BertTokenizerFast
-
 
 # SECTION 1: tokenization
 
@@ -132,6 +128,7 @@ class VisualBertForQuestionAnsweringOutput(ModelOutput):
 def load_tf_weights_in_visualbert(model, config, tf_checkpoint_path):
     """Load tf checkpoints in a pytorch model."""
     import re
+
     import numpy as np
     import tensorflow as tf
 
@@ -939,7 +936,7 @@ class VisualBertForQuestionAnswering(VisualBertPreTrainedModel):
         visual_pos=None,
         labels=None,
         return_dict=False,
-        extras=None
+        extras=None,
     ):
         sequence_output, pooled_output, attention_weights = self.visualbert(
             input_ids=input_ids,

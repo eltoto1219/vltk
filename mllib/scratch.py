@@ -3,6 +3,13 @@ import os
 
 from tqdm import tqdm
 
+from mllib.legacy_utils import Config
+from mllib.models import GeneralizedRCNN
+
+c = Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
+print(c)
+
+"""
 data_dir = "/playpen1/home/avmendoz/data/"
 labels = os.path.join(data_dir, "temp_gqa/gqa_labels.json")
 train = os.path.join(data_dir, "temp_gqa/train/train.json")
@@ -28,3 +35,4 @@ for x in tqdm(data):
 print(f"uniq data labels {len(data_labels)}")
 print(f"uniq gqa labels {len(labels)}")
 print(data_labels - labels)
+"""

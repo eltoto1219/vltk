@@ -575,11 +575,6 @@ def img_tensorize(im, input_format="RGB"):
     # if os.path.isfile(im):
     img = cv2.imread(im)
     if img is not None:
-        # else:
-        #     img = get_image_from_url(im)
-        #     assert img is not None, f"could not connect to: {im}"
-        # img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        # if input_format == "RGB":
         img = img[:, :, ::1]
     return img
 

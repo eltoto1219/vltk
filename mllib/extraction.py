@@ -8,8 +8,9 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
+from mllib.models import GeneralizedRCNN
+
 from .legacy_utils import Config
-from .modeling_frcnn import GeneralizedRCNN
 from .processing_image import Preprocess
 
 
