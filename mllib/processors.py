@@ -62,7 +62,6 @@ def img_to_tensor(fp, input_format="bgr", min_size=640, max_size=640, pad_value=
         img, (newh, neww), mode="bilinear", align_corners=False
     ).squeeze(0)
     img = torch.clamp(img, max=255)
-    print(img.shape)
     # size = img.shape[-2:]
     # img = F.pad(
     #     img,
@@ -164,17 +163,17 @@ def load_temp_gqa(
     }
 
     if split in ("pretrain", "train", "finetune"):
-        files = get_file_path(data_dir, pathes_config.gqa_train)
+        files = get_file_path(pathes_config.gqa_train, relative=data_dir)
     elif split in (
         "validation",
         "val",
         "valid",
     ):
-        files = get_file_path(data_dir, pathes_config.gqa_val)
+        files = get_file_path(pathes_config.gqa_val, relative=data_dir)
     elif split in ("inference", "dev", "testdev", "eval", "evaluation"):
-        files = get_file_path(data_dir, pathes_config.gqa_testdev)
+        files = get_file_path(pathes_config.gqa_testdev, relative=data_dir)
     else:
-        files = get_file_path(data_dir, pathes_config.gqa_test)
+        files = get_file_path(pathes_config.gqa_test, relative=data_dir)
 
     print(f"spits to be loaded: {files}")
 
@@ -208,11 +207,11 @@ def load_temp_lxmert(
     }
 
     if dataset_config.split in ("pretrain", "train", "finetune"):
-        files = get_file_path(data_dir, pathes_config.temp_lxmert_train)
+        files = get_file_path(pathes_config.temp_lxmert_train, relative=data_dir)
     elif dataset_config.split in ("eval", "evaluation", "validation", "val"):
-        files = get_file_path(data_dir, pathes_config.temp_lxmert_eval)
+        files = get_file_path(pathes_config.temp_lxmert_eval, relative=data_dir)
     else:
-        files = get_file_path(data_dir, pathes_config.temp_lxmert_test)
+        files = get_file_path(pathes_config.temp_lxmert_test, relative=data_dir)
 
     labels = os.path.join(data_dir, pathes_config.temp_lxmert_answers)
     label_data = json.load(open(labels))

@@ -26,25 +26,31 @@ def collate_list(columns):
 
 
 # probably a better collate fucntion right here
-def collate_v3(columns: List[Dict[str, torch.Tensor]]) -> Dict[str, torch.Tensor]:
+def collate_v3(
+    columns: List[Dict[str, torch.Tensor]], pad: bool = True
+) -> Dict[str, torch.Tensor]:
     batch = OrderedDict()
     keys = deepcopy(list(columns[0].keys()))
     for k in keys:
         if k == "img_features":
-            max_size = max([int(max(i.pop(["sizes"]))) for i in columns])
-            for i in columns:
+            if pad:
+                max_h = max([int(i.get("sizes")[0]) for i in columns])
+                max_w = max([int(i.get("sizes")[1]) for i in columns])
+            batch[k] = []
+            for i in iter(map(lambda x: x, columns)):
+                if i is None:
+                    continue
                 feats_i = i.pop(k)
-                size = feats_i.shape[-2:]
-                print(max_size)
-                print(feats_i.shape)
-                feats_i = F.pad(
-                    i.pop(k), [0, max_size - size[1], 0, max_size - size[0]], value=0
-                )
-                print(feats_i.shape)
-                raise Exception
-            else:
-                batch[k] = [i.pop(k) for i in columns]
+                if pad:
+                    (h, w) = feats_i.shape[-2:]
+                    feats_i = F.pad(feats_i, [0, max_w - w, 0, max_h - h], value=0)
+                batch[k].append(feats_i)
 
+        else:
+            if k != "sizes":
+                batch[k] = [i.pop(k) for i in columns if i is not None]
+            else:
+                batch[k] = [i.get(k) for i in columns if i is not None]
     return batch
 
 
@@ -71,6 +77,8 @@ class BaseDataset(Dataset):
         split=None,
     ):
         super().__init__()
+
+        self.set_blank_attrs()
         # props that we set ourself
         self.dataset_name = dataset_name
         self.dataset_config = dataset_config
@@ -80,6 +88,9 @@ class BaseDataset(Dataset):
         self.split = dataset_config.split if split is None else split
         self.img_processor = dataset_config.img_processor
         self.max_objs = self.dataset_config.max_objects
+        self.tokenizer = LxmertTokenizer.from_pretrained(
+            "unc-nlp/lxmert-base-uncased", never_split=self.never_split
+        )
         self.mask_id = self.tokenizer.mask_token_id
         self.ignore_id = self.dataset_config.ignore_id
         self.pad_id = self.tokenizer.pad_token_id
@@ -87,24 +98,9 @@ class BaseDataset(Dataset):
         self.do_language_masking = self.train_config.task_mask_lm
 
         # props that we load in
-        self.set_blank_attrs()
         img_dict, arrow_dict = self.set_dataset(dataset_name)
         self.set_img_processing(img_dict, arrow_dict)
-
-        # handles specific datasettings
-        self.tokenizer_args = {
-            "padding": "max_length",
-            "max_length": self.dataset_config.sent_length,
-            "truncation": self.dataset_config.truncate_sentence,
-            "return_token_type_ids": self.dataset_config.return_token_type_ids,
-            "return_attention_mask": self.dataset_config.return_attention_mask,
-            "add_special_tokens": self.dataset_config.add_special_tokens,
-            "return_tensors": self.dataset_config.return_tensors,
-        }
-        self.tokenizer = LxmertTokenizer.from_pretrained(
-            "unc-nlp/lxmert-base-uncased", never_split=self.never_split
-        )
-
+        self.set_tokenizer_args()
         self.set_text_files()
         self.set_id2idx()
         self.data_checks()
@@ -117,6 +113,17 @@ class BaseDataset(Dataset):
             "pad": self.tokenizer.pad_token,
             "cls": self.tokenizer.cls_token,
             "mask": self.tokenizer.mask_token,
+        }
+
+    def set_tokenizer_args(self):
+        self.tokenizer_args = {
+            "padding": "max_length",
+            "max_length": self.dataset_config.sent_length,
+            "truncation": self.dataset_config.truncate_sentence,
+            "return_token_type_ids": self.dataset_config.return_token_type_ids,
+            "return_attention_mask": self.dataset_config.return_attention_mask,
+            "add_special_tokens": self.dataset_config.add_special_tokens,
+            "return_tensors": self.dataset_config.return_tensors,
         }
 
     def set_dataset(self, dataset_name):
@@ -134,30 +141,35 @@ class BaseDataset(Dataset):
         if self.dataset_config.use_arrow:
             assert arrow_dict is not None
             self.img_dict = arrow_dict
-            for k in self.arrow_dict:
-                self.arrow_dict[k].set_format(type="numpy", output_all_columns=True)
+            for k in self.img_dict:
+                self.img_dict[k].set_format(type="numpy", output_all_columns=True)
         else:
             assert img_dict is not None
             for dset in img_dict:
                 self.img_dict[dset] = {
                     self.clean_imgid(x.split("/")[-1].split(".")[0]): x
-                    for x in get_file_path(img_dict[dset])
+                    for x in get_file_path(
+                        img_dict[dset],
+                    )
                 }
 
     def set_blank_attrs(self):
         self.id2idx = defaultdict(dict)
         self.img_dict = defaultdict(dict)
         self.text_files = []
+        self.text_data = []
         self.num_labels = 0
         self.label2lid = {}
         self.never_split = set()
         self.labels = None
+        self.tokenizer_args = {}
 
     def set_id2idx(self):
-        for dset in self.arrow_dict:
-            self.id2idx[dset] = {
-                str(k): i for i, k in enumerate(self.arrow_dict[dset]["img_id"])
-            }
+        if self.dataset_config.use_arrow:
+            for dset in self.img_dict:
+                self.id2idx[dset] = {
+                    str(k): i for i, k in enumerate(self.img_dict[dset]["img_id"])
+                }
 
     # later lets move this into that mapping fucnction for custom stuff
     def set_text_files(self):
@@ -255,13 +267,20 @@ class BaseDataset(Dataset):
         arrow_img_ids = set()
         unfound = set()
         num_unfound = 0
-        for x in self.id2idx:
-            for k in self.id2idx[x].keys():
-                assert isinstance(k, str)
-                arrow_img_ids.add(k)
-        assert len(arrow_img_ids) == sum(
-            [len(self.id2idx[x]) for x in self.id2idx]
-        ), len(arrow_img_ids)
+        if self.dataset_config.use_arrow:
+            for x in self.id2idx:
+                for k in self.id2idx[x].keys():
+                    assert isinstance(k, str)
+                    arrow_img_ids.add(k)
+            assert len(arrow_img_ids) == sum(
+                [len(self.id2idx[x]) for x in self.id2idx]
+            ), len(arrow_img_ids)
+        else:
+            for x in self.img_dict:
+                for k in self.img_dict[x].keys():
+                    assert isinstance(k, str)
+                    arrow_img_ids.add(k)
+
         for x in self.text_data:
             text_img_id = self.clean_imgid(x["img_id"])
             assert isinstance(text_img_id, str)
@@ -275,6 +294,7 @@ class BaseDataset(Dataset):
         if p_unfound == float(100):
             raise Exception(
                 f"100 {'%'} of img_ids in text data do not match img_ids in arrow dataset"
+                f"\n{self.img_dict}"
             )
         else:
             print(f"removing {p_unfound}% of {self.split} data")
@@ -292,7 +312,7 @@ class BaseDataset(Dataset):
         return "".join([x for x in str(img_id).lstrip("0") if x.isdigit()])
 
     def get_img(self, dset, img_id):
-        if self.use_arrow:
+        if self.dataset_config.use_arrow:
             img_idx = self.id2idx[dset].get(img_id, None)
             if img_idx is None and dset == "vg" and "coco" in self.id2idx:
                 dset = "coco"
@@ -301,7 +321,7 @@ class BaseDataset(Dataset):
                     raise Exception(dset, img_idx, img_id)
             elif img_idx is None:
                 raise Exception(dset, img_idx, img_id)
-            img_data = self.arrow_dict[dset][img_idx]
+            img_data = self.img_dict[dset][img_idx]
             assert str(img_id) == str(
                 img_data["img_id"]
             ), f"ids {img_id} != {img_data['img_id']}"
@@ -317,6 +337,8 @@ class BaseDataset(Dataset):
             img_tensor, (orig_h, orig_w), (new_h, new_w) = NAME2PROCESSOR[
                 self.img_processor
             ](fp)
+            if img_tensor is None:
+                return None
             img_data["img_features"] = img_tensor
             img_data["sizes"] = torch.Tensor([orig_h, orig_w])
         return img_data
@@ -330,6 +352,8 @@ class BaseDataset(Dataset):
         img_id = self.clean_imgid(entry.get("img_id"))
         dset = entry.get("dset")
         img_data = self.get_img(dset, img_id)
+        if img_data is None:
+            return {}
         # if self.do_sentence_matching:
         #     entry = self.matched_sentence_modeling(entry)
         #     img_data["is_matched"] = entry.get("is_matched")

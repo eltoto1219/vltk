@@ -10,8 +10,8 @@ from tqdm import tqdm
 
 from mllib.models import GeneralizedRCNN
 
-from .legacy_utils import Config
-from .processing_image import Preprocess
+from .legacy_processing import Preprocess
+from .transformers_compat import Config
 
 
 def schema_factory(max_detections):

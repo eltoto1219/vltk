@@ -4,6 +4,25 @@ import subprocess
 import timeit
 
 
+# from google
+def _flatten_dict(d, parent_key='', sep='/'):
+  """Flattens a dictionary, keeping empty leaves."""
+  items = []
+  for k, v in d.items():
+    path = parent_key + sep + k if parent_key else k
+    if isinstance(v, collections.MutableMapping):
+      items.extend(_flatten_dict(v, path, sep=sep).items())
+    else:
+      items.append((path, v))
+
+  # Keeps the empty dict if it was set explicitly.
+  if parent_key and not d:
+    items.append((parent_key, {}))
+
+  return dict(items)
+
+
+
 def get_duration(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
@@ -15,18 +34,28 @@ def get_duration(func):
     return wrapper
 
 
-def get_file_path(data_dir, relative_path):
-    files = []
-    fp = os.path.join(data_dir, relative_path)
-    if os.path.isdir(fp):
-        for x in os.listdir(fp):
-            files.append(os.path.join(fp, x))
-    elif os.path.isfile(fp):
-        files.append(fp)
+def get_file_path(path_or_dir, relative=None):
+    file_list = set()
+    if isinstance(path_or_dir, list):
+        if relative is None:
+            x = [os.path.abspath(i) for i in path_or_dir]
+        else:
+            x = [os.path.join(relative, i) for i in path_or_dir]
     else:
-        raise Exception(fp)
-
-    return files
+        if relative is None:
+            x = [os.path.abspath(path_or_dir)]
+        else:
+            x = [os.path.join(relative, path_or_dir)]
+    for fp in x:
+        if os.path.isdir(fp):
+            for path, subdirs, files in os.walk(fp):
+                for name in files:
+                    file_list.add(os.path.join(path, name))
+        elif os.path.isfile(fp):
+            file_list.add(fp)
+        else:
+            raise Exception(fp)
+    return list(file_list)
 
 
 def get_nvidia_gpu_memory():

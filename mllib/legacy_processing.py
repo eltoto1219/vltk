@@ -23,7 +23,7 @@ import torch
 import torch.nn.functional as F
 from PIL import Image
 
-from .legacy_utils import img_tensorize
+from .transformers_compat import img_tensorize
 
 
 class ResizeShortestEdge:

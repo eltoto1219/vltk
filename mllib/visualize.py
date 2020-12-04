@@ -27,7 +27,7 @@ import torch
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from PIL import Image
 
-from .legacy_utils import img_tensorize
+from .transformers_compat import img_tensorize
 
 _SMALL_OBJ = 1000
 
