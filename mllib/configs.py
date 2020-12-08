@@ -1,5 +1,6 @@
 import os
 from dataclasses import dataclass, fields
+from typing import Union
 
 
 @dataclass
@@ -52,6 +53,7 @@ class ModelConfig:
     r_layers: int = 5
     l_layers: int = 9
     x_layers: int = 5
+    vit_variant: Union[str, None] = "ViT-B_32"
 
     def __init__(self, **kwargs):
         for f in fields(self):
@@ -62,9 +64,6 @@ class ModelConfig:
 
 @dataclass
 class PretrainConfig:
-    msm: bool = True  # matched_sentence_modeling
-    mlm: bool = True  # masked_language_modeling
-    qam: bool = False  # question_answer_modeling
     train_batch_size: int = 32
     eval_batch_size: int = 64
 
@@ -87,7 +86,7 @@ class TrainConfig:
     train_batch_size: int = 32
     eval_batch_size: int = 64
     test_batch_size: int = 64
-    dry_run: bool = False
+    dry_run: bool = True
 
     def __init__(self, **kwargs):
         for f in fields(self):
@@ -104,12 +103,10 @@ class DataConfig:
     object_file: str = ""
     img_format: str = "jpg"
     percent_data: int = 1.0
-    use_raw_images: bool = False
     skip_eval: bool = False
     split: bool = "train"
     eval_split: bool = "eval"
     valid_split: bool = "valid"
-    use_arrow: bool = True
     num_attrs: int = 400
     num_objects: int = 1600
     ignore_id: int = -100
@@ -123,13 +120,26 @@ class DataConfig:
     add_special_tokens: bool = True
     return_tensors: str = "pt"
     return_attention_mask: bool = True
-    img_processor: str = "raw_img"
+    arrow_fields: Union[None, tuple, str] = None
+    use_raw_imgs: bool = False
 
     def __init__(self, **kwargs):
         for f in fields(self):
             str_field = f.name
             if str_field in kwargs:
-                setattr(self, str_field, kwargs.pop(str_field))
+                value = kwargs.pop(str_field)
+                if str_field == "arrow_fields":
+                    value = value.replace("'", "")
+                    value = value.replace('"', "")
+                    value = value.replace(" ", "")
+                    value = value.split(",")
+                    if len(value) == 1 and value[0] == "":
+                        value = ""
+                    else:
+                        value = tuple(value)
+                        if "img_id" not in value:
+                            value = ("img_id",) + value
+                setattr(self, str_field, value)
 
 
 @dataclass
@@ -138,7 +148,6 @@ class LoaderConfig:
     num_workers: int = 8
     drop_last: bool = True
     pin_memory: bool = True
-    collate_pytorch: bool = True
 
     def __init__(self, **kwargs):
         for f in fields(self):
@@ -149,9 +158,9 @@ class LoaderConfig:
 
 @dataclass
 class PathesConfig:
-    coco_test_imgs: str = "coco/test2017/"
-    coco_imgs: str = "coco/"
-    vg_imgs: str = "vg/"
+    vg_tensor_train: str = "vg_raw/train"
+    vg_tensor_test: str = "vg_raw/test"
+    vit_pretrained_dir = "vit/"
     vqa: str = "vqa/"
     gqa_val: str = "temp_gqa/train/valid.json"
     gqa_train: str = "temp_gqa/train/"
@@ -166,7 +175,7 @@ class PathesConfig:
     coco_test_arrow: str = "arrow/coco_test2017.arrow"
     vg_train_arrow: str = "arrow/vg.arrow"
     vg_valid_arrow: str = "arrow/vg.arrow"
-    vg_test_arrow: str = "arrow/coco_test2017.arrow"
+    vg_test_arrow: str = "arrow/vg_test.arrow"
     temp_lxmert_answers: str = "labels/lxmert_answers.json"
     temp_lxmert_train: tuple = "lxmert_data/train/"
     temp_lxmert_eval: str = "lxmert_data/mscoco_minival.json"

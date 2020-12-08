@@ -8,7 +8,7 @@ from .configs import (DataConfig, GlobalConfig, LoaderConfig, ModelConfig,
                       PathesConfig, ROIFeaturesFRCNN, TrainConfig)
 from .data import Data
 from .extraction import Extract
-from .mapping import NAME2MODEL
+from .mapping import NAME2MODEL, NAME2PROCESSOR
 from .train import Trainer
 
 PATH = os.path.dirname(os.path.realpath(__file__))
@@ -76,10 +76,24 @@ class Arguments(object):
     def download(self, name, **kwargs):
         pass
 
-    def extract(self, input_dir, out_file):
+    def extract(self, input_dir, out_file, preproc=None, name=None):
+        if name in NAME2MODEL:
+            model = NAME2MODEL[name]
+        else:
+            model = None
+            print(f"model not in {list(NAME2MODEL.keys())}")
+        if preproc in NAME2PROCESSOR:
+            preproc = NAME2PROCESSOR[preproc]
+        else:
+            print(f"preprocessor ({preproc}) not in {list(NAME2PROCESSOR.keys())}")
+            preproc = None
+        assert (preproc is not None and model is None) or (
+            preproc is None and model is not None
+        )
+
         ids = self.flags.pop("ids", None)
         extract_config = ROIFeaturesFRCNN(out_file, input_dir, **self.flags)
-        extractor = Extract(self.global_config, extract_config, ids=ids)
+        extractor = Extract(model, preproc, self.global_config, extract_config, ids=ids)
         print("initialized extractor, now starting run ...")
         extractor()
 

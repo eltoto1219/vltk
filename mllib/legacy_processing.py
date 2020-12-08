@@ -124,7 +124,7 @@ class Preprocess:
                     img = img_tensorize(img, input_format=self.input_format)
                     if img is not None:
                         tensor_imgs.append(torch.as_tensor(img).to(self.device).float())
-                        good_ids.append(img_id)
+                        good_ids.append(str(img_id))
                     else:
                         continue
 

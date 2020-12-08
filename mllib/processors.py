@@ -1,11 +1,13 @@
 import json
 import os
+from collections import OrderedDict
 
 import cv2
 import datasets
 import numpy as np
 import torch
 import torch.nn.functional as F
+from tqdm import tqdm
 
 from .utils import get_file_path
 
@@ -35,15 +37,19 @@ ANS_CONVERT = {
 }
 
 
-# let us try plotting the condensed image before we try anything weird
-def img_to_tensor(fp, input_format="bgr", min_size=640, max_size=640, pad_value=0):
+# let us try plotting the exapnded/condensed image before we try anything weird
+def img_to_tensor(
+    fp, min_size=832, max_size=832, pad_value=0, mean=None, sdev=None, use_gpu=False
+):
     assert isinstance(fp, str)
     assert os.path.isfile(fp)
     img = cv2.imread(fp)
     if img is None:
-        return
+        return None, (None, None), (None, None)
     img = img[:, :, ::1]
     img = torch.as_tensor(img).float()
+    if use_gpu:
+        img = img.cuda()
     h, w = img.shape[:2]
     scale = min_size * 1.0 / min(h, w)
     if h < w:
@@ -62,12 +68,17 @@ def img_to_tensor(fp, input_format="bgr", min_size=640, max_size=640, pad_value=
         img, (newh, neww), mode="bilinear", align_corners=False
     ).squeeze(0)
     img = torch.clamp(img, max=255)
-    # size = img.shape[-2:]
-    # img = F.pad(
-    #     img,
-    #     [0, max_size - size[1], 0, max_size - size[0]],
-    #     value=pad_value,
-    # )
+    if mean is not None and sdev is not None:
+        img = (img - mean) / sdev
+    if pad_value is not None:
+        size = img.shape[-2:]
+        img = F.pad(
+            img,
+            [0, max_size - size[1], 0, max_size - size[0]],
+            value=pad_value,
+        )
+    if use_gpu:
+        img = img.cpu()
     return img, (h, w), (newh, neww)
 
 
@@ -138,49 +149,87 @@ def process_answer_default(ans):
     return ans
 
 
-def load_temp_gqa(
-    pathes_config,
-    global_config,
-    dataset_config,
-    split,
-):
+def load_temp_gqa(pathes_config, global_config, dataset_config, split, use_raw=True):
+    arrow_dict = None
+    path_dict = None
+
     data_dir = global_config.data_dir
-    if split not in ("inference", "dev", "testdev", "eval", "evaluation"):
-        vg = datasets.Dataset.from_file(
-            os.path.join(data_dir, pathes_config.vg_train_arrow)
-        )
+
+    # arrow file
+    fields = dataset_config.arrow_fields
+    if fields is None or fields:
+        if split not in ("inference", "dev", "testdev", "eval", "evaluation"):
+            vg = datasets.Dataset.from_file(
+                os.path.join(data_dir, pathes_config.vg_train_arrow)
+            )
+
+        else:
+            vg = datasets.Dataset.from_file(
+                os.path.join(data_dir, pathes_config.vg_test_arrow)
+            )
+        if fields is not None:
+            fields = list(fields)
+        vg.set_format(type="numpy", columns=fields)
+        arrow_dict = {"gqa": vg}
     else:
-        vg = datasets.Dataset.from_file(
-            os.path.join(data_dir, pathes_config.vg_test_arrow)
-        )
-    arrow_dict = {"gqa": vg}
+        arrow_dict = None
 
-    img_dirs = {
-        "gqa": [
-            os.path.join(data_dir, pathes_config.vg_imgs),
-            os.path.join(data_dir, pathes_config.coco_test_imgs),
-        ]
-    }
+    # raw tensors
+    if use_raw:
+        if split in ("testdev", "test", "eval", "dev"):
+            path_dict = {
+                "gqa": os.path.join(data_dir, pathes_config.vg_tensor_test),
+            }
+        else:
+            path_dict = {
+                "gqa": os.path.join(data_dir, pathes_config.vg_tensor_train),
+            }
 
+    # labels
+    labels = json.load(open(os.path.join(data_dir, pathes_config.gqa_labels)))
+
+    # text data
     if split in ("pretrain", "train", "finetune"):
-        files = get_file_path(pathes_config.gqa_train, relative=data_dir)
+        text_files = get_file_path(pathes_config.gqa_train, relative=data_dir)
     elif split in (
         "validation",
         "val",
         "valid",
     ):
-        files = get_file_path(pathes_config.gqa_val, relative=data_dir)
+        text_files = get_file_path(pathes_config.gqa_val, relative=data_dir)
     elif split in ("inference", "dev", "testdev", "eval", "evaluation"):
-        files = get_file_path(pathes_config.gqa_testdev, relative=data_dir)
+        text_files = get_file_path(pathes_config.gqa_testdev, relative=data_dir)
     else:
-        files = get_file_path(pathes_config.gqa_test, relative=data_dir)
+        text_files = get_file_path(pathes_config.gqa_test, relative=data_dir)
 
-    print(f"spits to be loaded: {files}")
-
-    labels = os.path.join(data_dir, pathes_config.gqa_labels)
-    label_set = json.load(open(labels))
-
-    return files, img_dirs, arrow_dict, label_set
+    print(f"spits to be loaded: {text_files}")
+    ignored_labels = set()
+    num_ignored = 0
+    text_data = []
+    for text in tqdm(text_files):
+        data_split = json.load(open(text))
+        for data in data_split:
+            img_id = data["img_id"].split("_")[-1]
+            entry = {"img_id": img_id, "text": data["sent"], "dset": "gqa"}
+            label = data["label"]
+            if isinstance(label, dict):
+                if len(label) == 0:
+                    continue
+            elif isinstance(label, str):
+                label = {label: 1.0}
+                label = next(iter(data["label"].keys()))
+            assert len(label) == 1
+            for l, s in label.items():
+                l = process_answer_default(l)
+                if l not in labels:
+                    num_ignored += 1
+                    ignored_labels.add(l)
+                    continue
+                else:
+                    entry["label"] = torch.tensor(labels[l])
+                    text_data.append(entry)
+    print(f"num ignored: {num_ignored} ignored: {ignored_labels}")
+    return text_data, path_dict, arrow_dict, labels
 
 
 def load_temp_lxmert(
@@ -198,26 +247,92 @@ def load_temp_lxmert(
         os.path.join(data_dir, pathes_config.coco_train_arrow)
     )
     coco = datasets.concatenate_datasets([coco_valid, coco_train])
+    coco.set_format(type="numpy", output_all_columns=True)
     vg = datasets.Dataset.from_file(os.path.join(data_dir, pathes_config.vg_arrow))
+    vg.set_format(type="numpy", output_all_columns=True)
     arrow_dict = {"coco": coco, "vg": vg}
 
-    img_dirs = {
+    path_dict = {
         "coco": os.path.join(data_dir, pathes_config.coco_imgs),
         "vg": os.path.join(data_dir, pathes_config.vg_imgs),
     }
 
     if dataset_config.split in ("pretrain", "train", "finetune"):
-        files = get_file_path(pathes_config.temp_lxmert_train, relative=data_dir)
+        text_files = get_file_path(pathes_config.temp_lxmert_train, relative=data_dir)
     elif dataset_config.split in ("eval", "evaluation", "validation", "val"):
-        files = get_file_path(pathes_config.temp_lxmert_eval, relative=data_dir)
+        text_files = get_file_path(pathes_config.temp_lxmert_eval, relative=data_dir)
     else:
-        files = get_file_path(pathes_config.temp_lxmert_test, relative=data_dir)
+        text_files = get_file_path(pathes_config.temp_lxmert_test, relative=data_dir)
 
-    labels = os.path.join(data_dir, pathes_config.temp_lxmert_answers)
-    label_data = json.load(open(labels))
-    label_set = set([process_answer_default(ans["ans"]) for ans in label_data])
+    labels = set(
+        [
+            process_answer_default(ans["ans"])
+            for ans in json.load(
+                open(os.path.join(data_dir, pathes_config.temp_lxmert_answers))
+            )
+        ]
+    )
 
-    return files, img_dirs, arrow_dict, label_set
+    name2dset = {
+        "mscoco": "coco",
+        "vg": "vg",
+        "visual7w": "vg",
+        "gqa": "vg",
+        "vqa": "coco",
+    }
+    print("loading text data")
+    num_labels = 0
+    label2lid = {}
+    ignore_idx = -100
+    text_data = []
+    for text in tqdm(text_files):
+        data_split = json.load(open(text))
+        for data in data_split:
+            img_id = data["img_id"].split("_")[-1]
+            sentf = data["sentf"]
+            for sents_cat, sents in sentf.items():
+                dset = name2dset[sents_cat]
+                if sents_cat in data["labelf"]:
+                    labels = data["labelf"][sents_cat]
+                else:
+                    labels = None
+                for sent_idx, sent in enumerate(sents):
+                    entry = {"img_id": img_id, "text": sent, "dset": dset}
+                    if labels is not None:
+                        label = labels[sent_idx]
+                        in_label_set = False
+                        if not len(label) == 0:
+                            label = OrderedDict(
+                                {
+                                    k: v
+                                    for k, v in sorted(
+                                        label.items(),
+                                        key=lambda item: item[1],
+                                        reverse=True,
+                                    )
+                                }
+                            )
+                            for k in label.keys():
+                                k = process_answer_default(k)
+                                if k in labels:
+                                    in_label_set = True
+                                    label = k
+                                    break
+                            if in_label_set:
+                                if label not in labels:
+                                    lid = num_labels
+                                    label2lid[label] = lid
+                                    num_labels += 1
+                                else:
+                                    lid = label2lid[label]
+                            else:
+                                lid = ignore_idx
+                    else:
+                        lid = ignore_idx
+                    entry["label"] = torch.tensor(lid)
+                    text_data.append(entry)
+
+    return text_data, path_dict, arrow_dict, labels
 
 
 if __name__ == "__main__":

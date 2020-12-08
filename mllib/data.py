@@ -26,7 +26,7 @@ class Data:
 
         self.datset = self.loader.dataset
 
-    def full_pass(self):
+    def tpass(self):
         for x in tqdm(self.loader):
             pass
 

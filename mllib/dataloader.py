@@ -1,4 +1,4 @@
-import json
+import os
 from collections import OrderedDict, defaultdict
 from copy import deepcopy
 from typing import Dict, List
@@ -7,22 +7,12 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
-from tqdm import tqdm
 from transformers import LxmertTokenizer
 
-from .mapping import NAME2DATASET, NAME2PROCESSOR
-from .utils import get_duration, get_file_path
+from .processors import load_temp_gqa, load_temp_lxmert
+from .utils import get_duration
 
-
-def collate_list(columns):
-    batch = OrderedDict()
-    for x in map(lambda x: iter(x.items()), columns):
-        for k, v in x:
-            if batch.get(k) is None:
-                batch[k] = [v]
-            else:
-                batch[k].append(v)
-    return batch
+NAME2DATASET = {"temp_lxmert": load_temp_lxmert, "gqa": load_temp_gqa}
 
 
 # probably a better collate fucntion right here
@@ -32,37 +22,27 @@ def collate_v3(
     batch = OrderedDict()
     keys = deepcopy(list(columns[0].keys()))
     for k in keys:
-        if k == "img_features":
-            if pad:
-                max_h = max([int(i.get("sizes")[0]) for i in columns])
-                max_w = max([int(i.get("sizes")[1]) for i in columns])
-            batch[k] = []
-            for i in iter(map(lambda x: x, columns)):
-                if i is None:
-                    continue
-                feats_i = i.pop(k)
-                if pad:
+        if k == "raw_imgs":
+            sizes = map(lambda x: x.get("raw_imgs").shape[-2:], columns)
+            same_size = 1 if len(set(sizes)) == 1 else 0
+            if same_size:
+                batch[k] = torch.stack([i.pop(k) for i in columns if i is not None])
+            else:
+                max_h = max(sizes, key=lambda x: x[0])[0]
+                max_w = max(sizes, key=lambda x: x[1])[1]
+                batch["raw_sizes"] = torch.tensor(list(sizes))
+                batch[k] = []
+                for i in columns:
+                    if i is None:
+                        continue
+                    feats_i = i.pop(k)
                     (h, w) = feats_i.shape[-2:]
                     feats_i = F.pad(feats_i, [0, max_w - w, 0, max_h - h], value=0)
-                batch[k].append(feats_i)
-
+                    batch[k].append(feats_i)
+                batch[k] = torch.stack(batch[k])
         else:
-            if k != "sizes":
-                batch[k] = [i.pop(k) for i in columns if i is not None]
-            else:
-                batch[k] = [i.get(k) for i in columns if i is not None]
+            batch[k] = torch.stack([i.pop(k) for i in columns if i is not None])
     return batch
-
-
-def collate_tensor(columns):
-    batch = OrderedDict()
-    for x in map(lambda x: iter(x.items()), columns):
-        for k, v in x:
-            if batch.get(k) is None:
-                batch[k] = [v]
-            else:
-                batch[k].append(v)
-    return {k: torch.stack(v) for k, v in batch.items()}
 
 
 class BaseDataset(Dataset):
@@ -86,8 +66,8 @@ class BaseDataset(Dataset):
         self.global_config = global_config
         self.train_config = train_config
         self.split = dataset_config.split if split is None else split
-        self.img_processor = dataset_config.img_processor
         self.max_objs = self.dataset_config.max_objects
+        self.img_format = self.dataset_config.img_format
         self.tokenizer = LxmertTokenizer.from_pretrained(
             "unc-nlp/lxmert-base-uncased", never_split=self.never_split
         )
@@ -97,12 +77,14 @@ class BaseDataset(Dataset):
         self.do_sentence_matching = self.train_config.task_matched
         self.do_language_masking = self.train_config.task_mask_lm
 
-        # props that we load in
-        img_dict, arrow_dict = self.set_dataset(dataset_name)
-        self.set_img_processing(img_dict, arrow_dict)
+        # props that we load in (in this order)
+        text_data, path_dict, arrow_dict, labels = self.set_dataset(dataset_name)
+        self.text_data = text_data
+        self.path_dict = path_dict
+        self.arrow_dict = arrow_dict
+        self.labels = labels
         self.set_tokenizer_args()
-        self.set_text_files()
-        self.set_id2idx()
+        self.set_id2imgidx()
         self.data_checks()
 
     @property
@@ -127,35 +109,16 @@ class BaseDataset(Dataset):
         }
 
     def set_dataset(self, dataset_name):
-        text_files, img_dict, arrow_dict, labels = NAME2DATASET[dataset_name](
+        text_data, path_dict, arrow_dict, labels = NAME2DATASET[dataset_name](
             self.pathes_config, self.global_config, self.dataset_config, self.split
         )
+        self.num_labels = len(labels) if labels is not None else self.num_labels
 
-        self.labels = labels
-        self.text_files = text_files
-
-        return img_dict, arrow_dict
-
-    def set_img_processing(self, img_dict=None, arrow_dict=None):
-        self.img_format = self.dataset_config.img_format
-        if self.dataset_config.use_arrow:
-            assert arrow_dict is not None
-            self.img_dict = arrow_dict
-            for k in self.img_dict:
-                self.img_dict[k].set_format(type="numpy", output_all_columns=True)
-        else:
-            assert img_dict is not None
-            for dset in img_dict:
-                self.img_dict[dset] = {
-                    self.clean_imgid(x.split("/")[-1].split(".")[0]): x
-                    for x in get_file_path(
-                        img_dict[dset],
-                    )
-                }
+        return text_data, path_dict, arrow_dict, labels
 
     def set_blank_attrs(self):
-        self.id2idx = defaultdict(dict)
-        self.img_dict = defaultdict(dict)
+        self.id2imgidx = defaultdict(dict)
+        self.arrow_dict = defaultdict(dict)
         self.text_files = []
         self.text_data = []
         self.num_labels = 0
@@ -164,99 +127,14 @@ class BaseDataset(Dataset):
         self.labels = None
         self.tokenizer_args = {}
 
-    def set_id2idx(self):
-        if self.dataset_config.use_arrow:
-            for dset in self.img_dict:
-                self.id2idx[dset] = {
-                    str(k): i for i, k in enumerate(self.img_dict[dset]["img_id"])
+    def set_id2imgidx(self):
+        if self.arrow_dict is not None:
+            for dset in self.arrow_dict:
+                self.id2imgidx[dset] = {
+                    str(k): i for i, k in enumerate(self.arrow_dict[dset]["img_id"])
                 }
 
     # later lets move this into that mapping fucnction for custom stuff
-    def set_text_files(self):
-        ignored_labels = set()
-        num_ignored = 0
-        name2dset = {
-            "mscoco": "coco",
-            "vg": "vg",
-            "visual7w": "vg",
-            "gqa": "vg",
-            "vqa": "coco",
-        }
-        if self.dataset_name == "temp_lxmert":
-            print("loading text data")
-            for text in tqdm(self.text_files):
-                data_split = json.load(open(text))
-                for data in data_split:
-                    img_id = data["img_id"].split("_")[-1]
-                    sentf = data["sentf"]
-                    for sents_cat, sents in sentf.items():
-                        dset = name2dset[sents_cat]
-                        if sents_cat in data["labelf"]:
-                            labels = data["labelf"][sents_cat]
-                        else:
-                            labels = None
-                        for sent_idx, sent in enumerate(sents):
-                            entry = {"img_id": img_id, "text": sent, "dset": dset}
-                            if labels is not None:
-                                label = labels[sent_idx]
-                                in_label_set = False
-                                if not len(label) == 0:
-                                    label = OrderedDict(
-                                        {
-                                            k: v
-                                            for k, v in sorted(
-                                                label.items(),
-                                                key=lambda item: item[1],
-                                                reverse=True,
-                                            )
-                                        }
-                                    )
-                                    for k in label.keys():
-                                        k = NAME2PROCESSOR["default_ans"](k)
-                                        if k in self.labels or k in self.label2lid:
-                                            in_label_set = True
-                                            label = k
-                                            break
-                                    if in_label_set:
-                                        if label not in self.label2lid:
-                                            lid = self.num_labels
-                                            self.label2lid[label] = lid
-                                            self.num_labels += 1
-                                        else:
-                                            lid = self.label2lid[label]
-                                    else:
-                                        lid = self.ignore_id
-                            else:
-                                lid = self.ignore_id
-                            entry["label"] = torch.tensor(lid)
-                            self.text_data.append(entry)
-
-        elif self.dataset_name == "gqa":
-            self.label2lid = self.labels
-            self.num_labels = len(self.label2lid)
-            for text in tqdm(self.text_files):
-                data_split = json.load(open(text))
-                for data in data_split:
-                    img_id = data["img_id"].split("_")[-1]
-                    entry = {"img_id": img_id, "text": data["sent"], "dset": "gqa"}
-                    label = data["label"]
-                    if isinstance(label, dict):
-                        if len(label) == 0:
-                            continue
-                    elif isinstance(label, str):
-                        label = {label: 1.0}
-                        label = next(iter(data["label"].keys()))
-                    assert len(label) == 1
-                    for l, s in label.items():
-                        l = NAME2PROCESSOR["default_ans"](l)
-                        if l not in self.labels:
-                            num_ignored += 1
-                            ignored_labels.add(l)
-                            continue
-                        else:
-                            entry["label"] = torch.tensor(self.label2lid[l])
-                            self.text_data.append(entry)
-            print(f"num ignored: {num_ignored} ignored: {ignored_labels}")
 
     def data_checks(self):
         assert self.num_labels <= len(
@@ -267,80 +145,76 @@ class BaseDataset(Dataset):
         arrow_img_ids = set()
         unfound = set()
         num_unfound = 0
-        if self.dataset_config.use_arrow:
-            for x in self.id2idx:
-                for k in self.id2idx[x].keys():
+        if self.arrow_dict is not None:
+            for x in self.id2imgidx:
+                for k in self.id2imgidx[x].keys():
                     assert isinstance(k, str)
                     arrow_img_ids.add(k)
             assert len(arrow_img_ids) == sum(
-                [len(self.id2idx[x]) for x in self.id2idx]
+                [len(self.id2imgidx[x]) for x in self.id2imgidx]
             ), len(arrow_img_ids)
-        else:
-            for x in self.img_dict:
-                for k in self.img_dict[x].keys():
-                    assert isinstance(k, str)
-                    arrow_img_ids.add(k)
+            for x in self.text_data:
+                text_img_id = self.clean_imgid(x["img_id"])
+                assert isinstance(text_img_id, str)
+                if text_img_id not in arrow_img_ids:
+                    unfound.add(text_img_id)
+                    num_unfound += 1
 
-        for x in self.text_data:
-            text_img_id = self.clean_imgid(x["img_id"])
-            assert isinstance(text_img_id, str)
-            if text_img_id not in arrow_img_ids:
-                unfound.add(text_img_id)
-                num_unfound += 1
-
-        p_unfound = num_unfound / len(self.text_data) * 100
-        print(f"text-img entries skipped: {num_unfound}")
-        print(f"img_ids not found: {sorted(unfound)}")
-        if p_unfound == float(100):
-            raise Exception(
-                f"100 {'%'} of img_ids in text data do not match img_ids in arrow dataset"
-                f"\n{self.img_dict}"
-            )
-        else:
-            print(f"removing {p_unfound}% of {self.split} data")
-            self.text_data = [
-                x
-                for x in self.text_data
-                if self.clean_imgid(x["img_id"]) not in unfound
-            ]
-            print(f"new num of text-img entries: {len(self.text_data)}")
-        del arrow_img_ids
-        del unfound
-        del num_unfound
+            p_unfound = num_unfound / len(self.text_data) * 100
+            print(f"text-img entries skipped: {num_unfound}")
+            print(f"img_ids not found: {sorted(unfound)}")
+            if p_unfound == float(100):
+                raise Exception(
+                    f"100 {'%'} of img_ids in text data do not match img_ids in arrow dataset"
+                    f"\n{self.arrow_dict}"
+                )
+            else:
+                print(f"removing {p_unfound}% of {self.split} data")
+                self.text_data = [
+                    x
+                    for x in self.text_data
+                    if self.clean_imgid(x["img_id"]) not in unfound
+                ]
+                print(f"new num of text-img entries: {len(self.text_data)}")
+            del arrow_img_ids
+            del unfound
+            del num_unfound
 
     def clean_imgid(self, img_id):
-        return "".join([x for x in str(img_id).lstrip("0") if x.isdigit()])
+        return str(img_id).replace(" ", "")
 
     def get_img(self, dset, img_id):
-        if self.dataset_config.use_arrow:
-            img_idx = self.id2idx[dset].get(img_id, None)
-            if img_idx is None and dset == "vg" and "coco" in self.id2idx:
+        arrow_data = {}
+        img_data = {}
+        if self.arrow_dict is not None:
+            img_idx = self.id2imgidx[dset].get(img_id, None)
+            if img_idx is None and dset == "vg" and "coco" in self.id2imgidx:
                 dset = "coco"
-                img_idx = self.id2idx["coco"].get(img_id)
+                img_idx = self.id2imgidx["coco"].get(img_id)
                 if img_idx is None:
                     raise Exception(dset, img_idx, img_id)
             elif img_idx is None:
                 raise Exception(dset, img_idx, img_id)
-            img_data = self.img_dict[dset][img_idx]
+            arrow_data = self.arrow_dict[dset][img_idx]
             assert str(img_id) == str(
-                img_data["img_id"]
-            ), f"ids {img_id} != {img_data['img_id']}"
-            for k in img_data:
-                if isinstance(img_data[k], np.ndarray):
-                    img_data[k] = torch.from_numpy(img_data[k].copy())
-                elif isinstance(img_data[k], torch.Tensor):
-                    img_data[k] = img_data[k].clone()
-            img_data["roi_features"] = img_data.get("roi_features")[: self.max_objs]
-        else:
-            img_data = {}
-            fp = self.img_dict[dset][img_id]
-            img_tensor, (orig_h, orig_w), (new_h, new_w) = NAME2PROCESSOR[
-                self.img_processor
-            ](fp)
-            if img_tensor is None:
-                return None
-            img_data["img_features"] = img_tensor
-            img_data["sizes"] = torch.Tensor([orig_h, orig_w])
+                arrow_data["img_id"]
+            ), f"ids {img_id} != {arrow_data['img_id']}"
+            arrow_data.pop("img_id")
+            for k in arrow_data:
+                # we discard the img_id here but maybe we can get it back later?
+                if isinstance(arrow_data[k], np.ndarray):
+                    arrow_data[k] = torch.from_numpy(arrow_data[k].copy())
+                elif isinstance(arrow_data[k], torch.Tensor):
+                    arrow_data[k] = arrow_data[k].clone()
+            roi_features = arrow_data.get("roi_features", False)
+            if roi_features:
+                arrow_data["roi_features"] = roi_features[: self.max_objs]
+        if self.dataset_config.use_raw_imgs:
+            file = os.path.join(self.path_dict[dset], img_id + ".pt")
+            img = torch.load(file).float()
+            img_data["raw_imgs"] = img
+        img_data = {**img_data, **arrow_data}
+        assert img_data, "empty"
         return img_data
 
     def __len__(self):
@@ -408,7 +282,6 @@ class BaseLoader(DataLoader):
                 train_config=train_config,
                 split=split,
             ),
-            # collate_fn=collate_tensor if loader_config.collate_pytorch else collate_list,
             collate_fn=collate_v3,
             drop_last=drop_last,
             pin_memory=pin_memory,
@@ -418,7 +291,7 @@ class BaseLoader(DataLoader):
         )
 
         if shuffle:
-            self.dataset.set_id2idx()
+            self.dataset.set_id2imgidx()
 
     @staticmethod
     def toCuda(batch):

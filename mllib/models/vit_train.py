@@ -17,24 +17,20 @@ import glob
 import os
 import time
 
-from clu import metric_writers
-
-import numpy as np
-
+import flax
+import flax.jax_utils as flax_utils
+import flax.optim as optim
 import jax
 import jax.numpy as jnp
-
-import flax
-import flax.optim as optim
-import flax.jax_utils as flax_utils
-
+import numpy as np
 import tensorflow as tf
+from clu import metric_writers
 
 import .vit_checkpoint as checkpoint
 import .vit_flags as flags
 import .vit_hyper as hyper
-import .vit_logging as logging
 import .vit_input_pipeline as input_pipeline
+import .vit_logging as logging
 import .vit_models as models
 import .vit_momentum_clip as momentum_clip
 

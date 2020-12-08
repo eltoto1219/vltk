@@ -1,14 +1,56 @@
 import datetime
 import os
-from dataclasses import dataclass
 
+import jax
+import jax.numpy as jnp
 import torch
 # from sklearn.metrics import auc, roc_auc_score, roc_curve
 from tqdm import tqdm
 from transformers import AdamW  # LxmertForQuestionAnswering,
 
+from mllib.models import CONFIGS, KNOWN_MODELS, load_pretrained
+
 from .dataloader import BaseLoader
 from .evaluate import Evaluator
+
+MODEL_SIZES = {
+    "ViT-B_16": 86_567_656,
+    "ViT-B_32": 88_224_232,
+    "ViT-L_16": 304_326_632,
+    "ViT-L_32": 306_535_400,
+    "ViT-H_14": 632_045_800,
+    "testing": 2985,
+}
+
+
+def run_vit(vit, batch):
+    # return vit_outputs
+    pass
+
+
+def init_vit(model_config, train_config, global_config, pathes_config):
+    vit_variant = model_config.vit_variant
+    vit_pretrained_dir = os.path.join(
+        global_config.data_dir, pathes_config.vit_pretrained_dir
+    )
+
+    # return vit
+    rng = jax.random.PRNGKey(0)
+    VisualTransformer = KNOWN_MODELS[vit_variant].partial(num_classes=0)
+    output, initial_params = VisualTransformer.init_by_shape(
+        rng, [((2, 832, 832, 3), jnp.float32)]
+    )
+    # pretrained_path = os.path.join(args.vit_pretrained_dir, f"{args.model}.npz")
+    # params = load_pretrained(
+    #     pretrained_path=pretrained_path,
+    #     init_params=params,
+    #     model_config=CONFIGS[vit_variant],
+    #     logger=logger,
+    # )
+
+    print(type(VisualTransformer))
+
+    raise Exception(output, initial_params["Transformer"].keys())
 
 
 def log_append(log_file, log_str):
@@ -42,7 +84,9 @@ class Trainer:
         self.model = model
         self.train_config = train_config
         self.dataset_config = dataset_config
-        self.dry_run = train_config.dry_run
+
+        if self.dataset_config.use_raw_imgs:
+            self.vit = init_vit(model_config, train_config, global_config, pathes_config)
 
         self.loader = BaseLoader(
             dataset_name=dataset_name,
@@ -123,9 +167,17 @@ class Trainer:
             self.model.train()
             self.optim.zero_grad()
             batch = self.loader.toCuda(batch)
+
+            if self.dataset_config.use_raw_imgs:
+                vit_output = run_vit(batch)
+                raise Exception(type(vit_output))
+                batch["features"] = vit_output
+            else:
+                batch["features"] = batch["roi_features"]
+
             output = self.model(
                 input_ids=batch["input_ids"],
-                visual_feats=batch["roi_features"],
+                visual_feats=batch["features"],
                 visual_pos=batch["boxes"],
                 attention_mask=batch["attention_mask"],
                 labels=batch["label"],

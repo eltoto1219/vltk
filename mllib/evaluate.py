@@ -5,7 +5,7 @@ import torch
 # from sklearn.metrics import auc, roc_auc_score, roc_curve
 from tqdm import tqdm
 
-from .dataloader import BaseLoader
+from mllib.dataloader import BaseLoader
 
 
 @dataclass

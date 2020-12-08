@@ -1,5 +1,14 @@
 from transformers import LxmertConfig, LxmertForQuestionAnswering
 
+from mllib.models import GeneralizedRCNN
+
+from .transformers_compat import Config
+
+
+def frcnn_factory():
+    config = Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
+    return GeneralizedRCNN.from_pretrained("unc-nlp/frcnn-vg-finetuned", config=config)
+
 
 def lxmert_factory(command_name, model_config, run_config, dataset_config):
     if model_config.ckp_transformers:

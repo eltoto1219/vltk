@@ -14,10 +14,8 @@
 
 import unittest
 
-import flax
 import jax
 import jax.numpy as jnp
-from mllib.models import KNOWN_MODELS
 
 MODEL_SIZES = {
     "ViT-B_16": 86_567_656,

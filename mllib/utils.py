@@ -1,26 +1,54 @@
+import collections
 import functools
 import os
 import subprocess
 import timeit
 
+import numpy as np
+
+
+def flatten_dict(d, parent_key="", sep="."):
+    items = []
+    for k, v in d.items():
+        new_key = parent_key + sep + k if parent_key else k
+        if isinstance(v, collections.MutableMapping):
+            items.extend(flatten_dict(v, new_key, sep=sep).items())
+        else:
+            items.append((new_key, v))
+    return collections.OrderedDict(items)
+
+
+# tensor equality
+def tensor_equality(a, b):
+
+    n1 = a.numpy()
+    n2 = b.numpy()
+    print(n1.shape)
+    print(n2.shape)
+    print(n1[0, 0, :5])
+    print(n2[0, 0, :5])
+    assert np.allclose(
+        n1, n2, rtol=0.01, atol=0.1
+    ), f"{sum([1 for x in np.isclose(n1, n2, rtol=0.01, atol=0.1).flatten() if x == False])/len(n1.flatten())*100:.4f} % element-wise mismatch"
+    raise Exception("tensors are all good")
+
 
 # from google
-def _flatten_dict(d, parent_key='', sep='/'):
-  """Flattens a dictionary, keeping empty leaves."""
-  items = []
-  for k, v in d.items():
-    path = parent_key + sep + k if parent_key else k
-    if isinstance(v, collections.MutableMapping):
-      items.extend(_flatten_dict(v, path, sep=sep).items())
-    else:
-      items.append((path, v))
+def _flatten_dict(d, parent_key="", sep="/"):
+    """Flattens a dictionary, keeping empty leaves."""
+    items = []
+    for k, v in d.items():
+        path = parent_key + sep + k if parent_key else k
+        if isinstance(v, collections.MutableMapping):
+            items.extend(_flatten_dict(v, path, sep=sep).items())
+        else:
+            items.append((path, v))
 
-  # Keeps the empty dict if it was set explicitly.
-  if parent_key and not d:
-    items.append((parent_key, {}))
+    # Keeps the empty dict if it was set explicitly.
+    if parent_key and not d:
+        items.append((parent_key, {}))
 
-  return dict(items)
-
+    return dict(items)
 
 
 def get_duration(func):
@@ -70,12 +98,3 @@ def get_nvidia_gpu_memory():
     gpu_memory = [eval(x) for x in result.strip().split("\n")]
     gpu_memory_map = dict(zip(range(len(gpu_memory)), gpu_memory))
     return gpu_memory_map
-
-
-class cheat_config(dict):
-    def __init__(self, d):
-        for k, v in d.items():
-            setattr(self, k, v)
-
-    def __setattr__(self, k, v):
-        pass

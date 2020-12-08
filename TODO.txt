@@ -96,6 +96,14 @@ that will allow for much more versatility, and delete leading zeros for coco stu
 24. incase we want to see the default settings, we can dump them all to a file
 25. it will only re-write if there is a diffence in the previous file of if no dump file exists, so we will need to set up a checker function for this
 26. just pad to max size for now, afterwards, we can try max_padding the batch in colllate fucntion we can exp around with tomorrow
+27. change collator fucntion to use "map" instead with arrow dataset
+28. convert image dirs to things arrow datsets too!
+29. how to load in different splits and such:
+train_ds = datasets.load_dataset('bookcorpus', split='train')
+# The full `train` split and the full `test` split as two distinct datasets.
+train_ds, test_ds = datasets.load_dataset('bookcorpus', split=['train', 'test'])
+30. use that "map" function to do the padding, simply collect list of indices that are used in the batch, then pull them from arrow
+in the collate function
 
 what to look out for:
 cfg.MODEL.RPN.POST_NMS_TOPK_TEST = 300
