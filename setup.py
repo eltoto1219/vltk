@@ -23,6 +23,16 @@ class Install(install):
             print("")
         super().run()
 
+def dependencies() -> list:
+    deps = []
+    with open("./requirements.txt") as f:
+        for l in f.readlines():
+            if "-e" in l:
+                continue
+            l = l.split("==")[0]
+            deps.append(l)
+    return deps
+
 
 setup(
     name="mllib",
@@ -40,7 +50,6 @@ setup(
         "mllib/models",
         "mllib/legacy",
         "mllib/processors",
-        "mllib/private",
     ],
-    install_requires=[],
+    install_requires=dependencies(),
 )

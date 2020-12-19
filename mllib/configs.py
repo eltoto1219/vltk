@@ -276,7 +276,6 @@ class GlobalConfig(BaseConfig):
         if self.print_config:
             print(self)
         os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
-        self.dump_json(file="dump.json")
 
     def _set_gpus(self):
         if self.gpu is not None and self.aux_gpu is not None:
