@@ -1,6 +1,8 @@
+import json
 import os
-from dataclasses import Field, dataclass, field, fields, is_dataclass
 from typing import List, Union
+
+import yaml
 
 from mllib.utils import (base_expirement_filename, get_most_free_gpu,
                          get_nvidia_gpu_memory)
@@ -8,8 +10,33 @@ from mllib.utils import (base_expirement_filename, get_most_free_gpu,
 DELIM = ","
 
 
-@dataclass
 class BaseConfig:
+    _identify = None
+    _overwritten = {}
+
+    def __init__(self, **kwargs):
+        for f, v in self:
+            if f in kwargs:
+                kv = kwargs.get(f)
+                if v != kv:
+                    setattr(self, f, kv)
+                    self._overwritten[f] = v
+
+    def __iter__(self):
+        for k in self.__class__.__dict__:
+            if k[0] != "_":
+                yield k, getattr(self, k)
+
+    def __str__(self):
+        string = ""
+        for k, v in self:
+            if hasattr(v, "_identify"):
+                string += f"{k}:\n"
+                string += "".join([f"--{vsub}\n" for vsub in str(v).split("\n")])
+            else:
+                string += f"{k}:{v}\n"
+        return string[:-1]
+
     @staticmethod
     def parse(arg):
         if isinstance(arg, str) and DELIM in arg:
@@ -20,46 +47,53 @@ class BaseConfig:
                 arg = tuple(arg)
         elif isinstance(arg, str) and arg.isdigit():
             return int(arg)
+        elif isinstance(arg, str) and arg.lower() == "true":
+            arg = True
+        elif isinstance(arg, str) and arg.lower() == "false":
+            arg = False
         return arg
 
-    def json(self):
+    def to_dict(self):
+        data = {}
+        for k, v in self:
+            if hasattr(v, "_identify"):
+                data[k] = v.to_dict()
+            else:
+                data[k] = v
+        return data
+
+    def dump_json(self, file):
+        json.dump(self.to_dict(), open(file, "w"))
+
+    def dump_yaml(self, file):
+        yaml.dump(self.to_dict(), open(file, "w"), default_flow_style=False)
+
+    @classmethod
+    def from_json(cls, file):
         raise NotImplementedError()
 
-    def yaml(self):
+    @classmethod
+    def from_yaml(cls, file):
         raise NotImplementedError()
 
-    def dict(self):
-        raise NotImplementedError()
-
-    def dump(self):
-        raise NotImplementedError()
-
-    def load(self):
+    @classmethod
+    def from_pretrained(cls, file):
         raise NotImplementedError()
 
 
-@dataclass
-class ExtractConfig:
-    outfile: str
-    inputdir: str
+class ExtractConfig(BaseConfig):
+    outfile: str = ""
+    inputdir: str = ""
     log_name: str = "extract_logs.txt"
     config_path: str = ""
 
     def __init__(self, outfile, inputdir, **kwargs):
+        super().__init__(**kwargs)
         self.outfile = outfile
         self.inputdir = inputdir
-        for f in dir(self):
-            str_field = f
-            if str_field in kwargs:
-                setattr(
-                    self,
-                    str_field,
-                    BaseConfig.parse(kwargs.get(str_field)),
-                )
 
 
-@dataclass
-class ModelConfig:
+class ModelConfig(BaseConfig):
     from_transformers: bool = True
     ckp_name_or_path: str = ""
     ckp_transformers: str = "unc-nlp/lxmert-base-uncased"
@@ -70,23 +104,8 @@ class ModelConfig:
     x_layers: int = 5
     vit_variant: Union[str, None] = "ViT-B_16"
 
-    def __init__(self, kwargs):
-        for f in dir(self):
-            str_field = f
-            if str_field in kwargs:
-                setattr(
-                    self,
-                    str_field,
-                    field(init=False, defualt=BaseConfig.parse(kwargs.get(str_field))),
-                )
-            else:
-                v = getattr(self, f, None)
-                if isinstance(v, Field):
-                    assert v.name is not None
 
-
-@dataclass
-class PretrainConfig:
+class PretrainConfig(BaseConfig):
     epochs: int = 4
     task_matched: bool = False
     task_mask_lm: bool = False
@@ -96,18 +115,7 @@ class PretrainConfig:
     visual_feat_loss: bool = False
     batch_size: int = 32
 
-    def __init__(self, kwargs):
-        for f in dir(self):
-            str_field = f
-            if str_field in kwargs:
-                setattr(self, str_field, BaseConfig.parse(kwargs.get(str_field))),
-            else:
-                v = getattr(self, f, None)
-                if isinstance(v, Field):
-                    assert v.name is not None
 
-
-@dataclass
 class EvalConfig(BaseConfig):
     half_precision: bool = True
     task_matched: bool = False
@@ -118,18 +126,7 @@ class EvalConfig(BaseConfig):
     visual_feat_loss: bool = False
     batch_size: int = 32
 
-    def __init__(self, kwargs):
-        for f in dir(self):
-            str_field = f
-            if str_field in kwargs:
-                setattr(self, str_field, BaseConfig.parse(kwargs.get(str_field))),
-            else:
-                v = getattr(self, f, None)
-                if isinstance(v, Field):
-                    assert v.name is not None
 
-
-@dataclass
 class TrainConfig(BaseConfig):
     learning_rate: float = 1e-5
     half_precision: bool = True
@@ -146,22 +143,7 @@ class TrainConfig(BaseConfig):
     visual_feat_loss: bool = False
     batch_size: int = 32
 
-    def __init__(self, kwargs):
-        for f in dir(self):
-            str_field = f
-            if str_field in kwargs:
-                setattr(
-                    self,
-                    str_field,
-                    BaseConfig.parse(kwargs.get(str_field)),
-                )
-            else:
-                v = getattr(self, f, None)
-                if isinstance(v, Field):
-                    assert v.name is not None
 
-
-@dataclass
 class DataConfig(BaseConfig):
     img_first: bool = False
     shuffle: bool = True
@@ -197,19 +179,8 @@ class DataConfig(BaseConfig):
     use_raw_imgs: bool = False
     pos_dim: int = 4
 
-    def __init__(self, kwargs):
-        for f in dir(self):
-            str_field = f
-            if str_field in kwargs:
-                setattr(self, str_field, BaseConfig.parse(kwargs.get(str_field))),
-            else:
-                v = getattr(self, f, None)
-                if isinstance(v, Field):
-                    assert v.name is not None
 
-
-@dataclass
-class PathesConfig:
+class PathesConfig(BaseConfig):
     datadirs: Union[List[str], str] = "/playpen1/home/avmendoz/data"
     vg_train: str = "vg/train"
     vg_test: str = "vg/test"
@@ -233,73 +204,51 @@ class PathesConfig:
     temp_lxmert_eval: str = "lxmert_data/mscoco_minival.json"
     temp_lxmert_test: str = ""
 
-    def __init__(self, kwargs):
-        for f in self.__dict__:
-            str_field = f
-            if str_field in kwargs:
-                setattr(
-                    self,
-                    str_field,
-                    BaseConfig.parse(kwargs.get(str_field)),
-                )
-            else:
-                v = getattr(self, f, None)
-                if isinstance(v, Field):
-                    assert v.name is not None
-
-        for f in set(fields(self)).union(set(self.__dict__.keys())):
-            if not isinstance(f, str):
-                f = f.name
-            v = getattr(self, f, "")
-            if f == "datadirs" or not isinstance(v, str):
-                continue
-            if isinstance(self.datadirs, str):
-                v = os.path.join(self.datadirs, v)
-            else:
-                for dd in self.datadirs:
-                    temp_v = os.path.join(dd, v)
-                    if ("." in v and os.path.isfile(temp_v)) or os.path.isdir(temp_v):
-                        v = temp_v
-            if not (os.path.isfile(v) or os.path.isdir(v)):
-                v = None
-            setattr(self, f, v)
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        for f, v in self:
+            if f != "datadirs":
+                if isinstance(self.datadirs, str):
+                    v = os.path.join(self.datadirs, v)
+                else:
+                    for dd in self.datadirs:
+                        temp_v = os.path.join(dd, v)
+                        if ("." in v and os.path.isfile(temp_v)) or os.path.isdir(
+                            temp_v
+                        ):
+                            v = temp_v
+                if not (os.path.isfile(v) or os.path.isdir(v)):
+                    v = None
+                setattr(self, f, v)
 
 
-@dataclass
-class PrivateConfig:
-    def __init__(self, kwargs):
-        for f in dir(self):
-            str_field = f
-            if str_field in kwargs:
-                setattr(
-                    self,
-                    str_field,
-                    BaseConfig.parse(kwargs.get(str_field)),
-                )
-            else:
-                v = getattr(self, f, None)
-                if isinstance(v, Field):
-                    assert v.name is not None
+class PrivateConfig(BaseConfig):
+    pass
 
 
-@dataclass
-class GlobalConfig:
+class ExpirementConfig(BaseConfig):
+    pass
 
-    logpath: str
-    command: str
-    ckp_name: str
-    gpu: int
-    aux_gpu: int
 
-    data: DataConfig
-    model: ModelConfig
-    pathes: PathesConfig
-    evaluate: Union[None, EvalConfig]
-    run: Union[None, PretrainConfig, TrainConfig, ExtractConfig, EvalConfig]
-    private: PrivateConfig
+class GlobalConfig(BaseConfig):
 
-    dryrun: bool = False
+    data: DataConfig = None
+    model: ModelConfig = None
+    pathes: PathesConfig = None
+    evaluate: Union[None, EvalConfig] = None
+    run: Union[None, PretrainConfig, TrainConfig, ExtractConfig, EvalConfig] = None
+    private: PrivateConfig = None
+    experiment: ExpirementConfig = None
+
     logging: bool = True
+    logdir: str = os.path.join(os.environ.get("HOME", os.getcwd()), "logs")
+    logfile: str = "logs.txt"
+    output_dir: str = os.path.join(os.environ.get("HOME", ""), "outputs")
+    command: str = None
+    ckp_name: str = None
+    gpu: int = None
+    aux_gpu: int = None
+    dryrun: bool = False
     seed: int = 1
     percent_min_gpu_free_mem: float = 0.75
     print_config: bool = True
@@ -311,60 +260,30 @@ class GlobalConfig:
     valid_aliases: tuple = ("val", "valid", "validation")
     test_aliases: tuple = ("test",)
 
-    # log stuff
-    log_dir: str = (
-        os.path.join(os.environ.get("HOME"), "logs")
-        if os.environ.get("HOME", False)
-        else os.path.join(os.getcwd(), "logs")
-    )
-    log_file: str = "logs.txt"
-    output_dir: str = "/playpen1/home/avmendoz/outputs"
-
-    def print(self):
-        print(" === Config === ")
-        for k in set(fields(self)).union(set(self.__dict__.keys())):
-            if not isinstance(k, str):
-                k = k.name
-
-            v = getattr(self, k, None)
-            if not is_dataclass(v):
-                print(k, "=", v)
-            elif is_dataclass(v):
-                print(k, ":")
-                for j in set(fields(v)).union(set(v.__dict__.keys())):
-                    if not isinstance(j, str):
-                        j = j.name
-                    f = getattr(v, j, None)
-                    print("--", j, "=", f)
-        print(" === ====== === ")
-        print()
-
     def __init__(self, command, **kwargs):
-        kwargs.pop("command", None)
+        super().__init__(**kwargs)
         assert command in self.known_commands
         self.command = command
-        for f in dir(self):
-            str_field = f
-            if str_field in kwargs:
-                del f
-                setattr(
-                    self,
-                    str_field,
-                    BaseConfig.parse(kwargs.get(str_field)),
-                )
+        self._set_gpus()
+        self._set_run(kwargs)
+        self.data = DataConfig(**kwargs)
+        self.model = ModelConfig(**kwargs)
+        self.pathes = PathesConfig(**kwargs)
+        self.private = PrivateConfig(**kwargs)
+        self.experiment = ExpirementConfig(**kwargs)
+        self.logfile = os.path.join(self.logdir, self.logfile)
+        self.ckp_name = base_expirement_filename(self.output_dir, kwargs, self)
+        if self.print_config:
+            print(self)
+        os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+        self.dump_json(file="dump.json")
 
-        self.data = DataConfig(kwargs)
-        self.model = ModelConfig(kwargs)
-        self.pathes = PathesConfig(kwargs)
-        self.private = PrivateConfig(kwargs)
-
-        gpu = getattr(self, "gpu", None)
-        aux_gpu = getattr(self, "aux_gpu", None)
-        if gpu is not None and aux_gpu is not None:
-            assert aux_gpu != gpu
-        if gpu is None:
+    def _set_gpus(self):
+        if self.gpu is not None and self.aux_gpu is not None:
+            assert self.aux_gpu != self.gpu
+        if self.gpu is None:
             self.gpu = get_most_free_gpu()
-        if aux_gpu is None:
+        if self.aux_gpu is None:
             set_aux = False
             gpus = get_nvidia_gpu_memory()
             for k in gpus:
@@ -379,27 +298,14 @@ class GlobalConfig:
                     print()
                 self.aux_gpu = -1
 
-        evaluate = None
-        run = None
-
+    def _set_run(self, kwargs):
         if self.command == "pretrain":
-            run = PretrainConfig(kwargs)
+            self.run = PretrainConfig(**kwargs)
         elif self.command == "train":
-            run = TrainConfig(kwargs)
+            self.run = TrainConfig(**kwargs)
         elif self.command == "extract":
-            run = ExtractConfig(kwargs)
-        if self.command == "data" or self.command == "eval":
-            run = EvalConfig(kwargs)
-        if not self.data.skip_eval and self.command not in ("data", "eval"):
-            evaluate = EvalConfig(kwargs)
-
-        self.run = run
-        self.evaluate = evaluate
-
-        # other stuff
-        self.logpath = os.path.join(self.log_dir, self.log_file)
-        self.ckp_name = base_expirement_filename(self.output_dir, kwargs, self)
-        os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
-        self.dryrun
-
-        self.print()
+            self.run = ExtractConfig(**kwargs)
+        if self.command in ("data", "eval"):
+            self.run = EvalConfig(**kwargs)
+        if not kwargs.get("skip_eval", False) and self.command not in ("data", "eval"):
+            self.evaluate = EvalConfig(**kwargs)
