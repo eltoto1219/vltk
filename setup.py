@@ -29,7 +29,7 @@ def dependencies() -> list:
         for l in f.readlines():
             if "-e" in l:
                 continue
-            l = l.split("==")[0]
+            #l = l.split("==")[0]
             deps.append(l)
     return deps
 
