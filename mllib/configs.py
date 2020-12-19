@@ -1,29 +1,72 @@
 import os
-from dataclasses import dataclass, fields
-from typing import Union
+from dataclasses import dataclass
+from typing import List, Union
 
 from mllib.utils import (base_expirement_filename, get_most_free_gpu,
                          get_nvidia_gpu_memory)
 
+DELIM = ","
 
-@dataclass
+
+class BaseConfig:
+    def __init__(self, kwargs):
+        for f in self.__dict__:
+            str_field = f
+            if str_field in kwargs:
+                setattr(
+                    self,
+                    str_field,
+                    BaseConfig.parse(kwargs.get(str_field)),
+                )
+
+    @staticmethod
+    def parse(arg):
+        if DELIM in arg:
+            arg = arg.split(DELIM)
+            if len(arg) == 0:
+                arg = ""
+            else:
+                arg = tuple(arg)
+        elif isinstance(arg, str) and arg.isdigit():
+            return int(arg)
+        return arg
+
+    def json(self):
+        raise NotImplementedError()
+
+    def yaml(self):
+        raise NotImplementedError()
+
+    def dict(self):
+        raise NotImplementedError()
+
+    def dump(self):
+        raise NotImplementedError()
+
+    def load(self):
+        raise NotImplementedError()
+
+
 class ExtractConfig:
-    le: str
-    input_dir: str
-    batch_size: int = 4
+    outfile: str
+    inputdir: str
     log_name: str = "extract_logs.txt"
     config_path: str = ""
 
-    def __init__(self, out_file, input_dir, **kwargs):
-
-        for f in fields(self):
-            str_field = f.name
+    def __init__(self, outfile, inputdir, **kwargs):
+        self.outfile = outfile
+        self.inputdir = inputdir
+        for f in dir(self):
+            str_field = f
             if str_field in kwargs:
-                setattr(self, str_field, kwargs.get(str_field))
+                setattr(
+                    self,
+                    str_field,
+                    BaseConfig.parse(kwargs.get(str_field)),
+                )
 
 
-@dataclass
-class ModelConfig:
+class ModelConfig(BaseConfig):
     from_transformers: bool = True
     ckp_name_or_path: str = ""
     ckp_transformers: str = "unc-nlp/lxmert-base-uncased"
@@ -34,15 +77,8 @@ class ModelConfig:
     x_layers: int = 5
     vit_variant: Union[str, None] = "ViT-B_16"
 
-    def __init__(self, **kwargs):
-        for f in fields(self):
-            str_field = f.name
-            if str_field in kwargs:
-                setattr(self, str_field, kwargs.get(str_field))
 
-
-@dataclass
-class PretrainConfig:
+class PretrainConfig(BaseConfig):
     epochs: int = 4
     task_matched: bool = False
     task_mask_lm: bool = False
@@ -52,16 +88,9 @@ class PretrainConfig:
     visual_feat_loss: bool = False
     batch_size: int = 32
 
-    def __init__(self, **kwargs):
-        for f in fields(self):
-            str_field = f.name
-            if str_field in kwargs:
-                setattr(self, str_field, kwargs.get(str_field))
 
-
-@dataclass
-class EvalConfig:
-    half_percision: bool = True
+class EvalConfig(BaseConfig):
+    half_precision: bool = True
     task_matched: bool = False
     task_mask_lm: bool = False
     task_obj_predict: bool = False
@@ -70,17 +99,10 @@ class EvalConfig:
     visual_feat_loss: bool = False
     batch_size: int = 32
 
-    def __init__(self, **kwargs):
-        for f in fields(self):
-            str_field = f.name
-            if str_field in kwargs:
-                setattr(self, str_field, kwargs.get(str_field))
 
-
-@dataclass
-class TrainConfig:
+class TrainConfig(BaseConfig):
     learning_rate: float = 1e-5
-    half_percision: bool = True
+    half_precision: bool = True
     epochs: int = 4
     gamma: float = 0.01
     max_norm: float = 5.0
@@ -94,15 +116,8 @@ class TrainConfig:
     visual_feat_loss: bool = False
     batch_size: int = 32
 
-    def __init__(self, **kwargs):
-        for f in fields(self):
-            str_field = f.name
-            if str_field in kwargs:
-                setattr(self, str_field, kwargs.get(str_field))
 
-
-@dataclass
-class DataConfig:
+class DataConfig(BaseConfig):
     img_first: bool = False
     shuffle: bool = True
     num_workers: int = 8
@@ -137,28 +152,10 @@ class DataConfig:
     use_raw_imgs: bool = False
     pos_dim: int = 4
 
-    def __init__(self, **kwargs):
-        for f in fields(self):
-            str_field = f.name
-            if str_field in kwargs:
-                value = kwargs.get(str_field)
-                if str_field == "arrow_fields":
-                    value = value.replace("'", "")
-                    value = value.replace('"', "")
-                    value = value.replace(" ", "")
-                    value = value.split(",")
-                    if len(value) == 1 and value[0] == "":
-                        value = ""
-                    else:
-                        value = tuple(value)
-                        if "img_id" not in value:
-                            value = ("img_id",) + value
-                setattr(self, str_field, value)
-
 
 @dataclass
 class PathesConfig:
-    data_dir: str = "/playpen1/home/avmendoz/data"
+    datadirs: Union[List[str], str] = "/playpen1/home/avmendoz/data"
     vg_train: str = "vg/train"
     vg_test: str = "vg/test"
     vit_pretrained_dir = "vit/"
@@ -181,11 +178,34 @@ class PathesConfig:
     temp_lxmert_eval: str = "lxmert_data/mscoco_minival.json"
     temp_lxmert_test: str = ""
 
-    def __init__(self, **kwargs):
-        for f in fields(self):
-            str_field = f.name
+    def __init__(self, kwargs):
+        for f in self.__dict__:
+            str_field = f
             if str_field in kwargs:
-                setattr(self, str_field, kwargs.get(str_field))
+                setattr(
+                    self,
+                    str_field,
+                    BaseConfig.parse(kwargs.get(str_field)),
+                )
+
+        for f, v in self.__dict__.items():
+            if f.name == "datadirs":
+                continue
+            f = f.name
+            if isinstance(self.datadirs, str):
+                v = os.path.join(self.datadirs, v)
+            else:
+                for dd in self.datadirs:
+                    temp_v = os.path.join(dd, v)
+                    if ("." in v and os.path.isfile(temp_v)) or os.path.isdir(temp_v):
+                        v = temp_v
+            if not (os.path.isfile(v) or os.path.isdir(v)):
+                v = None
+            setattr(self, f, v)
+
+
+class PrivateConfig(BaseConfig):
+    pass
 
 
 @dataclass
@@ -194,23 +214,24 @@ class GlobalConfig:
     logpath: str
     command: str
     ckp_name: str
+    gpu: int
+    aux_gpu: int
 
     data: DataConfig
     model: ModelConfig
     pathes: PathesConfig
-    evaluate: Union[None, EvalConfig] = None
-    run: Union[None, PretrainConfig, TrainConfig, ExtractConfig, EvalConfig] = None
+    evaluate: Union[None, EvalConfig]
+    run: Union[None, PretrainConfig, TrainConfig, ExtractConfig, EvalConfig]
+    private: PrivateConfig
 
     dryrun: bool = False
     logging: bool = True
-    gpu: int = None
-    aux_gpu: int = None
     seed: int = 1
     percent_min_gpu_free_mem: float = 0.75
     print_config: bool = True
     model_name: Union[None, str] = None
     datasets: Union[None, str] = None
-    valid_commands: tuple = ("train", "pretrain", "data", "eval")
+    known_commands: tuple = ("train", "pretrain", "data", "eval", None)
     eval_aliases: tuple = ("testdev", "eval", "dev", "evaluation", "inference")
     train_aliases: tuple = ("train", "finetune", "pretrain")
     valid_aliases: tuple = ("val", "valid", "validation")
@@ -225,37 +246,60 @@ class GlobalConfig:
     log_file: str = "logs.txt"
     output_dir: str = "/playpen1/home/avmendoz/outputs"
 
-    def __init__(self, command=None, **kwargs):
+    def print(self):
+        print(" === Config === ")
+        for k in self.__dict__:
+            v = getattr(self, k, None)
+            if "_" not in k[:2] and (
+                type(v) == tuple
+                or type(v) == int
+                or type(v) == bool
+                or type(v) == dict
+                or type(v) == float
+                or type(v) == str
+            ):
+                print(k, "=", v)
+            elif "_" not in k[:2] and v is not None:
+                print(k, ":")
+                for j in v.__dict__:
+                    f = getattr(v, j, None)
+                    if "_" not in j[:2] and (
+                        type(f) == tuple
+                        or type(f) == dict
+                        or type(f) == bool
+                        or type(f) == int
+                        or type(f) == float
+                        or type(f) == str
+                    ):
+                        print("--", j, "=", f)
+        print(" === ====== === ")
+        print()
 
-        assert command in self.valid_commands
-        if "gpu" not in kwargs:
-            self.gpu = get_most_free_gpu()
-
+    def __init__(self, command, **kwargs):
+        kwargs.pop("command", None)
+        assert command in self.known_commands
         self.command = command
-        if command == "pretrain":
-            self.run = PretrainConfig(**kwargs)
-        elif command == "train":
-            self.run = TrainConfig(**kwargs)
-        elif command == "extract":
-            self.run = ExtractConfig(**kwargs)
-        elif command == "data" or command == "eval":
-            kwargs["skip_eval"] = True
-            self.run = EvalConfig(**kwargs)
-        if self.command not in ("data", "eval") and not kwargs.get("skip_eval", False):
-            self.evaluate = EvalConfig(**kwargs)
-
-        self.data = DataConfig(**kwargs)
-        self.model = ModelConfig(**kwargs)
-        self.pathes = PathesConfig(**kwargs)
-
-        # set other sub attrs
-        for f in fields(self):
-            str_field = f.name
+        for f in self.__dict__:
+            str_field = f
             if str_field in kwargs:
-                setattr(self, str_field, kwargs.get(str_field))
+                setattr(
+                    self,
+                    str_field,
+                    BaseConfig.parse(kwargs.get(str_field)),
+                )
 
-        # auto detect aux_gpu
-        if "aux_gpu" not in kwargs:
+        self.data = DataConfig(kwargs)
+        self.model = ModelConfig(kwargs)
+        self.pathes = PathesConfig(kwargs)
+        self.private = PrivateConfig(kwargs)
+
+        gpu = getattr(self, "gpu", None)
+        aux_gpu = getattr(self, "aux_gpu", None)
+        if gpu is not None and aux_gpu is not None:
+            assert aux_gpu != gpu
+        if gpu is None:
+            self.gpu = get_most_free_gpu()
+        if aux_gpu is None:
             set_aux = False
             gpus = get_nvidia_gpu_memory()
             for k in gpus:
@@ -269,24 +313,28 @@ class GlobalConfig:
                     print("WARNING: all models using aux gpu will be on cpu")
                     print()
                 self.aux_gpu = -1
-        else:
-            assert self.gpu != kwargs["aux_gpu"]
+
+        evaluate = None
+        run = None
+
+        if self.command == "pretrain":
+            run = PretrainConfig(kwargs)
+        elif self.command == "train":
+            run = TrainConfig(kwargs)
+        elif self.command == "extract":
+            run = ExtractConfig(kwargs)
+        if self.command == "data" or self.command == "eval":
+            run = EvalConfig(kwargs)
+        if not self.data.skip_eval and self.command not in ("data", "eval"):
+            evaluate = EvalConfig(kwargs)
+
+        self.run = run
+        self.evaluate = evaluate
 
         # other stuff
         self.logpath = os.path.join(self.log_dir, self.log_file)
-        os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
         self.ckp_name = base_expirement_filename(self.output_dir, kwargs, self)
-        if self.print_config:
+        os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+        self.dryrun
 
-            print(" === Config === ")
-            for k, v in self.__dict__.items():
-                if "Config" in type(v).__name__:
-                    print(k, ":")
-                    for f in fields(v):
-                        str_field = f.name
-                        val = getattr(v, str_field)
-                        print("--", str_field, "=", val)
-                else:
-                    print(k, "=", v)
-            print(" === ====== === ")
-            print()
+        self.print()

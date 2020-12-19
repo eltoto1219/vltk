@@ -279,9 +279,7 @@ MODEL_SIZES = {
 
 def vit_jax_to_pytorch(model_config, train_config, global_config, pathes_config):
     vit_variant = model_config.vit_variant
-    vit_pretrained_dir = os.path.join(
-        global_config.data_dir, pathes_config.vit_pretrained_dir
-    )
+    vit_pretrained_dir = pathes_config.vit_pretrained_dir
     vitfp = os.path.join(vit_pretrained_dir, vit_variant + ".npz")
     vittorchfp = os.path.join(vit_pretrained_dir, "pytorch_model.bin")
     os.makedirs(vit_pretrained_dir, exist_ok=True)

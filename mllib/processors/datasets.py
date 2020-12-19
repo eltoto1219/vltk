@@ -103,20 +103,15 @@ def load_temp_gqa(config, split):
     use_raw = config.data.use_raw_imgs
     arrow_dict = None
     path_dict = None
-    data_dir = config.pathes.data_dir
 
     # arrow file
     fields = config.data.arrow_fields
     if fields is None or fields:
         if split not in ("inference", "dev", "testdev", "eval", "evaluation"):
-            vg = datasets.Dataset.from_file(
-                os.path.join(data_dir, config.pathes.vg_train_arrow)
-            )
+            vg = datasets.Dataset.from_file(config.pathes.vg_train_arrow)
 
         else:
-            vg = datasets.Dataset.from_file(
-                os.path.join(data_dir, config.pathes.vg_test_arrow)
-            )
+            vg = datasets.Dataset.from_file(config.pathes.vg_test_arrow)
         if fields is not None:
             fields = list(fields)
         vg.set_format(type="numpy", columns=fields)
@@ -128,31 +123,30 @@ def load_temp_gqa(config, split):
     if use_raw:
         if split in ("testdev", "test", "eval", "dev"):
             path_dict = {
-                "gqa": os.path.join(data_dir, config.pathes.vg_test),
+                "gqa": config.pathes.vg_test,
             }
         else:
             path_dict = {
-                "gqa": os.path.join(data_dir, config.pathes.vg_train),
+                "gqa":  config.pathes.vg_train,
             }
 
     # labels
-    labels = json.load(open(os.path.join(data_dir, config.pathes.gqa_labels)))
+    labels = json.load(open(config.pathes.gqa_labels))
 
     # text data
     if split in ("pretrain", "train", "finetune"):
-        text_files = get_subfiles_from_path(config.pathes.gqa_train, relative=data_dir)
+        text_files = get_subfiles_from_path(config.pathes.gqa_train)
     elif split in (
         "validation",
         "val",
         "valid",
     ):
-        text_files = get_subfiles_from_path(config.pathes.gqa_val, relative=data_dir)
+        text_files = get_subfiles_from_path(config.pathes.gqa_val)
     elif split in ("inference", "dev", "testdev", "eval", "evaluation"):
         text_files = get_subfiles_from_path(
-            config.pathes.gqa_testdev, relative=data_dir
-        )
+            config.pathes.gqa_testdev)
     else:
-        text_files = get_subfiles_from_path(config.pathes.gqa_test, relative=data_dir)
+        text_files = get_subfiles_from_path(config.pathes.gqa_test)
 
     print(f"spits to be loaded: {text_files}")
     ignored_labels = set()
@@ -192,43 +186,41 @@ def load_temp_gqa(config, split):
 
 
 def load_temp_lxmert(config, split):
-    data_dir = config.pathes.data_dir
 
     coco_valid = datasets.Dataset.from_file(
-        os.path.join(data_dir, config.pathes.coco_valid_arrow)
+        config.pathes.coco_valid_arrow
     )
     coco_train = datasets.Dataset.from_file(
-        os.path.join(data_dir, config.pathes.coco_train_arrow)
+        config.pathes.coco_train_arrow
     )
     coco = datasets.concatenate_datasets([coco_valid, coco_train])
     coco.set_format(type="numpy", output_all_columns=True)
-    vg = datasets.Dataset.from_file(os.path.join(data_dir, config.pathes.vg_arrow))
+    vg = datasets.Dataset.from_file(config.pathes.vg_arrow)
     vg.set_format(type="numpy", output_all_columns=True)
     arrow_dict = {"coco": coco, "vg": vg}
 
     path_dict = {
-        "coco": os.path.join(data_dir, config.pathes.coco_imgs),
-        "vg": os.path.join(data_dir, config.pathes.vg_imgs),
+        "coco": config.pathes.coco_imgs,
+        "vg": config.pathes.vg_imgs,
     }
 
     if split in ("pretrain", "train", "finetune"):
         text_files = get_subfiles_from_path(
-            config.pathes.temp_lxmert_train, relative=data_dir
+            config.pathes.temp_lxmert_train
         )
     elif split in ("eval", "evaluation", "validation", "val"):
         text_files = get_subfiles_from_path(
-            config.pathes.temp_lxmert_eval, relative=data_dir
-        )
+            config.pathes.temp_lxmert_eval)
     else:
         text_files = get_subfiles_from_path(
-            config.pathes.temp_lxmert_test, relative=data_dir
+            config.pathes.temp_lxmert_test
         )
 
     labels = set(
         [
             process_answer_default(ans["ans"])
             for ans in json.load(
-                open(os.path.join(data_dir, config.pathes.temp_lxmert_answers))
+                open(config.pathes.temp_lxmert_answers)
             )
         ]
     )
