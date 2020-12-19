@@ -15,7 +15,7 @@ from mllib.utils import get_duration
 
 # probably a better collate fucntion right here
 def collate_v3(
-    columns: List[Dict[str, torch.Tensor]], pad: bool = True
+    columns: List[Dict[str, torch.Tensor]], pad: bool = True, img_first=False
 ) -> Dict[str, torch.Tensor]:
     batch = OrderedDict()
     keys = deepcopy(list(columns[0].keys()))
@@ -39,20 +39,19 @@ def collate_v3(
                     batch[k].append(feats_i)
                 batch[k] = torch.stack(batch[k])
         else:
-            if isinstance(columns[0].get(k), torch.Tensor):
+            if isinstance(columns[0].get(k), torch.Tensor) and not img_first:
                 batch[k] = torch.stack([i.pop(k) for i in columns if i is not None])
             else:
                 batch[k] = [i.pop(k) for i in columns if i is not None]
     return batch
 
 
-class BaseDataset(Dataset):
+class UniversalDataset(Dataset):
     @get_duration
     def __init__(self, dataset_name, config, split=None):
         super().__init__()
 
         self.set_blank_attrs()
-        self.img_ids = []
         # props that we set ourself
         self.dataset_name = dataset_name
         self.config = config
@@ -70,27 +69,19 @@ class BaseDataset(Dataset):
 
         # props that we load in (in this order)
         text_data, path_dict, arrow_dict, labels = self.set_dataset(dataset_name)
-        if not config.data.img_first:
-            self.text_data = text_data[
-                : max(1, int(np.ceil(len(text_data) * self.config.data.percent_data)))
-            ]
-        else:
-
-            self.text_data = defaultdict(list)
-            mn = max(1, int(np.ceil(len(text_data) * self.config.data.percent_data)))
-            for i, t in enumerate(text_data):
-                if i == mn:
-                    break
-                else:
-                    img_id = t.pop("img_id")
-                    self.text_data[img_id].append(t)
+        self.text_data = tuple(text_data[
+            : max(1, int(np.ceil(len(text_data) * self.config.data.percent_data)))
+        ])
+        self.img_ids = []
+        for t in self.text_data:
+            img_id = t.get("img_id")
+            self.img_ids.append(img_id)
+            self.imgid2text[img_id].append(t)
         self.path_dict = path_dict
         self.arrow_dict = arrow_dict
         self.labels = labels
         self.set_tokenizer_args()
         self.set_id2imgidx()
-        if config.data.img_first:
-            self.get_raw_img_data()
         self.data_checks()
 
     @property
@@ -131,16 +122,12 @@ class BaseDataset(Dataset):
         self.never_split = set()
         self.labels = None
         self.tokenizer_args = {}
-
-    def get_raw_img_data(self):
-        for dset in self.path_dict:
-            dirr = self.path_dict[dset]
-            for f in os.listdir(dirr):
-                self.img_ids.append(f.split(".")[0])
+        self.imgid2text = defaultdict(list)
+        self.img_ids = []
 
     def get_img_first_entry(self, i):
-        img_id = self.img_id[i]
-        text_data = self.text_data[img_id]
+        img_id = self.img_ids[i]
+        text_data = self.imgid2text[img_id]
         dset = text_data[0]["dset"]
         return img_id, text_data, dset
 
@@ -250,50 +237,48 @@ class BaseDataset(Dataset):
     @torch.no_grad()
     def __getitem__(self, i):
         if not self.config.data.img_first:
-            entries = [self.text_data[i]]
-            img_id = self.clean_imgid(entries[0].get("img_id"))
-            dset = entries[0].get("dset")
+            # get one
+            entry = self.text_data[i]
+            img_id = self.clean_imgid(entry.get("img_id"))
+            dset = entry.get("dset")
+            entries = [entry]
         else:
-            img_id, entry, dset = self.get_img_first_entry(i)
+            # get many
+            img_id, entries, dset = self.get_img_first_entry(i)
+
         img_data = self.get_img(dset, img_id)
         input_ids = []
         attention_mask = []
         token_type_ids = []
         labels = []
-
-        if img_data is None:
-            return {}
-
         # if self.do_sentence_matching:
         #     entry = self.matched_sentence_modeling(entry)
         #     img_data["is_matched"] = entry.get("is_matched")
+        if img_data is None:
+            # this means that somehow while loading the image, it returned None
+            return {}
+        inputs = []
+        labels = []
         for entry in entries:
-            inputs = self.tokenizer(entry.get("text"), **self.tokenizer_args)
-            input_ids.append(inputs.input_ids.squeeze(0))
-            attention_mask.append(inputs.attention_mask.squeeze(0))
-            token_type_ids.append(inputs.token_type_ids.squeeze(0))
-            if not isinstance(entry["label"], torch.Tensor):
-                if isinstance(entry["label"], int):
-                    entry["label"] = torch.tensor(entry["label"])
-                else:
-                    raise Exception(f"entry is of type: {type(entry['label'])}")
+            inputs.append(self.tokenizer(entry.get("text"), **self.tokenizer_args))
             labels.append(entry.get("label"))
-
+        input_ids = [i.input_ids.squeeze(0) for i in inputs]
+        attention_mask = [i.attention_mask.squeeze(0) for i in inputs]
+        token_type_ids = [i.token_type_ids.squeeze(0) for i in inputs]
         img_data["input_ids"] = (
-            input_ids[0] if len(input_ids) == 1 else torch.stack(input_ids)
+            input_ids[0] if not self.config.data.img_first else torch.stack(input_ids)
         )
         img_data["attention_mask"] = (
             attention_mask[0]
-            if len(attention_mask) == 1
+            if not self.config.data.img_first
             else torch.stack(attention_mask)
         )
         img_data["token_type_ids"] = (
             token_type_ids[0]
-            if len(token_type_ids) == 1
+            if not self.config.data.img_first
             else torch.stack(token_type_ids)
         )
-        img_data["labels"] = labels[0] if len(labels) == 1 else torch.stack(labels)
-
+        img_data["labels"] = labels[0] if not self.config.data.img_first else torch.stack(labels)
         # if self.do_language_masking:
         #     input_ids = img_data.get("input_ids")
         #     masked_inds, masked_sequence = self.masked_language_modeling(input_ids)
@@ -302,8 +287,35 @@ class BaseDataset(Dataset):
 
         return img_data
 
+    @staticmethod
+    def transpose_img2txt(batch, img_keys, device=None):
+        n_sents_per_img = [len(i) for i in batch["input_ids"]]
+        for img_key in img_keys:
+            if img_key in batch:
+                if batch[img_key].size(0) == 1:
+                    imgs = batch[img_key].unsqueeze(0)
+                else:
+                    imgs = torch.cat([
+                        i.unsqueeze(0).repeat((n,) + tuple([1] * (len(i.shape))))
+                        for i, n in zip(batch.pop(img_key), n_sents_per_img)
+                    ], dim=0)
+                batch[img_key] = imgs
+                if device is not None:
+                    batch[img_key] = batch[img_key].to(device)
+        for k in batch:
+            if k not in img_keys:
+                if isinstance(batch[k][0], torch.Tensor):
+                    batch[k] = torch.cat([i for i in batch[k]], dim=0)
+                    if device is not None:
+                        batch[k] = batch[k].to(device)
+                elif isinstance(batch[k][0], str):
+                    new_v = []
+                    for i, n in zip(batch[k], n_sents_per_img):
+                        new_v.extend(i * n)
+                    batch[k] = new_v
 
-class BaseLoader(DataLoader):
+
+class UniversalLoader(DataLoader):
     def __init__(self, dataset_name, config, split=None):
         if split is not None and split not in ("pretrain", "train", "finetune"):
             if hasattr(config, "eval"):
@@ -314,8 +326,6 @@ class BaseLoader(DataLoader):
         else:
             batch_size = config.run.batch_size
             num_workers = config.data.num_workers
-        if config.data.img_first:
-            batch_size = 1
         shuffle = config.data.shuffle
         split = config.data.split if split is None else split
         shuffle = shuffle if (split in ("pretrain", "train")) else 0
@@ -325,12 +335,12 @@ class BaseLoader(DataLoader):
             drop_last = config.data.drop_last
         pin_memory = config.data.pin_memory
         super().__init__(
-            dataset=BaseDataset(
+            dataset=UniversalDataset(
                 dataset_name=dataset_name,
                 config=config,
                 split=split,
             ),
-            collate_fn=collate_v3,
+            collate_fn=lambda x: collate_v3(x, pad=config.data.pad_collate, img_first=config.data.img_first),
             drop_last=drop_last,
             pin_memory=pin_memory,
             num_workers=num_workers,

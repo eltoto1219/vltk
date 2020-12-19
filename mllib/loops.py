@@ -316,7 +316,7 @@ class Loop(ABC):
 class Data(Loop):
     def __init__(self, datasets, config):
         self.set_run("data")
-        self.set_loader(data.BaseLoader(datasets, config, split=config.data.split))
+        self.set_loader(data.UniversalLoader(datasets, config, split=config.data.split))
         super().__init__(config=config)
 
     def loop(self, batch):
@@ -330,11 +330,31 @@ class Data(Loop):
                 print(k, type(v))
             break
 
+    def transpose(self):
+        assert self.config.data.img_first
+        assert not self.config.data.arrow_fields
+        for x in self.loader:
+            entry = x
+            print("BEFORE")
+            for k, v in entry.items():
+                shape = None
+                if isinstance(v, torch.Tensor):
+                    shape = v.shape
+                print(k, type(v), shape)
+            print("AFTER")
+            data.UniversalDataset.transpose_img2txt(entry, img_keys=["raw_imgs", "raw_sizes"], device="cpu")
+            for k, v in entry.items():
+                shape = None
+                if isinstance(v, torch.Tensor):
+                    shape = v.shape
+                print(k, type(v), shape)
+            break
+
 
 class Evaluate(Loop):
     def __init__(self, dataset_names, config, model, aux_model=None):
         self.set_run("eval")
-        self.set_loader(data.BaseLoader(config=config, split=config.data.eval_split))
+        self.set_loader(data.UniversalLoader(config=config, split=config.data.eval_split))
         super().__init__(model=model, config=config, aux_model=aux_model)
 
     @torch.no_grad()
@@ -349,7 +369,7 @@ class Evaluate(Loop):
 class Train(Loop):
     def __init__(self, dataset_names, config, model, aux_model=None):
         self.set_run("train")
-        self.set_loader(data.BaseLoader(dataset_names, config))
+        self.set_loader(data.UniversalLoader(dataset_names, config))
         super().__init__(model=model, config=config, aux_model=aux_model)
         self.set_optim()
 

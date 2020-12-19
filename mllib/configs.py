@@ -146,6 +146,7 @@ class TrainConfig(BaseConfig):
 
 class DataConfig(BaseConfig):
     img_first: bool = False
+    pad_collate: bool = True
     shuffle: bool = True
     num_workers: int = 8
     drop_last: bool = True

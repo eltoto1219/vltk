@@ -45,8 +45,8 @@ def img_to_tensor(
             value=pad_value,
         )
 
-    sizes = torch.tensor(newh, neww)
-    raw_sizes = torch.tensor(h, w)
+    sizes = torch.tensor([newh, neww])
+    raw_sizes = torch.tensor([h, w])
     scales_hw = torch.true_divide(raw_sizes, sizes)
     del raw_sizes
     del sizes
