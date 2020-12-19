@@ -1,5 +1,5 @@
 import os
-from dataclasses import dataclass
+from dataclasses import Field, dataclass, field, fields, is_dataclass
 from typing import List, Union
 
 from mllib.utils import (base_expirement_filename, get_most_free_gpu,
@@ -8,20 +8,11 @@ from mllib.utils import (base_expirement_filename, get_most_free_gpu,
 DELIM = ","
 
 
+@dataclass
 class BaseConfig:
-    def __init__(self, kwargs):
-        for f in self.__dict__:
-            str_field = f
-            if str_field in kwargs:
-                setattr(
-                    self,
-                    str_field,
-                    BaseConfig.parse(kwargs.get(str_field)),
-                )
-
     @staticmethod
     def parse(arg):
-        if DELIM in arg:
+        if isinstance(arg, str) and DELIM in arg:
             arg = arg.split(DELIM)
             if len(arg) == 0:
                 arg = ""
@@ -47,6 +38,7 @@ class BaseConfig:
         raise NotImplementedError()
 
 
+@dataclass
 class ExtractConfig:
     outfile: str
     inputdir: str
@@ -66,7 +58,8 @@ class ExtractConfig:
                 )
 
 
-class ModelConfig(BaseConfig):
+@dataclass
+class ModelConfig:
     from_transformers: bool = True
     ckp_name_or_path: str = ""
     ckp_transformers: str = "unc-nlp/lxmert-base-uncased"
@@ -77,8 +70,23 @@ class ModelConfig(BaseConfig):
     x_layers: int = 5
     vit_variant: Union[str, None] = "ViT-B_16"
 
+    def __init__(self, kwargs):
+        for f in dir(self):
+            str_field = f
+            if str_field in kwargs:
+                setattr(
+                    self,
+                    str_field,
+                    field(init=False, defualt=BaseConfig.parse(kwargs.get(str_field))),
+                )
+            else:
+                v = getattr(self, f, None)
+                if isinstance(v, Field):
+                    assert v.name is not None
 
-class PretrainConfig(BaseConfig):
+
+@dataclass
+class PretrainConfig:
     epochs: int = 4
     task_matched: bool = False
     task_mask_lm: bool = False
@@ -88,7 +96,18 @@ class PretrainConfig(BaseConfig):
     visual_feat_loss: bool = False
     batch_size: int = 32
 
+    def __init__(self, kwargs):
+        for f in dir(self):
+            str_field = f
+            if str_field in kwargs:
+                setattr(self, str_field, BaseConfig.parse(kwargs.get(str_field))),
+            else:
+                v = getattr(self, f, None)
+                if isinstance(v, Field):
+                    assert v.name is not None
 
+
+@dataclass
 class EvalConfig(BaseConfig):
     half_precision: bool = True
     task_matched: bool = False
@@ -99,7 +118,18 @@ class EvalConfig(BaseConfig):
     visual_feat_loss: bool = False
     batch_size: int = 32
 
+    def __init__(self, kwargs):
+        for f in dir(self):
+            str_field = f
+            if str_field in kwargs:
+                setattr(self, str_field, BaseConfig.parse(kwargs.get(str_field))),
+            else:
+                v = getattr(self, f, None)
+                if isinstance(v, Field):
+                    assert v.name is not None
 
+
+@dataclass
 class TrainConfig(BaseConfig):
     learning_rate: float = 1e-5
     half_precision: bool = True
@@ -116,7 +146,22 @@ class TrainConfig(BaseConfig):
     visual_feat_loss: bool = False
     batch_size: int = 32
 
+    def __init__(self, kwargs):
+        for f in dir(self):
+            str_field = f
+            if str_field in kwargs:
+                setattr(
+                    self,
+                    str_field,
+                    BaseConfig.parse(kwargs.get(str_field)),
+                )
+            else:
+                v = getattr(self, f, None)
+                if isinstance(v, Field):
+                    assert v.name is not None
 
+
+@dataclass
 class DataConfig(BaseConfig):
     img_first: bool = False
     shuffle: bool = True
@@ -151,6 +196,16 @@ class DataConfig(BaseConfig):
     arrow_fields: Union[None, tuple, str] = None
     use_raw_imgs: bool = False
     pos_dim: int = 4
+
+    def __init__(self, kwargs):
+        for f in dir(self):
+            str_field = f
+            if str_field in kwargs:
+                setattr(self, str_field, BaseConfig.parse(kwargs.get(str_field))),
+            else:
+                v = getattr(self, f, None)
+                if isinstance(v, Field):
+                    assert v.name is not None
 
 
 @dataclass
@@ -187,11 +242,17 @@ class PathesConfig:
                     str_field,
                     BaseConfig.parse(kwargs.get(str_field)),
                 )
+            else:
+                v = getattr(self, f, None)
+                if isinstance(v, Field):
+                    assert v.name is not None
 
-        for f, v in self.__dict__.items():
-            if f.name == "datadirs":
+        for f in set(fields(self)).union(set(self.__dict__.keys())):
+            if not isinstance(f, str):
+                f = f.name
+            v = getattr(self, f, "")
+            if f == "datadirs" or not isinstance(v, str):
                 continue
-            f = f.name
             if isinstance(self.datadirs, str):
                 v = os.path.join(self.datadirs, v)
             else:
@@ -204,8 +265,21 @@ class PathesConfig:
             setattr(self, f, v)
 
 
-class PrivateConfig(BaseConfig):
-    pass
+@dataclass
+class PrivateConfig:
+    def __init__(self, kwargs):
+        for f in dir(self):
+            str_field = f
+            if str_field in kwargs:
+                setattr(
+                    self,
+                    str_field,
+                    BaseConfig.parse(kwargs.get(str_field)),
+                )
+            else:
+                v = getattr(self, f, None)
+                if isinstance(v, Field):
+                    assert v.name is not None
 
 
 @dataclass
@@ -248,30 +322,20 @@ class GlobalConfig:
 
     def print(self):
         print(" === Config === ")
-        for k in self.__dict__:
+        for k in set(fields(self)).union(set(self.__dict__.keys())):
+            if not isinstance(k, str):
+                k = k.name
+
             v = getattr(self, k, None)
-            if "_" not in k[:2] and (
-                type(v) == tuple
-                or type(v) == int
-                or type(v) == bool
-                or type(v) == dict
-                or type(v) == float
-                or type(v) == str
-            ):
+            if not is_dataclass(v):
                 print(k, "=", v)
-            elif "_" not in k[:2] and v is not None:
+            elif is_dataclass(v):
                 print(k, ":")
-                for j in v.__dict__:
+                for j in set(fields(v)).union(set(v.__dict__.keys())):
+                    if not isinstance(j, str):
+                        j = j.name
                     f = getattr(v, j, None)
-                    if "_" not in j[:2] and (
-                        type(f) == tuple
-                        or type(f) == dict
-                        or type(f) == bool
-                        or type(f) == int
-                        or type(f) == float
-                        or type(f) == str
-                    ):
-                        print("--", j, "=", f)
+                    print("--", j, "=", f)
         print(" === ====== === ")
         print()
 
@@ -279,9 +343,10 @@ class GlobalConfig:
         kwargs.pop("command", None)
         assert command in self.known_commands
         self.command = command
-        for f in self.__dict__:
+        for f in dir(self):
             str_field = f
             if str_field in kwargs:
+                del f
                 setattr(
                     self,
                     str_field,
