@@ -3,7 +3,7 @@ import os
 import torch
 from mllib.compatability import Config
 from mllib.models.frcnn import FRCNN
-from mllib.models.vit_pytorch import VisionTransformer
+from mllib.models.vit import VisionTransformer
 from transformers import LxmertConfig, LxmertForQuestionAnswering
 
 
@@ -35,7 +35,9 @@ def lxmert_factory(config):
 def vit_factory(config):
     pxls = config.data.img_max_size
     patch = config.data.patch_size
-    vit_pretrained_dir = os.path.join(config.pathes.data_dir, config.pathes.vit_pretrained_dir)
+    vit_pretrained_dir = os.path.join(
+        config.pathes.data_dir, config.pathes.vit_pretrained_dir
+    )
     vitfp = os.path.join(vit_pretrained_dir, "pytorch_model.bin")
     vittorch = VisionTransformer(image_size=(pxls, pxls), patch_size=(patch, patch))
     vittorch.load_state_dict(torch.load(vitfp))
