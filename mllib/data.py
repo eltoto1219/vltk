@@ -232,7 +232,7 @@ class BaseDataset(Dataset):
                 self.path_dict[dset], img_id + f".{self.config.data.img_format}"
             )
             assert os.path.isfile(file), file
-            img, (ogh, ogw), (nh, nw) = images.img_to_tensor(
+            img, (ogh, ogw), scales = images.img_to_tensor(
                 file,
                 min_size=self.config.data.img_max_size,
                 max_size=self.config.data.img_max_size,
