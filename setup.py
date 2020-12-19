@@ -34,6 +34,13 @@ setup(
     author_email="avmendoz@cs.unc.edu",
     description="Personal AI library for quick projects",
     long_description=open("README.md").read(),
-    packages=["mllib", "mllib/tests", "mllib/models"],
+    packages=[
+        "mllib",
+        "tests",
+        "mllib/models",
+        "mllib/legacy",
+        "mllib/processors",
+        "mllib/private",
+    ],
     install_requires=[],
 )

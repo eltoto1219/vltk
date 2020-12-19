@@ -5,13 +5,13 @@ from collections import namedtuple
 
 import torch
 from mmf.common.registry import registry
+from modeling_uniter import VisualBertConfig, VisualBertForQuestionAnswering
 from sklearn.metrics import auc, roc_auc_score, roc_curve
 from tqdm import tqdm
 from transformers import AdamW  # LxmertForQuestionAnswering,
 from transformers import get_linear_schedule_with_warmup
 
 from dataloader import MMFLoader
-from modeling_uniter import VisualBertConfig, VisualBertForQuestionAnswering
 
 torch.manual_seed(1)
 
@@ -108,8 +108,6 @@ def train(
             f.write(f"(TEST) Time: {date} \n")
         f.flush()
 
-
-def inference(model, loader):
     total = 0.0
     right = 0.0
     preds = torch.Tensor([])

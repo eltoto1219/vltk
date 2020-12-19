@@ -3,20 +3,15 @@ import os
 from collections import OrderedDict
 
 import cv2
-import datasets
+import jsonlines
 import numpy as np
 import torch
 import torch.nn.functional as F
-from tqdm import tqdm
+from mllib.utils import get_subfiles_from_path
 
-from .utils import get_file_path
+import datasets
 
-__all__ = [
-    "process_answer_default",
-    "img_to_tensor",
-    "load_temp_gqa",
-    "load_temp_lxmert",
-]
+__all__ = ["NAME2DATASET"]
 
 ANS_CONVERT = {
     "a man": "man",
@@ -149,23 +144,23 @@ def process_answer_default(ans):
     return ans
 
 
-def load_temp_gqa(pathes_config, global_config, dataset_config, split, use_raw=True):
+def load_temp_gqa(config, split):
+    use_raw = config.data.use_raw_imgs
     arrow_dict = None
     path_dict = None
-
-    data_dir = global_config.data_dir
+    data_dir = config.pathes.data_dir
 
     # arrow file
-    fields = dataset_config.arrow_fields
+    fields = config.data.arrow_fields
     if fields is None or fields:
         if split not in ("inference", "dev", "testdev", "eval", "evaluation"):
             vg = datasets.Dataset.from_file(
-                os.path.join(data_dir, pathes_config.vg_train_arrow)
+                os.path.join(data_dir, config.pathes.vg_train_arrow)
             )
 
         else:
             vg = datasets.Dataset.from_file(
-                os.path.join(data_dir, pathes_config.vg_test_arrow)
+                os.path.join(data_dir, config.pathes.vg_test_arrow)
             )
         if fields is not None:
             fields = list(fields)
@@ -178,36 +173,41 @@ def load_temp_gqa(pathes_config, global_config, dataset_config, split, use_raw=T
     if use_raw:
         if split in ("testdev", "test", "eval", "dev"):
             path_dict = {
-                "gqa": os.path.join(data_dir, pathes_config.vg_tensor_test),
+                "gqa": os.path.join(data_dir, config.pathes.vg_test),
             }
         else:
             path_dict = {
-                "gqa": os.path.join(data_dir, pathes_config.vg_tensor_train),
+                "gqa": os.path.join(data_dir, config.pathes.vg_train),
             }
 
     # labels
-    labels = json.load(open(os.path.join(data_dir, pathes_config.gqa_labels)))
+    labels = json.load(open(os.path.join(data_dir, config.pathes.gqa_labels)))
 
     # text data
     if split in ("pretrain", "train", "finetune"):
-        text_files = get_file_path(pathes_config.gqa_train, relative=data_dir)
+        text_files = get_subfiles_from_path(config.pathes.gqa_train, relative=data_dir)
     elif split in (
         "validation",
         "val",
         "valid",
     ):
-        text_files = get_file_path(pathes_config.gqa_val, relative=data_dir)
+        text_files = get_subfiles_from_path(config.pathes.gqa_val, relative=data_dir)
     elif split in ("inference", "dev", "testdev", "eval", "evaluation"):
-        text_files = get_file_path(pathes_config.gqa_testdev, relative=data_dir)
+        text_files = get_subfiles_from_path(
+            config.pathes.gqa_testdev, relative=data_dir
+        )
     else:
-        text_files = get_file_path(pathes_config.gqa_test, relative=data_dir)
+        text_files = get_subfiles_from_path(config.pathes.gqa_test, relative=data_dir)
 
     print(f"spits to be loaded: {text_files}")
     ignored_labels = set()
     num_ignored = 0
     text_data = []
-    for text in tqdm(text_files):
-        data_split = json.load(open(text))
+    for text in text_files:
+        try:
+            data_split = json.load(open(text))
+        except json.decoder.JSONDecodeError:
+            data_split = jsonlines.open(text)
         for data in data_split:
             img_id = data["img_id"].split("_")[-1]
             entry = {"img_id": img_id, "text": data["sent"], "dset": "gqa"}
@@ -228,47 +228,52 @@ def load_temp_gqa(pathes_config, global_config, dataset_config, split, use_raw=T
                 else:
                     entry["label"] = torch.tensor(labels[l])
                     text_data.append(entry)
+            if config.dryrun:
+                break
+        if config.dryrun:
+            break
     print(f"num ignored: {num_ignored} ignored: {ignored_labels}")
     return text_data, path_dict, arrow_dict, labels
 
 
-def load_temp_lxmert(
-    pathes_config,
-    global_config,
-    dataset_config,
-    split,
-):
-    data_dir = global_config.data_dir
+def load_temp_lxmert(config, split):
+    data_dir = config.pathes.data_dir
 
     coco_valid = datasets.Dataset.from_file(
-        os.path.join(data_dir, pathes_config.coco_valid_arrow)
+        os.path.join(data_dir, config.pathes.coco_valid_arrow)
     )
     coco_train = datasets.Dataset.from_file(
-        os.path.join(data_dir, pathes_config.coco_train_arrow)
+        os.path.join(data_dir, config.pathes.coco_train_arrow)
     )
     coco = datasets.concatenate_datasets([coco_valid, coco_train])
     coco.set_format(type="numpy", output_all_columns=True)
-    vg = datasets.Dataset.from_file(os.path.join(data_dir, pathes_config.vg_arrow))
+    vg = datasets.Dataset.from_file(os.path.join(data_dir, config.pathes.vg_arrow))
     vg.set_format(type="numpy", output_all_columns=True)
     arrow_dict = {"coco": coco, "vg": vg}
 
     path_dict = {
-        "coco": os.path.join(data_dir, pathes_config.coco_imgs),
-        "vg": os.path.join(data_dir, pathes_config.vg_imgs),
+        "coco": os.path.join(data_dir, config.pathes.coco_imgs),
+        "vg": os.path.join(data_dir, config.pathes.vg_imgs),
     }
 
-    if dataset_config.split in ("pretrain", "train", "finetune"):
-        text_files = get_file_path(pathes_config.temp_lxmert_train, relative=data_dir)
-    elif dataset_config.split in ("eval", "evaluation", "validation", "val"):
-        text_files = get_file_path(pathes_config.temp_lxmert_eval, relative=data_dir)
+    if split in ("pretrain", "train", "finetune"):
+        text_files = get_subfiles_from_path(
+            config.pathes.temp_lxmert_train, relative=data_dir
+        )
+    elif split in ("eval", "evaluation", "validation", "val"):
+        text_files = get_subfiles_from_path(
+            config.pathes.temp_lxmert_eval, relative=data_dir
+        )
     else:
-        text_files = get_file_path(pathes_config.temp_lxmert_test, relative=data_dir)
+        text_files = get_subfiles_from_path(
+            config.pathes.temp_lxmert_test, relative=data_dir
+        )
 
     labels = set(
         [
             process_answer_default(ans["ans"])
             for ans in json.load(
-                open(os.path.join(data_dir, pathes_config.temp_lxmert_answers))
+                open(os.path.join(data_dir, config.pathes.temp_lxmert_answers))
             )
         ]
     )
@@ -285,7 +290,7 @@ def load_temp_lxmert(
     label2lid = {}
     ignore_idx = -100
     text_data = []
-    for text in tqdm(text_files):
+    for text in text_files:
         data_split = json.load(open(text))
         for data in data_split:
             img_id = data["img_id"].split("_")[-1]
@@ -333,6 +338,9 @@ def load_temp_lxmert(
                     text_data.append(entry)
 
     return text_data, path_dict, arrow_dict, labels
+
+
+NAME2DATASET = {"temp_lxmert": load_temp_lxmert, "gqa": load_temp_gqa}
 
 
 if __name__ == "__main__":

@@ -1,6 +1,7 @@
 **.pkl
 **/venv/
 **/__pycache__/
+**/**/__pycache__/
 **/.ipynb_checkpoints/
 frcnn/frcnn-vg-finetuned/
 **/frcnn-*/

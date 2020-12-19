@@ -1,25 +1,29 @@
 import os
 import pickle
-# import numpy as np
-from collections import OrderedDict
-from copy import deepcopy
+from collections import OrderedDict, defaultdict
 
 import datasets
-import numpy as np
 import torch
 from datasets import ArrowWriter, Features, Split
 from pyarrow import OSFile
 from tqdm import tqdm
 
-from .legacy_processing import Preprocess
+from mllib import compatability as compat
+from mllib.models import frcnn
+from mllib.processors import images
+
+MAX_DETECTIONS = 36
+FEATUREDIM = 2048
+BOXDIM = 4
+MAX_IMG_SIZE = 832
 
 
-def raw_feat_factory(max_size, min_size):
+def raw_feat_factory(max_img_size, channels):
     return Features(
         OrderedDict(
             {
-                "img_features": datasets.Array4D(
-                    tuple([1, 3, 832, 832]), dtype="uint8"
+                "img_features": datasets.Array3D(
+                    tuple([channels, max_img_size, max_img_size]), dtype="uint8"
                 ),
                 "img_id": datasets.Value("string"),
                 "sizes": datasets.Sequence(length=2, feature=datasets.Value("int16")),
@@ -31,7 +35,32 @@ def raw_feat_factory(max_size, min_size):
     )
 
 
-def feature_factory(max_detections):
+def feat_factory(max_detections):
+    return Features(
+        OrderedDict(
+            {
+                "attr_ids": datasets.Sequence(
+                    length=MAX_DETECTIONS, feature=datasets.Value("float32")
+                ),
+                "attr_probs": datasets.Sequence(
+                    length=MAX_DETECTIONS, feature=datasets.Value("float32")
+                ),
+                "boxes": datasets.Array2D((MAX_DETECTIONS, BOXDIM), dtype="float32"),
+                "img_id": datasets.Value("string"),
+                "obj_ids": datasets.Sequence(
+                    length=MAX_DETECTIONS, feature=datasets.Value("float32")
+                ),
+                "obj_probs": datasets.Sequence(
+                    length=MAX_DETECTIONS, feature=datasets.Value("float32")
+                ),
+                "roi_features": datasets.Array2D(
+                    (MAX_DETECTIONS, FEATUREDIM), dtype="float32"
+                ),
+                "sizes": datasets.Sequence(length=2, feature=datasets.Value("float32")),
+                "preds_per_image": datasets.Value(dtype="int32"),
+            }
+        )
+    )
     return Features(
         OrderedDict(
             {
@@ -60,180 +89,133 @@ def feature_factory(max_detections):
 
 
 class Extract:
-    def __init__(self, model, preproc, env, config, ids=None):
+    def __init__(self, config, ids=None):
 
-        self.env = env
-        self.config = config
         if ids is not None:
             self.ids = set([x.replace("\n", "") for x in open(ids).readlines()])
-        if self.env.gpus == -1:
+        if config.device == -1:
             self.device = "cpu"
         else:
-            self.device = f"cuda:{self.env.gpus}"
-        self.data_dir = os.path.join(self.env.data_dir, self.config.input_dir)
-        assert os.path.isdir(self.data_dir)
-        self.output_file = os.path.join(self.env.data_dir, self.config.out_file)
+            self.device = f"cuda:{config.device}"
+        self.data_dir = config.pathes.data_dir
+        self.output_file = config.extract.output_file
         print(f"will write to: {self.output_file}")
-        self.model = model
-        if model is not None:
-            self.model.to(self.device)
-        if preproc is not None:
-            self.preprocess = preproc
-            self.features = None
-        else:
-            self.preprocess = Preprocess(self.model.config)
-        if model is not None:
-            self.features = feature_factory(self.model.config.max_detections)
-        else:
-            pass
+        self.model_config = compat.Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
+        self.model = frcnn.FRCNN.from_pretrained(
+            "unc-nlp/frcnn-vg-finetuned", config=self.model_config
+        )
+        self.model.to(self.device)
+        self.features = feat_factory(self.config.max_detections)
         self.skipped_ids = set()
-        files, dirs = self.get_files()
-        self.files = files
-        self.subdirs = dirs
-        if len(self.subdirs) == 0:
-            self.subdirs = [self.config.input_dir.split("/")[-1]]
-        self.progress = tqdm(unit_scale=True, desc="Extracting", total=len(self.files))
+        self.subdir2fileidAndfile()
 
-    def get_files(self):
-        file_list = []
-        dirs = []
+    def subdir2fileidAndfile(self):
+        self.file_list = defaultdict(list)
+        tempdirs = []
+        tempfiles = []
+        file_must_be_in_subdir = True
         for path, subdirs, files in os.walk(self.data_dir):
-            for sdirs in subdirs:
-                dirs.append(sdirs)
-            for name in files:
-                file = os.path.join(path, name)
-                file_id = file.split("/")[-1].split(".")[0]
-                if hasattr(self, "ids") and file_id not in self.ids:
-                    continue
-                file_list.append(file)
-        return list(set(file_list)), list(set(dirs))
-
-    def file_generator(self, split):
-        for file in self.files:
-            if split not in file:
-                continue
-            file = os.path.join(self.data_dir, file)
-            file_id = file.split("/")[-1].split(".")[0]
-            yield (file_id, file)
-
-    def make_temp_name(self, split):
-        if len(self.subdirs) > 1:
-            temp = (
-                f'{self.config.out_file.split(".")[0]}_{split.strip("/")}.temp'.replace(
-                    "/", "_"
-                )
-            )
+            for sdir in subdirs:
+                tempdirs.append(sdir)
+            for file in files:
+                tempfiles.append(file)
+        if not tempdirs:
+            tempdirs = [self.data_dir.split("/")[-1]]
+            file_must_be_in_subdir = False
+        if not file_must_be_in_subdir:
+            self.file_list[tempdirs[0]] = [
+                (file.split("/")[-1].split(".")[0], os.path.join(self.data_dir, x))
+                for x in tempfiles
+            ]
         else:
-            temp = f'{self.config.out_file.split(".")[0]}.temp'.replace("/", "_")
-        return temp
-
-    def extract_torch_format(self, split, tempfile_or_buf):
-        for z, (img_id, filepath) in enumerate(self.file_generator(split)):
-            sdir = (
-                self.output_file
-                if split in self.output_file
-                else os.path.join(self.output_file, split)
-            )
-            os.makedirs(sdir, exist_ok=True)
-            fp = os.path.join(sdir, img_id + ".pt")
-            if not os.path.isfile(fp):
-                image, (ogh, ogw), (nh, nw) = self.preprocess(
-                    filepath, min_size=832, max_size=832, use_gpu=True
-                )
-                if image is None:
-                    continue
-                image = image.type("torch.ByteTensor")
-                assert image.shape == (3, 832, 832), image.shape
-                assert not os.path.isfile(self.output_file), self.output_file
-
-                torch.save(image, fp)
-                self.progress.update(1)
-
-    def extract_arrow_format(
-        self, split, tempfile_or_buf, num_examples, num_bytes, dsets
-    ):
-        with OSFile(tempfile_or_buf, "wb") as s:
-            writer = ArrowWriter(features=self.features, stream=s)
-            # do file generator
-            for z, (img_id, filepath) in enumerate(self.file_generator(split)):
-                assert split in filepath, f"{(split, filepath)}"
-
-                out_ids, images, sizes, scales_yx = self.preprocess(filepath, img_id)
-                if not out_ids:
-                    self.skipped_ids.add(img_id)
-                    continue
-
-                if torch.cuda.is_available():
-                    images, sizes, scales_yx = (
-                        images.to(self.device),
-                        sizes.to(self.device),
-                        scales_yx.to(self.device),
-                    )
-                output_dict = self.model(
-                    images,
-                    sizes,
-                    scales_yx=scales_yx,
-                    padding="max_detections",
-                    max_detections=self.model.config.MAX_DETECTIONS,
-                    pad_value=0,
-                    return_tensors="np",
-                    location="cpu",
-                )
-                output_dict["boxes"] = output_dict.pop("normalized_boxes")
-                output_dict["img_id"] = [img_id]
-                batch = self.features.encode_batch(output_dict)
-                writer.write_batch(batch)
-                self.progress.update(1)
-            num_ex, num_b = writer.finalize()
-            num_examples += num_ex
-            num_bytes += num_b
-
-        with OSFile(tempfile_or_buf, "rb") as s:
-            dsets[split] = datasets.Dataset.from_buffer(s.read(), split=Split(split))
+            print("sorting files by subdir")
+            for file in tqdm(tempfiles):
+                file_id = file.split("/")[-1].split(".")[0]
+                for sdir in tempdirs:
+                    fp = os.path.join(self.data_dir, sdir, file)
+                    if os.path.isfile(fp):
+                        self.file_list[sdir].append((file_id, fp))
+        for k, v in self.file_list.items():
+            print(f"split {k}: {len(v)} num images")
 
     def __call__(self):
-        # make streams
         dsets = {}
         num_examples = 0
         num_bytes = 0
-        temps = []
-        for split in self.subdirs:
-            temp = self.make_temp_name(split)
-            temps.append(temp)
-            if self.model is not None:
-                self.extract_arrow_format(split, temp, num_examples, num_bytes, dsets)
-            else:
-                self.extract_torch_format(split, temp)
-
-        # okay now we can get to the good part of combining datsetsk
-        if self.model is not None:
-            if len(dsets.values()) == 1:
-                final = next(iter(dsets.values()))
-                print(final)
-            else:
-                final = datasets.concatenate_datasets(
-                    dsets=list(dsets.values()), split=[Split(x) for x in dsets]
+        tempfiles = []
+        for subdir in tqdm(self.file_list.keys()):
+            # generate name of temp file
+            if len(self.file_list) > 1:
+                temp = f'{self.output_file.split(".")[0]}_{subdir.strip("/")}.temp'.replace(
+                    "/", "_"
                 )
-            final = pickle.loads(pickle.dumps(final))
-            for y in temps:
-                os.remove(y)
-            writer = ArrowWriter(path=self.output_file)
-            writer.write_table(final._data)
-            e, b = writer.finalize()
-            print(
-                f"Success! You wrote {num_examples} entry(s) and {num_bytes >> 20} mb"
-            )
-            print(f"saved {self.output_file}")
-            print(f"num ids skipped: {len(self.skipped_ids)}")
+            else:
+                temp = f'{self.output_file.split(".")[0]}.temp'.replace("/", "_")
+            tempfiles.append(temp)
+            # open temp file
+            with OSFile(temp, "wb") as s:
+                # create arrow_writer
+                writer = ArrowWriter(features=self.features, stream=s)
+                # loop through files in split
+                for (img_id, filepath) in tqdm(self.file_list[subdir]):
+                    # we assume images will be read in brg format
+                    image, sizes, scale_hw = images.img_to_tensor(
+                        filepath,
+                        min_size=self.model.config.input.min_size_test,
+                        max_size=self.model.config.input.max_size_test,
+                        mean=self.model.config.model.pixel_mean,
+                        sdev=self.model.config.model.pixel_std,
+                    )
+                    if image is None:
+                        self.skipped_ids.add(img_id)
+                        continue
+
+                    if torch.cuda.is_available():
+                        image, sizes, scale_hw = (
+                            image.to(self.device),
+                            sizes.to(self.device),
+                            scale_hw.to(self.device),
+                        )
+                    output_dict = self.model(
+                        image,
+                        sizes,
+                        scales_yx=scale_hw,
+                        padding="max_detections",
+                        max_detections=self.model.config.MAX_DETECTIONS,
+                        pad_value=0,
+                        return_tensors="np",
+                        location="cpu",
+                    )
+                    output_dict["boxes"] = output_dict.pop("normalized_boxes")
+                    output_dict["img_id"] = [img_id]
+                    batch = self.features.encode_batch(output_dict)
+                    writer.write_batch(batch)
+                    break
+                num_ex, num_b = writer.finalize()
+                num_examples += num_ex
+                num_bytes += num_b
+
+            with OSFile(temp, "rb") as s:
+                dsets[subdir] = datasets.Dataset.from_buffer(
+                    s.read(), split=Split(subdir)
+                )
+            os.remove(temp)
+
+        # remove temp files, optionally combine split, write to final file
+        if len(dsets.values()) == 1:
+            final = next(iter(dsets.values()))
         else:
-            print("done!")
+            final = datasets.concatenate_datasets(
+                dsets=list(dsets.values()), split=[Split(subdir) for subdir in dsets]
+            )
 
-
-"""
-if __name__ == "__main__":
-    extract = Extract(sys.argv[1:])
-    extract()
-    if not TEST:
-        # wala!
-        #print(np.array(dataset[0:2]["roi_features"]).shape)
-"""
+        final = pickle.loads(pickle.dumps(final))
+        # for temp in tempfiles:
+        #     os.remove(temp)
+        writer = ArrowWriter(path=self.output_file)
+        writer.write_table(final._data)
+        e, b = writer.finalize()
+        assert e == num_examples and b == num_bytes
+        print(f"Success! You wrote {num_examples} entry(s) and {num_bytes >> 20} mb")
+        print(f"saved {self.output_file}")
+        print(f"num ids skipped: {len(self.skipped_ids)}")

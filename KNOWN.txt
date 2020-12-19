@@ -1,8 +1,0 @@
-transformers
-datasets
-torch
-torchvision
-cv2
-matplotlib
-pillow
-numpy

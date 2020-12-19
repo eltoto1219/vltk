@@ -1,0 +1,4 @@
+use_raw_imgs: True
+arrow_fields: ''
+aux_model: vit
+percent_data: 0.5

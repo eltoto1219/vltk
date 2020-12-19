@@ -225,8 +225,8 @@ class VisionTransformer(nn.Module):
         feat = self.transformer(emb)
 
         # classifier
-        logits = self.classifier(feat[:, 0])
-        return logits
+        # logits = self.classifier(feat[:, 0])
+        return feat
 
 
 if __name__ == "__main__":

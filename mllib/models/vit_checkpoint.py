@@ -61,11 +61,11 @@ def inspect_params(
     missing_keys -= empty_keys
 
     if empty_keys:
-        logger.warning("Inspect recovered empty keys:\n%s", empty_keys)
+        print("Inspect recovered empty keys:\n%s", empty_keys)
     if missing_keys:
-        logger.info("Inspect missing keys:\n%s", missing_keys)
+        print("Inspect missing keys:\n%s", missing_keys)
     if extra_keys:
-        logger.info("Inspect extra keys:\n%s", extra_keys)
+        print("Inspect extra keys:\n%s", extra_keys)
 
     if (missing_keys and fail_if_missing) or (extra_keys and fail_if_extra):
         raise ValueError(
@@ -212,7 +212,7 @@ def load_pretrained(*, pretrained_path, init_params, model_config, logger):
     #    layer (logits) for the new task.
     if model_config.representation_size is None:
         if "pre_logits" in restored_params:
-            logger.info("load_pretrained: drop-head variant")
+            print("load_pretrained: drop-head variant")
             restored_params["pre_logits"] = {}
     restored_params["head"]["kernel"] = init_params["head"]["kernel"]
     restored_params["head"]["bias"] = init_params["head"]["bias"]
@@ -222,7 +222,7 @@ def load_pretrained(*, pretrained_path, init_params, model_config, logger):
         posemb = restored_params["Transformer"]["posembed_input"]["pos_embedding"]
         posemb_new = init_params["Transformer"]["posembed_input"]["pos_embedding"]
         if posemb.shape != posemb_new.shape:
-            logger.info(
+            print(
                 "load_pretrained: resized variant: %s to %s",
                 posemb.shape,
                 posemb_new.shape,
@@ -237,7 +237,7 @@ def load_pretrained(*, pretrained_path, init_params, model_config, logger):
 
             gs_old = int(np.sqrt(len(posemb_grid)))
             gs_new = int(np.sqrt(ntok_new))
-            logger.info("load_pretrained: grid-size from %s to %s", gs_old, gs_new)
+            print("load_pretrained: grid-size from %s to %s", gs_old, gs_new)
             posemb_grid = posemb_grid.reshape(gs_old, gs_old, -1)
 
             zoom = (gs_new / gs_old, gs_new / gs_old, 1)

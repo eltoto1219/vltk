@@ -41,6 +41,7 @@ import wget
 from filelock import FileLock
 from PIL import Image
 from tqdm.auto import tqdm
+
 from yaml import Loader, dump, load
 
 try:
