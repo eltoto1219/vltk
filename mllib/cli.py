@@ -12,6 +12,10 @@ class Main(object):
             kwargs["gpu"] = -1
         kwargs = utils.load_yaml(kwargs)
         self.flags = kwargs
+        utils.unflatten_dict(self.flags)
+
+    def experiment(self, name):
+        pass
 
     def train(self, model, datasets):
         self.flags["model_name"] = model

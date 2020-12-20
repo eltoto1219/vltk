@@ -18,6 +18,16 @@ def dummy_context():
 # with contextlib.suppress(FileNotFoundError):
 # os.remove(filename)
 # collections.mutablemapping???
+def unflatten_dict(dictionary):
+    resultDict = dict()
+    for key, value in dictionary.iteritems():
+        parts = key.split(".")
+        d = resultDict
+        for part in parts[:-1]:
+            if part not in d:
+                d[part] = dict()
+            d = d[part]
+        d[parts[-1]]
 
 
 def base_expirement_filename(output_dir: str, flags: dict, config: object):

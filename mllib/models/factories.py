@@ -55,7 +55,9 @@ NAME2MODEL = {
 def model_name_to_instance(model_name, config):
     assert model_name is not None
     assert config is not None
-    model = NAME2MODEL[model_name](
-        config=config,
-    )
-    return model
+    if model_name in NAME2MODEL:
+        model = NAME2MODEL[model_name](
+            config=config,
+        )
+        return model
+    return None

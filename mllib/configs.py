@@ -69,16 +69,25 @@ class BaseConfig:
         yaml.dump(self.to_dict(), open(file, "w"), default_flow_style=False)
 
     @classmethod
-    def from_json(cls, file):
+    def load(cls, fp_name_dict: Union[str, dict]):
         raise NotImplementedError()
 
     @classmethod
-    def from_yaml(cls, file):
-        raise NotImplementedError()
+    def from_dict(cls, config_dict):
+        config = cls()
+        config.update(config_dict)
+        return config
 
-    @classmethod
-    def from_pretrained(cls, file):
-        raise NotImplementedError()
+    def update(self, updates: Union[dict, object]):
+        if not isinstance(updates, dict):
+            updates = updates.to_dict()
+        for k, orig_v in self:
+            if k in updates:
+                v = updates.pop(k)
+                if isinstance(v, dict) and hasattr(orig_v, "_identify"):
+                    orig_v.update(v)
+                else:
+                    setattr(self, k, v)
 
 
 class ExtractConfig(BaseConfig):
@@ -227,7 +236,7 @@ class PrivateConfig(BaseConfig):
     pass
 
 
-class ExpirementConfig(BaseConfig):
+class ExperimentConfig(BaseConfig):
     pass
 
 
@@ -239,7 +248,8 @@ class GlobalConfig(BaseConfig):
     evaluate: Union[None, EvalConfig] = None
     run: Union[None, PretrainConfig, TrainConfig, ExtractConfig, EvalConfig] = None
     private: PrivateConfig = None
-    experiment: ExpirementConfig = None
+    experiment: ExperimentConfig = None
+    test_save: bool = False
 
     logging: bool = True
     logdir: str = os.path.join(os.environ.get("HOME", os.getcwd()), "logs")
@@ -271,9 +281,9 @@ class GlobalConfig(BaseConfig):
         self.model = ModelConfig(**kwargs)
         self.pathes = PathesConfig(**kwargs)
         self.private = PrivateConfig(**kwargs)
-        self.experiment = ExpirementConfig(**kwargs)
+        self.experiment = ExperimentConfig(**kwargs)
         self.logfile = os.path.join(self.logdir, self.logfile)
-        self.ckp_name = base_expirement_filename(self.output_dir, kwargs, self)
+        self.ckp_name = base_experiment_filename(self.output_dir, kwargs, self)
         if self.print_config:
             print(self)
         os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
