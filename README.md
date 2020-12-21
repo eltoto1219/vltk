@@ -10,9 +10,15 @@ some immidiately visible funcitonality:
 1. load config from yaml (can dump config to yaml to) 
 2. save experiment information, models, optimizers, etc .. on crash for perfect recovery
 3. send email on experiment crash
+
+
+
 !!!! <br />
 currently `run extract` is broken <br />
 !!!!!<br />
+
+
+
 TODO:<br />
 1. mv processors/general.py to processors/__main__.py
 2. generate experiment_dict, loop_dict, models_dict, proccessors_dict, and datasets_dict dynamically instead of hardcoding
