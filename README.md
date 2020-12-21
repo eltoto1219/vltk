@@ -1,4 +1,5 @@
 # mllib
+to install (add editable for personal custimization)
 ```
 git clone https://github.com/eltoto1219/mllib.git && cd mllib && pip install -e .
 ```
