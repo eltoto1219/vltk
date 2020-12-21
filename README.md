@@ -26,3 +26,7 @@ TODO:<br />
 3. mount public google drive directory and upload all arrow and other data
 4. create download.py for auto downloading of data/files into respective dirs set in config if not present
 4.a. dowload from official dataset websites + mounted google drive filesystem
+
+
+<br />
+(a much better documentation website is underway)
