@@ -88,7 +88,7 @@ class BaseExperiment(ABC):
         model_dict = {
             model: factories.model_name_to_instance(
                 model_name=model, config=self.config)
-            for model in chain(*list(self.loops_to_models.values())) if model is not None
+            for model in set(chain(*list(self.loops_to_models.values()))) if model is not None
         }
         loop_dict = {
             loop: get_loop(loop)(
@@ -203,7 +203,7 @@ class BaseExperiment(ABC):
 
     @property
     @abstractmethod
-    def loops_to_models(self) -> Dict[str, List]:
+    def loops_to_models(self) -> Dict[str, List[str]]:
         return {}
 
     @abstractmethod

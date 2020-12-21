@@ -286,7 +286,7 @@ class GlobalConfig(BaseConfig):
     save_on_crash = False
     save_after_exp = True
     save_afer_epoch = False
-    email_on_failure = True
+    email_on_failure = False
     email = None
 
     def __init__(self, **kwargs):
