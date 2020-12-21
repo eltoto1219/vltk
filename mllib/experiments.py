@@ -1,5 +1,6 @@
 import datetime
 import os
+import random
 from abc import ABC, abstractmethod
 from itertools import chain
 from typing import Dict, List
@@ -11,7 +12,12 @@ from mllib.models import factories
 
 
 def get_loop(loop_name=None):
-    loop_dict = {"evallxmert": loops.EvalLxmert, "data": loops.Data}
+    loop_dict = {
+        "evallxmert": loops.EvalLxmert,
+        "data": loops.Data,
+        "evalvitlxmert": loops.EvalViTLxmert,
+        "trainvitlxmert": loops.TrainViTLxmert
+    }
     loop = loop_dict.get(loop_name, None)
     assert loop is not None, (loop_name, loop_dict.keys())
     return loop
@@ -27,13 +33,14 @@ class BaseExperiment(ABC):
         self.datasets = datasets
         self.config = config
         self.seed = self.config.seed
+        random.seed(self.seed)
         torch.manual_seed(self.seed)
         assert self.datasets is not None, "must specify 'datasets' when firing command"
         self.epochs = self.config.run.epochs
         self.main_device = f"cuda:{config.gpu}" if config.gpu != -1 else "cpu"
         self.aux_model_device = f"cuda:{config.aux_gpu}" if config.gpu != -1 else "cpu"
-        self.logdir = getattr(self.config, "logdir", None) if self.config.logging and not self.config.dryrun else None
-        if self.logdir is not None:
+        self.logdir = getattr(self.config, "logdir", None)
+        if self.logdir is not None and self.config.logging:
             os.makedirs(self.logdir, exist_ok=True)
 
         self.set_loops()
@@ -133,7 +140,7 @@ class BaseExperiment(ABC):
         if self.extra_modules is not None:
             for extra, torch_module in self.extra_modules.items():
                 save_name = extra + f"_{self.cur_epoch}.pt"
-                save_name = os.path.join(self.logdir, save_name)
+                save_name = os.path.join(self.config.logdir, save_name)
                 torch.save(torch_module.state_dict(), save_name)
         optim_dict = {}
         save_name = f"optims_{self.cur_epoch}.pt"
@@ -156,13 +163,14 @@ class BaseExperiment(ABC):
             "cur_epoch": self.cur_epoch,
             "epochs": self.epochs,
             "total_steps": {},
-            "schedulers": {}
+            "schedulers": {},
+            "warmups": {}
         }
         for loop_name, loop in self:
             exp_info["cur_steps"][loop_name] = loop.cur_step
             exp_info["total_steps"][loop_name] = loop.total_steps
             if loop.is_train and loop.warmup is not None:
-                exp_info["warmup"][loop_name] = self.warmup.state_dict()
+                exp_info["warmups"][loop_name] = loop.warmup.state_dict()
 
         return exp_info
 
@@ -177,13 +185,14 @@ class BaseExperiment(ABC):
             epoch_output = {}
             self.cur_epoch = epoch
             any_train = False
-            for loop_name, loop in self:
+            for i, (loop_name, loop) in enumerate(self):
                 loop_output = loop()
                 epoch_output[loop_name] = loop_output
-                if len(self.loop_order) == 1 and not loop.is_train:
-                    break
                 if loop.is_train:
                     any_train = True
+
+                if len(self.loop_order) - 1 == i:
+                    break
 
             exp_info = self.get_exp_info()
             self.experiment_outputs.add(epoch, epoch_output, **exp_info)
@@ -278,3 +287,22 @@ class EvalLxmert(BaseExperiment):
             lxmert = self.model_dict["lxmert"]
             assert os.path.isfile(lxmert_ckp_path), "must specify valid checkpoint"
             lxmert.load_state_dict(torch.load(lxmert_ckp_path, map_location="cpu"))
+
+
+class TrainViTLxmert(BaseExperiment):
+
+    name: str = "trainvitlxmert"
+    loops_to_models: dict = {"evalvitlxmert": ["lxmert", "vit"], "trainvitlxmert": ["lxmert", "vit"]}
+    extra_modules = {"connector": torch.nn.Linear(18464, 2048)}
+
+    def __init__(self, config, datasets):
+        super().__init__(config, datasets)
+
+    def loginfo(self, **kwargs):
+        '''
+        kwargs will be  loop output from every run, with the run name being the key
+        '''
+        logstr = ''
+        for k, v in kwargs.items():
+            logstr += f'{k}: accuracy={v.accuracy} '
+        return logstr

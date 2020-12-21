@@ -8,25 +8,30 @@ from fire import Fire
 
 from mllib import configs, experiments, utils
 
-EXPRDICT = {'evallxmert': experiments.EvalLxmert, 'data': experiments.Data}
+EXPRDICT = {
+    'evallxmert': experiments.EvalLxmert,
+    'data': experiments.Data,
+    'trainvitlxmert': experiments.TrainViTLxmert
+}
 STDERR = sys.stderr = StringIO()
 
 
 @atexit.register
 def crash_save():
     errorlog = STDERR.getvalue()
-    if experiment is not None and config is not None:
-        save_on_crash = getattr(config, "save_on_crash", False)
-        if config.email is not None and config.email_on_failure:
-            utils.send_email(config.email, errorlog)
-        if save_on_crash:
-            try:
-                experiment.save()
-                print("\nCRASH SAVE SUCCESS: mllib command crashed and was saved")
-            except Exception:
-                print("\nFAILURE: mllib command crashed and was not saved")
-        else:
-            print("\nWARNING: mllib command crashed and was not saved")
+    if "experiment" in globals():
+        if experiment is not None and config is not None:
+            save_on_crash = getattr(config, "save_on_crash", False)
+            if config.email is not None and config.email_on_failure:
+                utils.send_email(config.email, errorlog)
+            if save_on_crash:
+                try:
+                    experiment.save()
+                    print("\nCRASH SAVE SUCCESS: mllib command crashed and was saved")
+                except Exception:
+                    print("\nFAILURE: mllib command crashed and was not saved")
+            else:
+                print("\nWARNING: mllib command crashed and was not saved")
 
 
 @atexit.register

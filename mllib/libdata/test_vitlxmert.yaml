@@ -1,0 +1,7 @@
+test_save: true
+img_first: true
+use_raw_imgs: true
+arrow_fields: ''
+batch_size: 4
+num_workers: 4
+dryrun: true

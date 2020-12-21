@@ -1,5 +1,6 @@
 import json
 import os
+import tempfile
 from typing import List, Union
 
 import yaml
@@ -78,12 +79,20 @@ class BaseConfig:
         return config
 
     def update(self, updates: dict):
-        if "logdir" in updates:
-            logfile = updates.get("logfile", getattr(self, "logfile", None))
-            if logfile is not None:
-                updates["logfile"] = os.path.join(updates.get("logdir"), logfile)
-        elif "logfile" in updates:
-            updates["logfile"] = os.path.join(getattr(self, "logdir", ''), updates["logfile"])
+        if hasattr(self, "dryrun") and not self.dryrun:
+            if "logdir" in updates:
+                logfile = updates.get("logfile", getattr(self, "logfile", None))
+                if logfile is not None:
+                    updates["logfile"] = os.path.join(
+                        updates.get("logdir"),
+                        logfile.split("/")[-1]
+                    )
+            elif "logfile" in updates:
+                updates["logfile"] = os.path.join(getattr(self, "logdir", ''), updates["logfile"])
+        elif hasattr(self, "dryrun") and self.dryrun:
+            self.logdir = tempfile.mkdtemp()
+            self.logfile = os.path.join(self.logdir, self.logfile.split("/")[-1])
+
         for k, orig_v in self:
             if k in updates:
                 v = updates.pop(k)
@@ -272,7 +281,7 @@ class GlobalConfig(BaseConfig):
     gpu: int = None
     aux_gpu: int = None
     dryrun: bool = False
-    seed: int = 1
+    seed: int = 9595
     percent_min_gpu_free_mem: float = 0.75
     print_config: bool = True
     model_name: Union[None, str] = None
@@ -285,7 +294,7 @@ class GlobalConfig(BaseConfig):
     test_save: bool = False
     save_on_crash = False
     save_after_exp = True
-    save_afer_epoch = False
+    save_after_epoch = False
     email_on_failure = False
     email = None
 
@@ -297,10 +306,10 @@ class GlobalConfig(BaseConfig):
         self.models = ModelsConfig(**kwargs)
         self.pathes = PathesConfig(**kwargs)
         self.logfile = os.path.join(self.logdir, self.logfile)
+        self._set_gpus()
         if self.print_config:
             print(self)
         os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
-        self._set_gpus()
 
     def _set_gpus(self):
         if self.gpu is not None and self.aux_gpu is not None:

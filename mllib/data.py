@@ -1,4 +1,5 @@
 import os
+import random
 from collections import OrderedDict, defaultdict
 from copy import deepcopy
 from typing import Dict, List
@@ -69,14 +70,20 @@ class UniversalDataset(Dataset):
 
         # props that we load in (in this order)
         text_data, path_dict, arrow_dict, labels = self.set_dataset(dataset_name)
-        self.text_data = tuple(text_data[
-            : max(1, int(np.ceil(len(text_data) * self.config.data.percent_data)))
-        ])
-        self.img_ids = []
+        stop_int = max(1, int(np.ceil(len(text_data) * self.config.data.percent_data)))
+        if not self.config.data.img_first:
+            self.text_data = tuple(text_data[:stop_int])
+        else:
+            self.text_data = tuple(text_data[:stop_int])
+        img_ids = set()
         for t in self.text_data:
             img_id = t.get("img_id")
-            self.img_ids.append(img_id)
+            img_ids.add(img_id)
             self.imgid2text[img_id].append(t)
+        self.img_ids = list(img_ids)
+        if self.config.data.img_first:
+            random.shuffle(self.img_ids)
+            self.img_ids = self.img_ids[:stop_int]
         self.path_dict = path_dict
         self.arrow_dict = arrow_dict
         self.labels = labels
@@ -123,7 +130,6 @@ class UniversalDataset(Dataset):
         self.labels = None
         self.tokenizer_args = {}
         self.imgid2text = defaultdict(list)
-        self.img_ids = []
 
     def get_img_first_entry(self, i):
         img_id = self.img_ids[i]
@@ -144,7 +150,10 @@ class UniversalDataset(Dataset):
         assert self.num_labels <= len(
             self.labels
         ), f"{self.num_labels} {len(self.labels)}"
-        print("\nnum of examples:", len(self.text_data))
+        if self.config.data.img_first:
+            print("\nnum of examples:", len(self.img_ids))
+        else:
+            print("\nnum of examples:", len(self.text_data))
         print("num labels:", self.num_labels, "\n")
         arrow_img_ids = set()
         unfound = set()
@@ -232,7 +241,10 @@ class UniversalDataset(Dataset):
         return img_data
 
     def __len__(self):
-        return len(self.text_data)
+        if not self.config.data.img_first:
+            return len(self.text_data)
+        else:
+            return len(self.img_ids)
 
     @torch.no_grad()
     def __getitem__(self, i):
@@ -292,13 +304,13 @@ class UniversalDataset(Dataset):
         n_sents_per_img = [len(i) for i in batch["input_ids"]]
         for img_key in img_keys:
             if img_key in batch:
-                if batch[img_key].size(0) == 1:
-                    imgs = batch[img_key].unsqueeze(0)
-                else:
-                    imgs = torch.cat([
-                        i.unsqueeze(0).repeat((n,) + tuple([1] * (len(i.shape))))
-                        for i, n in zip(batch.pop(img_key), n_sents_per_img)
-                    ], dim=0)
+                # if batch[img_key].size(0) == 1:
+                #     imgs = batch[img_key]
+                # else:
+                imgs = torch.cat([
+                    i.unsqueeze(0).repeat((n,) + tuple([1] * (len(i.shape))))
+                    for i, n in zip(batch.pop(img_key), n_sents_per_img)
+                ], dim=0)
                 batch[img_key] = imgs
                 if device is not None:
                     batch[img_key] = batch[img_key].to(device)

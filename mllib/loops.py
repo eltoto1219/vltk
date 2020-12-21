@@ -1,3 +1,4 @@
+import sys
 from abc import ABC, abstractmethod
 
 import torch
@@ -10,6 +11,8 @@ from mllib.outputs import LoopOutputs
 
 class BaseLoop(ABC):
     def __init__(self, config, datasets, model_dict, extra_modules=None):
+        self.model_dict = model_dict
+        self.extra_modules = extra_modules
         self.config = config
         self.datasets = datasets
         self.cur_step = 0
@@ -31,13 +34,10 @@ class BaseLoop(ABC):
     def _init_models_and_extras(self, model_dict, extra_modules=None):
         for k, v in model_dict.items():
             v_old = getattr(self, k, None)
-            assert v_old is None, type(v_old)
-            if k == "vit":
-                v = v.to(self.aux_model_device)
-            else:
-                setattr(self, k, v)
+            assert v_old is None, (type(v_old), k)
+            setattr(self, k, v)
         if extra_modules is not None:
-            for k, v in model_dict.items():
+            for k, v in extra_modules.items():
                 v_old = getattr(self, k, None)
                 assert v_old is None, type(v_old)
                 v = v.to(self.main_device)
@@ -75,7 +75,7 @@ class BaseLoop(ABC):
     @property
     def tqdm(self):
         desc = "train" if self.is_train else "eval"
-        self._tqdm = tqdm(self.loader, desc=desc, ncols=0)
+        self._tqdm = tqdm(self.loader, desc=desc, ncols=0, file=sys.stdout)
         return self._tqdm
 
     @property
@@ -140,7 +140,7 @@ class BaseLoop(ABC):
                 v.eval()
 
     def step(self, loss=None):
-        if self.run == "train" and loss is not None:
+        if self.is_train and loss is not None:
             if self.scaler is not None:
                 self.scaler.scale(loss).backward()
                 self.scaler.unscale_(self.optim)
@@ -211,9 +211,16 @@ class BaseLoop(ABC):
     def forward(self, batch) -> object:
         return None
 
-    @abstractmethod
     def _init_loader(self):
-        pass
+        if self.is_train:
+            split = "train"
+        else:
+            split = self.config.data.eval_split
+        self.loader = data.UniversalLoader(
+            config=self.config,
+            split=split,
+            dataset_name=self.datasets
+        )
 
     @property
     @abstractmethod
@@ -230,13 +237,6 @@ class Data(BaseLoop):
     name: str = "data"
     is_train: bool = False
 
-    def _init_loader(self):
-        self.loader = data.UniversalLoader(
-            config=self.config,
-            split=self.config.data.split,
-            dataset_name=self.datasets
-        )
-
     def forward(self, batch):
         return super().forward(batch)
 
@@ -247,17 +247,6 @@ class Data(BaseLoop):
 class EvalLxmert(BaseLoop):
     name: str = "evallxmert"
     is_train: bool = False
-
-    def _init_loader(self):
-        if self.config.data.split != self.config.data.eval_split:
-            split = self.config.data.eval_split
-        else:
-            split = self.config.data.split
-        self.loader = data.UniversalLoader(
-            config=self.config,
-            split=split,
-            dataset_name=self.datasets
-        )
 
     def loop(self, batch, model_outputs):
         acc = metrics.accuracy(model_outputs.question_answering_score, batch["labels"])
@@ -282,13 +271,6 @@ class EvalLxmert(BaseLoop):
 class TrainLxmert(BaseLoop):
     name: str = "trainlxmert"
     is_train: bool = True
-
-    def _init_loader(self):
-        self.loader = data.UniversalLoader(
-            config=self.config,
-            split=self.config.data.eval_split,
-            dataset_name=self.datasets
-        )
 
     def loop(self, batch, model_outputs):
         acc = metrics.accuracy(model_outputs.question_answering_score, batch["labels"])
@@ -317,38 +299,23 @@ class TrainLxmert(BaseLoop):
         return model_outputs
 
 
-'''
-    def forward(self, batch):
-        self.optim.zero_grad()
-        with torch.cuda.amp.autocast() if getattr(
-            self, "scaler", None
-        ) is not None else utils.dummy_context():
-            if self.config.data.use_raw_imgs:
-                assert self.aux_model is not None
-                self.toCuda(batch, device=self.aux_model_device)
-                self.run_vit(batch)
-            self.toCuda(batch, device=self.config.gpu)
-            batch["return_dict"] = True
-            model_outputs = self.model(
-                input_ids=batch["input_ids"],
-                visual_feats=batch["roi_features"],
-                visual_pos=batch["boxes"],
-                attention_mask=batch["attention_mask"],
-                token_type_ids=batch["token_type_ids"],
-                return_dict=batch["return_dict"],
-                labels=batch["labels"],
-            )
-        return model_outputs
+class EvalViTLxmert(BaseLoop):
+    name: str = "evalvitlxmert"
+    is_train: bool = False
 
-    def run_vit(self, batch, accum_iters=1):
-        imgs = batch["raw_imgs"]
-        if self.config.data.img_first:
-            split_imgs = imgs
-        else:
-            split_imgs = torch.split(imgs, split_size_or_sections=accum_iters, dim=0)
+    def loop(self, batch, model_outputs):
+        acc = metrics.accuracy(model_outputs.question_answering_score, batch["labels"])
+        loop_outputs = LoopOutputs(accuracy=acc)
+        self.tqdm_update({"acc": loop_outputs.accuracy})
+        return loop_outputs
+
+    def forward(self, batch):
+        assert self.config.data.use_raw_imgs and self.config.data.img_first, "must set aformentioned options"
+        self.toCuda(batch, device=self.aux_model_device)
+        split_imgs = torch.split(batch.pop("raw_imgs"), split_size_or_sections=1, dim=0)
         combined_feats = None
         for split in split_imgs:
-            feats = self.aux_model(split)
+            feats = self.vit(split).to(self.main_device)
             if combined_feats is None:
                 combined_feats = feats.to(self.main_device)
             else:
@@ -357,15 +324,79 @@ class TrainLxmert(BaseLoop):
                 )
         shape = combined_feats.shape
         combined_feats = combined_feats.view(shape[0], int(shape[1] ** 0.5), -1)
-        combined_feats = self.connector(combined_feats)
+        batch["roi_features"] = self.connector(combined_feats)
         batch["boxes"] = torch.zeros((shape[0], int(shape[1] ** 0.5), 4)).to(
             self.main_device
         )
-        if self.config.data.img_first:
-            n_repeats = len(batch["input_ids"])
-            batch["roi_features"] = combined_feats.cuda(self.main_device).repeat(
-                n_repeats, 1, 1
-            )
-        else:
-            batch["roi_features"] = combined_feats.cuda(self.main_device)
-'''
+
+        self.dataset.transpose_img2txt(batch, img_keys=["boxes", "roi_featues"])
+
+        self.toCuda(batch, device=self.main_device)
+        batch["return_dict"] = True
+        model_outputs = self.lxmert(
+            input_ids=batch["input_ids"],
+            visual_feats=batch["roi_features"],
+            visual_pos=batch["boxes"],
+            attention_mask=batch["attention_mask"],
+            token_type_ids=batch["token_type_ids"],
+            return_dict=batch["return_dict"],
+        )
+        return model_outputs
+
+
+class TrainViTLxmert(BaseLoop):
+    name: str = "trainvitlxmert"
+    is_train: bool = True
+
+    def loop(self, batch, model_outputs):
+        acc = metrics.accuracy(model_outputs.question_answering_score, batch["labels"])
+        loop_outputs = LoopOutputs(accuracy=acc, losses=model_outputs.loss)
+        flatten_bz = len(batch["input_ids"])
+        self.tqdm_update(
+            {
+                "acc": f"{acc:.3f}%",
+                "lrs": [f"{l:.3e}" for l in self.get_lr()],
+                "loss": f"{model_outputs.loss:.3f}",
+                "bz": flatten_bz
+            }
+        )
+        return loop_outputs
+
+    def forward(self, batch):
+        assert self.config.data.use_raw_imgs and self.config.data.img_first, "must set aformentioned options"
+        self.toCuda(batch, device=self.aux_model_device)
+        split_imgs = torch.split(batch.pop("raw_imgs"), split_size_or_sections=1, dim=0)
+        combined_feats = None
+        for split in split_imgs:
+            feats = self.vit(split).to(self.main_device)
+            if combined_feats is None:
+                combined_feats = feats.to(self.main_device)
+            else:
+                combined_feats = torch.cat(
+                    (combined_feats, feats.to(self.main_device)), dim=0
+                )
+        shape = combined_feats.shape
+        combined_feats = combined_feats.view(shape[0], int(shape[1] ** 0.5), -1)
+        batch["roi_features"] = self.connector(combined_feats)
+        batch["boxes"] = torch.zeros((shape[0], int(shape[1] ** 0.5), 4)).to(
+            self.main_device
+        )
+
+        # for k, v in batch.items():
+        #     if isinstance(v, torch.Tensor):
+        #         print(k, v.shape)
+
+        self.dataset.transpose_img2txt(batch, img_keys=["boxes", "roi_features"])
+
+        self.toCuda(batch, device=self.main_device)
+        batch["return_dict"] = True
+        model_outputs = self.lxmert(
+            input_ids=batch["input_ids"],
+            visual_feats=batch["roi_features"],
+            visual_pos=batch["boxes"],
+            attention_mask=batch["attention_mask"],
+            token_type_ids=batch["token_type_ids"],
+            return_dict=batch["return_dict"],
+            labels=batch["labels"]
+        )
+        return model_outputs
