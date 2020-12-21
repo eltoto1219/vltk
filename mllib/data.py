@@ -360,10 +360,11 @@ class UniversalLoader(DataLoader):
                 device = f"cuda:{device}"
         for k in batch:
             v = batch.get(k)
-            if device is None:
-                if torch.cuda.is_available():
-                    batch[k] = v.cuda()
+            if isinstance(v, torch.Tensor):
+                if device is None:
+                    if torch.cuda.is_available():
+                        batch[k] = v.cuda()
+                    else:
+                        batch[k] = v.cpu()
                 else:
-                    batch[k] = v.cpu()
-            else:
-                batch[k] = v.to(device)
+                    batch[k] = v.to(device)

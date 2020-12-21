@@ -1826,7 +1826,7 @@ class FRCNN(nn.Module):
         if state_dict is None:
             try:
                 try:
-                    state_dict = torch.load(resolved_archive_file, map_location=torch.device(model.config.model.device))
+                    state_dict = torch.load(resolved_archive_file, map_location=torch.device(model.config.device))
                 except Exception:
                     state_dict = load_checkpoint(resolved_archive_file)
 

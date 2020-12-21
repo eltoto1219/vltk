@@ -4,8 +4,7 @@ from typing import List, Union
 
 import yaml
 
-from mllib.utils import (base_expirement_filename, get_most_free_gpu,
-                         get_nvidia_gpu_memory)
+from mllib.utils import get_most_free_gpu, get_nvidia_gpu_memory
 
 DELIM = ","
 
@@ -23,7 +22,7 @@ class BaseConfig:
                     self._overwritten[f] = v
 
     def __iter__(self):
-        for k in self.__class__.__dict__:
+        for k in set(self.__class__.__dict__.keys()).union(set(self.__dict__.keys())):
             if k[0] != "_":
                 yield k, getattr(self, k)
 
@@ -78,9 +77,13 @@ class BaseConfig:
         config.update(config_dict)
         return config
 
-    def update(self, updates: Union[dict, object]):
-        if not isinstance(updates, dict):
-            updates = updates.to_dict()
+    def update(self, updates: dict):
+        if "logdir" in updates:
+            logfile = updates.get("logfile", getattr(self, "logfile", None))
+            if logfile is not None:
+                updates["logfile"] = os.path.join(updates.get("logdir"), logfile)
+        elif "logfile" in updates:
+            updates["logfile"] = os.path.join(getattr(self, "logdir", ''), updates["logfile"])
         for k, orig_v in self:
             if k in updates:
                 v = updates.pop(k)
@@ -88,6 +91,9 @@ class BaseConfig:
                     orig_v.update(v)
                 else:
                     setattr(self, k, v)
+        logdir = getattr(self, "logdir", None)
+        if logdir is not None:
+            os.makedirs(self.logdir, exist_ok=True)
 
 
 class ExtractConfig(BaseConfig):
@@ -102,16 +108,37 @@ class ExtractConfig(BaseConfig):
         self.inputdir = inputdir
 
 
-class ModelConfig(BaseConfig):
+class LxmertConfig(BaseConfig):
     from_transformers: bool = True
-    ckp_name_or_path: str = ""
-    ckp_transformers: str = "unc-nlp/lxmert-base-uncased"
-    load_epoch: int = 0
+    ckp_name_or_path = "unc-nlp/lxmert-base-uncased"
     known_labels: int = 1842
     r_layers: int = 5
     l_layers: int = 9
     x_layers: int = 5
+
+
+class ViTConfig(BaseConfig):
+    from_transformers: bool = False
     vit_variant: Union[str, None] = "ViT-B_16"
+    ckp_name_or_path: str = ""
+
+
+class ModelsConfig(BaseConfig):
+    names = ("lxmert", "vit")
+    main_model: str = "lxmert"
+    aux_models: tuple = ("frcnn", "vit")
+    name_to_config = {"lxmert": LxmertConfig, "vit": ViTConfig}
+
+    def __init__(self, **kwargs):
+        new_conf = kwargs.get("name_to_config", False)
+        if not new_conf:
+            new_conf = kwargs.get("models", {}).get("name_to_config", False)
+        if new_conf:
+            self.name_to_config = new_conf
+        for m in self.names:
+            setattr(self, m, self.name_to_config[m]())
+        super().__init__(**kwargs)
+        self.update(kwargs.get("models", {}))
 
 
 class PretrainConfig(BaseConfig):
@@ -232,31 +259,16 @@ class PathesConfig(BaseConfig):
                 setattr(self, f, v)
 
 
-class PrivateConfig(BaseConfig):
-    pass
-
-
-class ExperimentConfig(BaseConfig):
-    pass
-
-
 class GlobalConfig(BaseConfig):
 
     data: DataConfig = None
-    model: ModelConfig = None
+    models: ModelsConfig = None
     pathes: PathesConfig = None
     evaluate: Union[None, EvalConfig] = None
     run: Union[None, PretrainConfig, TrainConfig, ExtractConfig, EvalConfig] = None
-    private: PrivateConfig = None
-    experiment: ExperimentConfig = None
-    test_save: bool = False
 
     logging: bool = True
-    logdir: str = os.path.join(os.environ.get("HOME", os.getcwd()), "logs")
     logfile: str = "logs.txt"
-    output_dir: str = os.path.join(os.environ.get("HOME", ""), "outputs")
-    command: str = None
-    ckp_name: str = None
     gpu: int = None
     aux_gpu: int = None
     dryrun: bool = False
@@ -265,28 +277,30 @@ class GlobalConfig(BaseConfig):
     print_config: bool = True
     model_name: Union[None, str] = None
     datasets: Union[None, str] = None
-    known_commands: tuple = ("train", "pretrain", "data", "eval", None)
     eval_aliases: tuple = ("testdev", "eval", "dev", "evaluation", "inference")
     train_aliases: tuple = ("train", "finetune", "pretrain")
     valid_aliases: tuple = ("val", "valid", "validation")
     test_aliases: tuple = ("test",)
+    logdir: str = os.path.join(os.environ.get("HOME", os.getcwd()), "logs")
+    test_save: bool = False
+    save_on_crash = False
+    save_after_exp = True
+    save_afer_epoch = False
+    email_on_failure = True
+    email = None
 
-    def __init__(self, command, **kwargs):
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        assert command in self.known_commands
-        self.command = command
-        self._set_gpus()
-        self._set_run(kwargs)
+        self.run = TrainConfig(**kwargs)
+        self.evaluate = EvalConfig(**kwargs)
         self.data = DataConfig(**kwargs)
-        self.model = ModelConfig(**kwargs)
+        self.models = ModelsConfig(**kwargs)
         self.pathes = PathesConfig(**kwargs)
-        self.private = PrivateConfig(**kwargs)
-        self.experiment = ExperimentConfig(**kwargs)
         self.logfile = os.path.join(self.logdir, self.logfile)
-        self.ckp_name = base_experiment_filename(self.output_dir, kwargs, self)
         if self.print_config:
             print(self)
         os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+        self._set_gpus()
 
     def _set_gpus(self):
         if self.gpu is not None and self.aux_gpu is not None:
@@ -307,15 +321,3 @@ class GlobalConfig(BaseConfig):
                     print("WARNING: all models using aux gpu will be on cpu")
                     print()
                 self.aux_gpu = -1
-
-    def _set_run(self, kwargs):
-        if self.command == "pretrain":
-            self.run = PretrainConfig(**kwargs)
-        elif self.command == "train":
-            self.run = TrainConfig(**kwargs)
-        elif self.command == "extract":
-            self.run = ExtractConfig(**kwargs)
-        if self.command in ("data", "eval"):
-            self.run = EvalConfig(**kwargs)
-        if not kwargs.get("skip_eval", False) and self.command not in ("data", "eval"):
-            self.evaluate = EvalConfig(**kwargs)

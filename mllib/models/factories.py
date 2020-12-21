@@ -13,12 +13,12 @@ def frcnn_factory(config):
 
 
 def lxmert_factory(config):
-    ckp_name = getattr(config.model, "ckp_transformers", None)
+    ckp_name = getattr(config.models.lxmert, "ckp_transformers", None)
     lxmert_config = LxmertConfig(
-        num_qa_labels=config.model.known_labels,
-        x_layers=config.model.x_layers,
-        l_layers=config.model.l_layers,
-        r_layers=config.model.r_layers,
+        num_qa_labels=config.models.lxmert.known_labels,
+        x_layers=config.models.lxmert.x_layers,
+        l_layers=config.models.lxmert.l_layers,
+        r_layers=config.models.lxmert.r_layers,
         task_matched=config.run.task_matched,
         task_mask_lm=config.run.task_mask_lm,
         task_obj_predict=config.run.task_obj_predict,

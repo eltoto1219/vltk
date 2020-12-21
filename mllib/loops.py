@@ -1,66 +1,92 @@
-import datetime
-import os
 from abc import ABC, abstractmethod
-from typing import List, Union
 
 import torch
 from tqdm import tqdm
 from transformers import AdamW, get_linear_schedule_with_warmup
 
 from mllib import data, metrics, utils
-from mllib.models import factories
+from mllib.outputs import LoopOutputs
 
 
-class Loop(ABC):
-    def __init__(self, config, model=None, aux_model=None):
-        assert hasattr(self, "_loader") and hasattr(self, "_run"), (
-            "must call `self.set_loader(loader)` and"
-            "`self.set_run(run)` before calling `super` to Abstract class"
-        )
-        self.cur_step = 0
-        self.model = model
-        self.aux_model = aux_model
+class BaseLoop(ABC):
+    def __init__(self, config, datasets, model_dict, extra_modules=None):
         self.config = config
-        self.seed = config.seed
-        self.half_precision = getattr(config.run, "half_precision", False)
-        self.main_device = f"cuda:{config.gpu}" if config.gpu != -1 else "cpu"
-        self.aux_model_device = f"cuda:{config.aux_gpu}" if config.gpu != -1 else "cpu"
-        if self.model is not None and self.model.device != self.main_device:
-            self.model.to(self.main_device)
-        if self.aux_model is not None:
-            self.aux_model.to(self.aux_model_device)
-            self.connector = torch.nn.Linear(18464, 2048)
-            self.connector.to(self.main_device)
+        self.datasets = datasets
+        self.cur_step = 0
         self.scheduler = None
-        self.dryrun = config.dryrun
-        self.scaler = (
-            None
-            if not self.half_precision or self.run == "data"
-            else torch.cuda.amp.GradScaler()
-        )
-        if self.loader.drop_last:
-            print(
-                "WARNING: drop last set in loader, so batch size may not be the same for last batch"
+        self.half_precision = getattr(config.run, "half_precision", False)
+        self.dryrun = getattr(config, "dryrun", False)
+        self.main_device = f"cuda:{config.gpu}"\
+            if getattr(config, "gpu", -1) != -1 else "cpu"
+        self.aux_model_device = f"cuda:{config.aux_gpu}"\
+            if getattr(config, "aux_gpu", -1) != -1 else "cpu"
+        self.scaler = None if not self.half_precision else torch.cuda.amp.GradScaler()
+        self._init_loader()
+        assert hasattr(self, "loader"), "property 'loader' must be set in 'self._init_loader()'"
+        assert isinstance(self.loader, torch.utils.data.DataLoader)
+        self._dataset = self.loader.dataset
+        self._init_models_and_extras(model_dict, extra_modules)
+        self._init_optim()
+
+    def _init_models_and_extras(self, model_dict, extra_modules=None):
+        for k, v in model_dict.items():
+            v_old = getattr(self, k, None)
+            assert v_old is None, type(v_old)
+            if k == "vit":
+                v = v.to(self.aux_model_device)
+            else:
+                setattr(self, k, v)
+        if extra_modules is not None:
+            for k, v in model_dict.items():
+                v_old = getattr(self, k, None)
+                assert v_old is None, type(v_old)
+                v = v.to(self.main_device)
+                setattr(self, k, v)
+
+    def _init_optim(self):
+        if self.is_train:
+            parameters = []
+            for k, v in self.model_dict.items():
+                parameters.extend(v.parameters())
+            if self.extra_modules is not None:
+                for k, v in self.extra_modules.items():
+                    parameters.extend(v.parameters())
+            assert parameters, "no parameters added to optimizer"
+            self._optim = AdamW(
+                parameters,
+                lr=self.config.run.learning_rate,
+                weight_decay=self.config.run.weight_decay,
             )
-            print()
+            if self.config.run.warmup == 0.0:
+                self._warmup = None
+            total = self.total_steps
+            n_steps = int(total * self.config.run.warmup)
+            self._warmup = get_linear_schedule_with_warmup(
+                self._optim, num_warmup_steps=n_steps, num_training_steps=total
+            )
 
     @property
-    def run(self):
-        return self._run
+    def forward_context(self):
+        if self.scaler is None:
+            return utils.dummy_context
+        else:
+            return torch.cuda.amp.autocast
 
     @property
     def tqdm(self):
-        assert hasattr(self, "_run"), "must call :set_run(run) before calling tqdm"
         desc = "train" if self.is_train else "eval"
         self._tqdm = tqdm(self.loader, desc=desc, ncols=0)
         return self._tqdm
 
     @property
     def batch_size(self):
-        if self.is_train:
-            return self.config.run.batch_size
+        if getattr(self, "_bz", None) is not None:
+            return self._bz
         else:
-            return self.config.run.batch_size
+            if self.is_train:
+                return self.config.run.batch_size
+            else:
+                return self.config.evaluate.batch_size
 
     @property
     def total_steps(self):
@@ -78,29 +104,23 @@ class Loop(ABC):
         return getattr(self, "_optim", None)
 
     @property
-    def is_train(self):
-        if self.run == "train":
-            return True
-        else:
-            return False
-
-    @property
-    def loader(self):
-        return self._loader
-
-    @property
     def dataset(self):
         return self._dataset
 
-    def set_run(self, run):
-        valid_runs = ("eval", "train", "data")
-        assert run in valid_runs, f"run {run} must be a valid run ({valid_runs})"
-        self._run = run
+    def set_batch_size(self, batch):
+        for k, v in batch.items():
+            if isinstance(v, torch.Tensor):
+                self._bz = v.size(0)
+                break
 
-    def set_loader(self, loader):
-        assert isinstance(loader, torch.utils.data.DataLoader)
-        self._loader = loader
-        self._dataset = loader.dataset
+    def get_grad_params(self):
+        parameters = []
+        for k, v in self.model_dict.items():
+            parameters.extend([p for p in v.parameters() if p.requires_grad])
+        if self.extra_modules is not None:
+            for k, v in self.extra_modules.items():
+                parameters.extend([p for p in v.parameters() if p.requires_grad])
+        return parameters
 
     def tqdm_update(self, info: dict = None):
         if info is not None:
@@ -118,6 +138,207 @@ class Loop(ABC):
         for k, v in self.__dict__.items():
             if isinstance(v, torch.nn.Module):
                 v.eval()
+
+    def step(self, loss=None):
+        if self.run == "train" and loss is not None:
+            if self.scaler is not None:
+                self.scaler.scale(loss).backward()
+                self.scaler.unscale_(self.optim)
+                torch.nn.utils.clip_grad_norm_(
+                    self.get_grad_params(), self.config.run.max_norm
+                )
+                self.scaler.step(self.optim)
+                self.scaler.update()
+            else:
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(
+                    self.get_grad_params(), self.config.run.max_norm
+                )
+                self.optim.step()
+
+            self.warmup.step()
+
+    def get_lr(self):
+        if not self.is_train:
+            return []
+        elif self.warmup is not None:
+            return self.warmup.get_lr()
+        else:
+            lrs = []
+            for param_group in self.optim.param_groups:
+                lrs.append(param_group['lr'])
+            return lrs
+
+    def __iter__(self):
+        for x in self.loader:
+            yield x
+
+    def __call__(self) -> LoopOutputs:
+        accuracy = 0.0
+        losses = None
+        if self.is_train:
+            self.toTrain()
+        else:
+            self.toEval()
+        with torch.no_grad() if not self.is_train else utils.dummy_context():
+            for batch in self.tqdm:
+                if self.is_train:
+                    self.optim.zero_grad()
+                self.set_batch_size(batch)
+                with self.forward_context():
+                    model_outputs = self.forward(batch)
+                outputs = self.loop(batch, model_outputs)
+                if outputs is not None:
+                    if hasattr(outputs, "losses"):
+                        losses = outputs.losses
+                    if hasattr(outputs, "accuracy"):
+                        accuracy += float(outputs.accuracy)
+                if self.is_train:
+                    losses = getattr(outputs, "losses", None)
+                    assert losses is not None
+                    self.step(losses)
+                self.cur_step += 1
+                if self.config.dryrun:
+                    break
+            outputs = LoopOutputs(right=accuracy, total=len(self.loader), losses=losses)
+            return outputs
+
+    @abstractmethod
+    def loop(self, batch, model_outputs) -> LoopOutputs:
+        return None
+
+    @abstractmethod
+    def forward(self, batch) -> object:
+        return None
+
+    @abstractmethod
+    def _init_loader(self):
+        pass
+
+    @property
+    @abstractmethod
+    def name(self):
+        pass
+
+    @property
+    @abstractmethod
+    def is_train(self):
+        pass
+
+
+class Data(BaseLoop):
+    name: str = "data"
+    is_train: bool = False
+
+    def _init_loader(self):
+        self.loader = data.UniversalLoader(
+            config=self.config,
+            split=self.config.data.split,
+            dataset_name=self.datasets
+        )
+
+    def forward(self, batch):
+        return super().forward(batch)
+
+    def loop(self, batch, model_outputs):
+        return super().loop(batch, model_outputs)
+
+
+class EvalLxmert(BaseLoop):
+    name: str = "evallxmert"
+    is_train: bool = False
+
+    def _init_loader(self):
+        if self.config.data.split != self.config.data.eval_split:
+            split = self.config.data.eval_split
+        else:
+            split = self.config.data.split
+        self.loader = data.UniversalLoader(
+            config=self.config,
+            split=split,
+            dataset_name=self.datasets
+        )
+
+    def loop(self, batch, model_outputs):
+        acc = metrics.accuracy(model_outputs.question_answering_score, batch["labels"])
+        loop_outputs = LoopOutputs(accuracy=acc)
+        self.tqdm_update({"acc": loop_outputs.accuracy})
+        return loop_outputs
+
+    def forward(self, batch):
+        self.toCuda(batch, device=self.config.gpu)
+        batch["return_dict"] = True
+        model_outputs = self.lxmert(
+            input_ids=batch["input_ids"],
+            visual_feats=batch["roi_features"],
+            visual_pos=batch["boxes"],
+            attention_mask=batch["attention_mask"],
+            token_type_ids=batch["token_type_ids"],
+            return_dict=batch["return_dict"],
+        )
+        return model_outputs
+
+
+class TrainLxmert(BaseLoop):
+    name: str = "trainlxmert"
+    is_train: bool = True
+
+    def _init_loader(self):
+        self.loader = data.UniversalLoader(
+            config=self.config,
+            split=self.config.data.eval_split,
+            dataset_name=self.datasets
+        )
+
+    def loop(self, batch, model_outputs):
+        acc = metrics.accuracy(model_outputs.question_answering_score, batch["labels"])
+        loop_outputs = LoopOutputs(accuracy=acc, losses=model_outputs.loss)
+        self.tqdm_update(
+            {
+                "acc": f"{acc:.3f}%",
+                "lrs": [f"{l:.3e}" for l in self.get_lr()],
+                "loss": f"{model_outputs.loss:.3f}",
+            }
+        )
+        return loop_outputs
+
+    def forward(self, batch):
+        self.toCuda(batch, device=self.config.gpu)
+        batch["return_dict"] = True
+        model_outputs = self.lxmert(
+            input_ids=batch["input_ids"],
+            visual_feats=batch["roi_features"],
+            visual_pos=batch["boxes"],
+            attention_mask=batch["attention_mask"],
+            token_type_ids=batch["token_type_ids"],
+            return_dict=batch["return_dict"],
+            labels=batch["labels"],
+        )
+        return model_outputs
+
+
+'''
+    def forward(self, batch):
+        self.optim.zero_grad()
+        with torch.cuda.amp.autocast() if getattr(
+            self, "scaler", None
+        ) is not None else utils.dummy_context():
+            if self.config.data.use_raw_imgs:
+                assert self.aux_model is not None
+                self.toCuda(batch, device=self.aux_model_device)
+                self.run_vit(batch)
+            self.toCuda(batch, device=self.config.gpu)
+            batch["return_dict"] = True
+            model_outputs = self.model(
+                input_ids=batch["input_ids"],
+                visual_feats=batch["roi_features"],
+                visual_pos=batch["boxes"],
+                attention_mask=batch["attention_mask"],
+                token_type_ids=batch["token_type_ids"],
+                return_dict=batch["return_dict"],
+                labels=batch["labels"],
+            )
+        return model_outputs
 
     def run_vit(self, batch, accum_iters=1):
         imgs = batch["raw_imgs"]
@@ -147,168 +368,4 @@ class Loop(ABC):
             )
         else:
             batch["roi_features"] = combined_feats.cuda(self.main_device)
-
-    def forward(self, batch):
-        if self.model is not None:
-            if self.is_train:
-                self.optim.zero_grad()
-            with torch.cuda.amp.autocast() if getattr(
-                self, "scaler", None
-            ) is not None else utils.dummy_context():
-                if self.config.data.use_raw_imgs:
-                    assert self.aux_model is not None
-                    self.toCuda(batch, device=self.aux_model_device)
-                    self.run_vit(batch)
-                self.toCuda(batch, device=self.config.gpu)
-                batch["return_dict"] = True
-                model_outputs = self.model(
-                    input_ids=batch["input_ids"],
-                    visual_feats=batch["roi_features"],
-                    visual_pos=batch["boxes"],
-                    attention_mask=batch["attention_mask"],
-                    token_type_ids=batch["token_type_ids"],
-                    return_dict=batch["return_dict"],
-                    labels=batch["labels"],
-                )
-            return model_outputs
-
-    def __call__(self) -> LoopOutputs:
-        accuracy = 0.0
-        losses = None
-        if self.is_train:
-            self.toTrain()
-        else:
-            self.toEval()
-        for batch in self.tqdm:
-            outputs = self.loop(batch)
-            if outputs is not None:
-                if hasattr(outputs, "losses"):
-                    losses = outputs.losses
-                if hasattr(outputs, "accuracy"):
-                    accuracy += outputs.accuracy
-            self.cur_step += 1
-            if self.config.dryrun:
-                break
-        outputs = LoopOutputs(right=accuracy, total=len(self.loader), losses=losses)
-        return outputs
-
-    @abstractmethod
-    def loop(self, batch) -> LoopOutputs:
-        pass
-
-
-class Data(Loop):
-    def __init__(self, datasets, config):
-        self.set_run("data")
-        self.set_loader(data.UniversalLoader(datasets, config, split=config.data.split))
-        super().__init__(config=config)
-
-    def loop(self, batch):
-        pass
-
-    def keys(self):
-        entry = None
-        for x in self.loader:
-            entry = x
-            for k, v in entry.items():
-                print(k, type(v))
-            break
-
-    def transpose(self):
-        assert self.config.data.img_first
-        assert not self.config.data.arrow_fields
-        for x in self.loader:
-            entry = x
-            print("BEFORE")
-            for k, v in entry.items():
-                shape = None
-                if isinstance(v, torch.Tensor):
-                    shape = v.shape
-                print(k, type(v), shape)
-            print("AFTER")
-            data.UniversalDataset.transpose_img2txt(entry, img_keys=["raw_imgs", "raw_sizes"], device="cpu")
-            for k, v in entry.items():
-                shape = None
-                if isinstance(v, torch.Tensor):
-                    shape = v.shape
-                print(k, type(v), shape)
-            break
-
-
-class Evaluate(Loop):
-    def __init__(self, dataset_names, config, model, aux_model=None):
-        self.set_run("eval")
-        self.set_loader(data.UniversalLoader(config=config, split=config.data.eval_split))
-        super().__init__(model=model, config=config, aux_model=aux_model)
-
-    @torch.no_grad()
-    def loop(self, batch):
-        output = self.forward(batch)
-        acc = metrics.accuracy(output.question_answering_score, batch["labels"])
-        loop_outputs = LoopOutputs(accuracy=acc)
-        self.tqdm_update({"acc": loop_outputs.accuracy})
-        return loop_outputs
-
-
-class Train(Loop):
-    def __init__(self, dataset_names, config, model, aux_model=None):
-        self.set_run("train")
-        self.set_loader(data.UniversalLoader(dataset_names, config))
-        super().__init__(model=model, config=config, aux_model=aux_model)
-        self.set_optim()
-
-    def set_optim(self):
-        parameters = []
-        print_list = ""
-        for k, v in self.__dict__.items():
-            if isinstance(v, torch.nn.Module):
-                params = []
-                for n, p in v.named_parameters():
-                    if p.requires_grad:
-                        print_list += f"{(k, n)} of shape {p.shape}\n"
-                        params.append(p)
-                parameters.extend(params)
-        self._optim = AdamW(
-            parameters,
-            lr=self.config.run.learning_rate,
-            weight_decay=self.config.run.weight_decay,
-        )
-        if self.config.run.warmup == 0.0:
-            self._warmup = None
-        total = self.total_steps
-        n_steps = int(total * self.config.run.warmup)
-        self._warmup = get_linear_schedule_with_warmup(
-            self._optim, num_warmup_steps=n_steps, num_training_steps=total
-        )
-
-    def step(self, loss):
-        if self.scaler is not None:
-            self.scaler.scale(loss).backward()
-            self.scaler.unscale_(self.optim)
-            torch.nn.utils.clip_grad_norm_(
-                self.model.parameters(), self.config.run.max_norm
-            )
-            self.scaler.step(self.optim)
-            self.scaler.update()
-        else:
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(
-                self.model.parameters(), self.config.run.max_norm
-            )
-            self.optim.step()
-
-        self.warmup.step()
-
-    def loop(self, batch):
-        model_output = self.forward(batch)
-        acc = metrics.accuracy(model_output.question_answering_score, batch["labels"])
-        loop_outputs = LoopOutputs(accuracy=acc, losses=model_output.loss)
-        self.step(model_output.loss)
-        self.tqdm_update(
-            {
-                "acc": f"{acc:.3f}%",
-                "lrs": [f"{l:.3e}" for l in self.warmup.get_lr()],
-                "loss": f"{model_output.loss:.3f}",
-            }
-        )
-        return loop_outputs
+'''

@@ -2,8 +2,12 @@ import collections
 import contextlib
 import functools
 import os
+import smtplib
 import subprocess
 import timeit
+from collections import defaultdict
+from datetime import datetime
+from email.message import EmailMessage
 
 import numpy as np
 import torch
@@ -18,49 +22,38 @@ def dummy_context():
 # with contextlib.suppress(FileNotFoundError):
 # os.remove(filename)
 # collections.mutablemapping???
-def unflatten_dict(dictionary):
-    resultDict = dict()
-    for key, value in dictionary.iteritems():
-        parts = key.split(".")
-        d = resultDict
-        for part in parts[:-1]:
-            if part not in d:
-                d[part] = dict()
-            d = d[part]
-        d[parts[-1]]
 
-
-def base_expirement_filename(output_dir: str, flags: dict, config: object):
-    flags.pop("output_dir", None)
-    flags.pop("print_config", None)
-    flags.pop("datasets", None)
-    flags.pop("model_name", None)
-    flags.pop("command", None)
-    flags.pop("dryrun", None)
-
-    name_parts = []
-    for k, v in flags.items():
-        k = str(k).lower()
-        v = str(v).lower()
-        name_parts.append(f"{k}_{v}")
-    model = getattr(config, "model_name", None)
-    if model is None:
-        model = ""
+def send_email(address, message, failure=True):
+    sender = os.environ.get("HOSTNAME", "localhost")
+    msg = EmailMessage()
+    msg.set_content(message)
+    if failure:
+        msg['Subject'] = 'MLLIB failure!'
     else:
-        model += "_"
-    if name_parts:
-        ckp_name = "-".join(sorted(name_parts)).replace(".", "_")
-        ckp_name = (
-            f"{getattr(config, 'command', '')}_"
-            f"{model}"
-            f"{getattr(config, 'datasets','')}_" + ckp_name
-        )
-    else:
-        ckp_name = (
-            f"{getattr(config, 'command', '')}_{model}{getattr(config, 'datasets', '')}"
-        )
-    os.makedirs(output_dir, exist_ok=True)
-    return os.path.join(output_dir, ckp_name)
+        msg['Subject'] = 'MLLIB success!'
+    msg['From'] = sender
+    msg['To'] = [address]
+    s = smtplib.SMTP('localhost')
+    s.send_message(msg)
+    s.quit()
+
+
+def logfile_name(base):
+    specifications = ['year', 'month', 'day', 'hour']
+    date = datetime.now()
+    date = ':'.join([str(getattr(date, s)) for s in specifications])
+    return base + "_" + date
+
+
+def unflatten_dict(d):
+    ret = defaultdict(dict)
+    for k, v in d.items():
+        k1, delim, k2 = k.partition('.')
+        if delim:
+            ret[k1].update({k2: v})
+        else:
+            ret[k1] = v
+    return ret
 
 
 def load_yaml(flags: dict):
