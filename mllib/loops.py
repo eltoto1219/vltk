@@ -328,9 +328,13 @@ class EvalViTLxmert(BaseLoop):
         batch["boxes"] = torch.zeros((shape[0], int(shape[1] ** 0.5), 4)).to(
             self.main_device
         )
+        # print()
+        # print("---")
+        # for k, v in batch.items():
+        #     if isinstance(v, torch.Tensor):
+        #         print(k, v.shape)
 
-        self.dataset.transpose_img2txt(batch, img_keys=["boxes", "roi_featues"])
-
+        self.dataset.transpose_img2txt(batch, img_keys=["boxes", "roi_features"])
         self.toCuda(batch, device=self.main_device)
         batch["return_dict"] = True
         model_outputs = self.lxmert(

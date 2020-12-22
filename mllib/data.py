@@ -1,5 +1,4 @@
 import os
-import random
 from collections import OrderedDict, defaultdict
 from copy import deepcopy
 from typing import Dict, List
@@ -51,16 +50,13 @@ class UniversalDataset(Dataset):
     @get_duration
     def __init__(self, dataset_name, config, split=None):
         super().__init__()
-
-        self.set_blank_attrs()
-        # props that we set ourself
         self.dataset_name = dataset_name
         self.config = config
         self.split = config.data.split if split is None else split
         self.max_objs = self.config.data.max_objects
         self.img_format = self.config.data.img_format
         self.tokenizer = LxmertTokenizer.from_pretrained(
-            "unc-nlp/lxmert-base-uncased", never_split=self.never_split
+            "unc-nlp/lxmert-base-uncased", never_split=set()
         )
         self.mask_id = self.tokenizer.mask_token_id
         self.ignore_id = self.config.data.ignore_id
@@ -68,41 +64,20 @@ class UniversalDataset(Dataset):
         self.do_sentence_matching = self.config.run.task_matched
         self.do_language_masking = self.config.run.task_mask_lm
 
-        # props that we load in (in this order)
-        text_data, path_dict, arrow_dict, labels = self.set_dataset(dataset_name)
-        stop_int = max(1, int(np.ceil(len(text_data) * self.config.data.percent_data)))
-        if not self.config.data.img_first:
-            self.text_data = tuple(text_data[:stop_int])
-        else:
-            self.text_data = tuple(text_data[:stop_int])
-        img_ids = set()
-        for t in self.text_data:
-            img_id = t.get("img_id")
-            img_ids.add(img_id)
-            self.imgid2text[img_id].append(t)
-        self.img_ids = list(img_ids)
-        if self.config.data.img_first:
-            random.shuffle(self.img_ids)
-            self.img_ids = self.img_ids[:stop_int]
-        self.path_dict = path_dict
-        self.arrow_dict = arrow_dict
-        self.labels = labels
-        self.set_tokenizer_args()
-        self.set_id2imgidx()
-        self.data_checks()
+        self._init_dataset()
+        self._init_tokenizer_args()
+        self._init_id2imgidx()
+        self._data_checks()
 
-    @property
-    def special_token_dict(self):
-        return {
-            "unk": self.tokenizer.unk_token,
-            "sep": self.tokenizer.sep_token,
-            "pad": self.tokenizer.pad_token,
-            "cls": self.tokenizer.cls_token,
-            "mask": self.tokenizer.mask_token,
-        }
+    def _init_id2imgidx(self):
+        self._init_id2imgidx = defaultdict(dict)
+        if self.arrow_dict is not None:
+            for dset in self.arrow_dict:
+                for i, k in enumerate(self.arrow_dict[dset]["img_id"]):
+                    self._id2imgidx[dset][str(k)] = i
 
-    def set_tokenizer_args(self):
-        self.tokenizer_args = {
+    def _init_tokenizer_args(self):
+        self._tokenizer_args = {
             "padding": "max_length",
             "max_length": self.config.data.sent_length,
             "truncation": self.config.data.truncate_sentence,
@@ -112,41 +87,19 @@ class UniversalDataset(Dataset):
             "return_tensors": self.config.data.return_tensors,
         }
 
-    def set_dataset(self, dataset_name):
-        text_data, path_dict, arrow_dict, labels = datasets.NAME2DATASET[dataset_name](
-            self.config, self.split
-        )
-        self.num_labels = len(labels) if labels is not None else self.num_labels
-        return text_data, path_dict, arrow_dict, labels
+    def _init_dataset(self):
+        d = datasets.NAME2DATASET[self.dataset_name](self.config, self.split)
+        self._text_data = d['text']
+        self._labels = d['labels']
+        self._arrow_dict = d['arrow']
+        self._path_dict = d['pathes']
+        self._img_ids = d["img_ids"]
+        self._imgid2text = d["imgid_to_text"]
+        self._num_labels = len(self.labels) if self.labels is not None else None
+        assert len(self.text_data) > 0
+        assert len(self.img_ids) > 0
 
-    def set_blank_attrs(self):
-        self.id2imgidx = defaultdict(dict)
-        self.arrow_dict = defaultdict(dict)
-        self.text_files = []
-        self.text_data = []
-        self.num_labels = 0
-        self.label2lid = {}
-        self.never_split = set()
-        self.labels = None
-        self.tokenizer_args = {}
-        self.imgid2text = defaultdict(list)
-
-    def get_img_first_entry(self, i):
-        img_id = self.img_ids[i]
-        text_data = self.imgid2text[img_id]
-        dset = text_data[0]["dset"]
-        return img_id, text_data, dset
-
-    def set_id2imgidx(self):
-        if self.arrow_dict is not None:
-            for dset in self.arrow_dict:
-                self.id2imgidx[dset] = {
-                    str(k): i for i, k in enumerate(self.arrow_dict[dset]["img_id"])
-                }
-
-    # later lets move this into that mapping fucnction for custom stuff
-
-    def data_checks(self):
+    def _data_checks(self):
         assert self.num_labels <= len(
             self.labels
         ), f"{self.num_labels} {len(self.labels)}"
@@ -227,7 +180,7 @@ class UniversalDataset(Dataset):
             file = os.path.join(
                 self.path_dict[dset], img_id + f".{self.config.data.img_format}"
             )
-            assert os.path.isfile(file), file
+            assert os.path.isfile(file), (file, self.split)
             img, (ogh, ogw), scales = images.img_to_tensor(
                 file,
                 min_size=self.config.data.img_max_size,
@@ -240,6 +193,56 @@ class UniversalDataset(Dataset):
         assert img_data, "empty"
         return img_data
 
+    @property
+    def special_token_dict(self):
+        return {
+            "unk": self.tokenizer.unk_token,
+            "sep": self.tokenizer.sep_token,
+            "pad": self.tokenizer.pad_token,
+            "cls": self.tokenizer.cls_token,
+            "mask": self.tokenizer.mask_token,
+        }
+
+    @property
+    def id2imgidx(self):
+        return self._id2imgidx
+
+    @property
+    def arrow_dict(self):
+        return self._arrow_dict
+
+    @property
+    def path_dict(self):
+        return self._path_dict
+
+    @property
+    def text_data(self):
+        return self._text_data
+
+    @property
+    def img_ids(self):
+        return self._img_ids
+
+    @property
+    def labels(self):
+        return self._labels
+
+    @property
+    def num_labels(self):
+        return self._num_labels
+
+    @property
+    def label2id(self):
+        return self._label2id
+
+    @property
+    def tokenizer_args(self):
+        return self._tokenizer_args
+
+    @property
+    def imgid2text(self):
+        return self._imgid2text
+
     def __len__(self):
         if not self.config.data.img_first:
             return len(self.text_data)
@@ -249,14 +252,14 @@ class UniversalDataset(Dataset):
     @torch.no_grad()
     def __getitem__(self, i):
         if not self.config.data.img_first:
-            # get one
             entry = self.text_data[i]
             img_id = self.clean_imgid(entry.get("img_id"))
             dset = entry.get("dset")
             entries = [entry]
         else:
-            # get many
-            img_id, entries, dset = self.get_img_first_entry(i)
+            img_id = self.img_ids[i]
+            entries = self.imgid2text[img_id]
+            dset = entries[0]["dset"]
 
         img_data = self.get_img(dset, img_id)
         input_ids = []
@@ -359,9 +362,6 @@ class UniversalLoader(DataLoader):
             shuffle=shuffle,
             batch_size=batch_size,
         )
-
-        if shuffle:
-            self.dataset.set_id2imgidx()
 
     @staticmethod
     def toCuda(batch, device=None):

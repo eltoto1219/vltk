@@ -205,6 +205,7 @@ class DataConfig(BaseConfig):
     img_format: str = "jpg"
     percent_data: int = 1.0
     skip_eval: bool = False
+    skip_train: bool = False
     split: bool = "train"
     eval_split: bool = "eval"
     valid_split: bool = "valid"

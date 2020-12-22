@@ -107,6 +107,8 @@ class BaseExperiment(ABC):
                 extra_modules=self.extra_modules,
                 datasets=self.datasets
             ) for loop, model in self.loops_to_models.items()
+            if (get_loop(loop).is_train and not self.config.data.skip_train)
+            or (not get_loop(loop).is_train and not self.config.data.skip_eval)
         }
         self._model_dict = model_dict
         self._loop_dict = loop_dict
@@ -197,13 +199,11 @@ class BaseExperiment(ABC):
             exp_info = self.get_exp_info()
             self.experiment_outputs.add(epoch, epoch_output, **exp_info)
             self.write(self.loginfo(**epoch_output))
-            if (any_train or self.config.test_save) and self.config.save_after_epoch:
+            if self.config.test_save or (self.config.save_after_epoch and any_train):
                 self.save()
-        if (
-            (any_train or self.config.test_save)
-            and (self.config.save_after_exp and not self.config.save_after_epoch)
-        ):
+        if not self.config.save_after_epoch and ((any_train and self.config.save_after_exp) or self.config.test_save):
             self.save()
+            print("or here")
 
     @property
     @abstractmethod
@@ -294,9 +294,6 @@ class TrainViTLxmert(BaseExperiment):
     name: str = "trainvitlxmert"
     loops_to_models: dict = {"evalvitlxmert": ["lxmert", "vit"], "trainvitlxmert": ["lxmert", "vit"]}
     extra_modules = {"connector": torch.nn.Linear(18464, 2048)}
-
-    def __init__(self, config, datasets):
-        super().__init__(config, datasets)
 
     def loginfo(self, **kwargs):
         '''
