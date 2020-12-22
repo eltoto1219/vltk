@@ -306,17 +306,14 @@ class UniversalDataset(Dataset):
     def transpose_img2txt(batch, img_keys, device=None):
         n_sents_per_img = [len(i) for i in batch["input_ids"]]
         for img_key in img_keys:
-            if img_key in batch:
-                # if batch[img_key].size(0) == 1:
-                #     imgs = batch[img_key]
-                # else:
-                imgs = torch.cat([
-                    i.unsqueeze(0).repeat((n,) + tuple([1] * (len(i.shape))))
-                    for i, n in zip(batch.pop(img_key), n_sents_per_img)
-                ], dim=0)
-                batch[img_key] = imgs
-                if device is not None:
-                    batch[img_key] = batch[img_key].to(device)
+            assert img_key in batch, f"{img_key} not in {list(batch.keys())}"
+            imgs = torch.cat([
+                i.unsqueeze(0).repeat((n,) + tuple([1] * (len(i.shape))))
+                for i, n in zip(batch.pop(img_key), n_sents_per_img)
+            ], dim=0)
+            batch[img_key] = imgs
+            if device is not None:
+                batch[img_key] = batch[img_key].to(device)
         for k in batch:
             if k not in img_keys:
                 if isinstance(batch[k][0], torch.Tensor):
