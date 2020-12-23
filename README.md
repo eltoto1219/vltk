@@ -13,7 +13,7 @@ some immidiately visible funcitonality:
 3. send email on experiment crash
 
 
-<br />
+
 The idea is to make research prototyping/development as fast as possible. All the while, keeping all of your work confidential.
 We can do this by specifying a "private" experiment file and add a "private_file=sample.py" flag or option in a yaml file ("sample.yaml")
 
