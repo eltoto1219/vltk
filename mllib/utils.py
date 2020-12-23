@@ -1,27 +1,104 @@
 import collections
 import contextlib
-import functools
+import importlib
+import inspect
 import os
 import smtplib
 import subprocess
-import timeit
+import sys
 from collections import defaultdict
 from datetime import datetime
 from email.message import EmailMessage
+from typing import Tuple, Union
 
+import datasets
 import numpy as np
 import torch
 import yaml
+from torch import nn
+
+PATH = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "libdata")
+
+
+def get_classes(path, cls_defintion, pkg):
+    if os.path.isfile(path):
+        modules = import_from_file(path, pkg)
+    else:
+        modules = import_from_dir(path, pkg)
+    filter_mods = [m for m in modules if is_cls(m[1], cls_defintion)]
+    cls_dict = {}
+    for (name, inst) in filter_mods:
+        # inst = importlib.reload(inst)
+        name = getattr(inst, "name", name)
+        cls_dict[name] = inst
+    return cls_dict
+
+
+def is_cls(inspect_class, cls_defintion):
+    if cls_defintion in inspect.getmro(inspect_class) and inspect_class.__name__ != cls_defintion.__name__:
+        return True
+    else:
+        return False
+
+
+def is_model(inspect_class):
+    if nn.Module in inspect.getmro(inspect_class) and inspect_class.__name__ != "Module":
+        return True
+    else:
+        return False
+
+
+def import_from_dir(clsdir, pkg):
+    modules = []
+    for p in os.listdir(clsdir):
+        file = os.path.join(clsdir, p)
+        mods = import_from_file(file, pkg)
+        modules.extend(mods)
+
+    return modules
+
+
+def import_from_file(clspath, pkg):
+    clsfile = clspath.split("/")[-1]
+    clsname = clsfile.split(".")[0]
+    if pkg is not None:
+        clsname = pkg + f".{clsname}"
+    clsdir = clspath.replace(clsfile, '')
+    sys.path.insert(0, clsdir)
+    mod = importlib.import_module(clsname, package=pkg)
+    return inspect.getmembers(mod, inspect.isclass)
+
+
+def clean_imgid(img_id):
+    return str(img_id).replace(" ", "")
+
+
+def load_arrow(dset_to_arrow_fp: dict, fields: Union[Tuple[str], str, None] = None):
+    if fields is not None and not fields:
+        return None
+    arrow_dict = {}
+    for dset in dset_to_arrow_fp:
+        arrow_fp = dset_to_arrow_fp[dset]
+        arrow = datasets.Dataset.from_file(arrow_fp)
+        if fields is not None:
+            fields = list(fields)
+        arrow.set_format(type="numpy", columns=fields)
+        arrow_dict[dset] = arrow
+    return arrow_dict
+
+
+def clip_img_ids(img_ids, percent_data=1.0):
+    if percent_data != 1.0:
+        stop_int = max(1, int(np.ceil(len(img_ids) * percent_data)))
+        img_ids = img_ids[:stop_int]
+    assert len(img_ids) > 0
+    return img_ids
 
 
 @contextlib.contextmanager
 def dummy_context():
     yield None
 
-
-# with contextlib.suppress(FileNotFoundError):
-# os.remove(filename)
-# collections.mutablemapping???
 
 def send_email(address, message, failure=True):
     sender = os.environ.get("HOSTNAME", "localhost")
@@ -38,7 +115,7 @@ def send_email(address, message, failure=True):
     s.quit()
 
 
-def logfile_name(base):
+def gen_relative_logdir(base):
     specifications = ['year', 'month', 'day', 'hour']
     date = datetime.now()
     date = ':'.join([str(getattr(date, s)) for s in specifications])
@@ -164,17 +241,6 @@ def tensor_equality(a, b):
         n1, n2, rtol=0.01, atol=0.1
     ), f"{sum([1 for x in np.isclose(n1, n2, rtol=0.01, atol=0.1).flatten() if x == False])/len(n1.flatten())*100:.4f} % element-wise mismatch"
     raise Exception("tensors are all good")
-
-
-def get_duration(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        starttime = timeit.default_timer()
-        output = func(*args, **kwargs)
-        print(f"exec: {func.__name__} in {timeit.default_timer() - starttime:.3f} s")
-        return output
-
-    return wrapper
 
 
 def get_subfiles_from_path(path_or_dir, relative=None) -> list:

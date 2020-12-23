@@ -47,11 +47,13 @@ setup(
     packages=[
         "mllib",
         "tests",
-        "mllib/models",
+        "mllib/modeling",
         "mllib/legacy",
-        "mllib/processors",
+        "mllib/processing",
         "mllib/exp",
+        "mllib/loop"
         "mllib/abc"
+        "mllib/dataset"
     ],
     install_requires=dependencies(),
 )

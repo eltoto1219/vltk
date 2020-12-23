@@ -1,4 +1,4 @@
-import numpy as np
+# not my code below. Check out the amazing original repository: https://github.com/lucidrains/vit-pytorch/tree/main/vit_pytorch
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

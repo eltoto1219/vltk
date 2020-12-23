@@ -1,6 +1,8 @@
 import os
 import pickle
 from collections import OrderedDict, defaultdict
+from glob import glob
+from io import BytesIO
 
 import datasets
 import torch
@@ -8,9 +10,9 @@ from datasets import ArrowWriter, Features, Split
 from pyarrow import OSFile
 from tqdm import tqdm
 
-from mllib import compatability as compat
+from mllib import compat
 from mllib.models import frcnn
-from mllib.processors import images
+from mllib.proccessing import Image
 
 MAX_DETECTIONS = 36
 FEATUREDIM = 2048
@@ -112,24 +114,24 @@ class Extract:
     def subdir2fileidAndfile(self):
         self.file_list = defaultdict(list)
         tempdirs = []
-        tempfiles = []
+        streams = []
         file_must_be_in_subdir = True
         for path, subdirs, files in os.walk(self.data_dir):
             for sdir in subdirs:
                 tempdirs.append(sdir)
             for file in files:
-                tempfiles.append(file)
+                streams.append(file)
         if not tempdirs:
             tempdirs = [self.data_dir.split("/")[-1]]
             file_must_be_in_subdir = False
         if not file_must_be_in_subdir:
             self.file_list[tempdirs[0]] = [
                 (file.split("/")[-1].split(".")[0], os.path.join(self.data_dir, x))
-                for x in tempfiles
+                for x in streams
             ]
         else:
             print("sorting files by subdir")
-            for file in tqdm(tempfiles):
+            for file in tqdm(streams):
                 file_id = file.split("/")[-1].split(".")[0]
                 for sdir in tempdirs:
                     fp = os.path.join(self.data_dir, sdir, file)
@@ -142,16 +144,10 @@ class Extract:
         dsets = {}
         num_examples = 0
         num_bytes = 0
-        tempfiles = []
+        streams = []
         for subdir in tqdm(self.file_list.keys()):
-            # generate name of temp file
-            if len(self.file_list) > 1:
-                temp = f'{self.output_file.split(".")[0]}_{subdir.strip("/")}.temp'.replace(
-                    "/", "_"
-                )
-            else:
-                temp = f'{self.output_file.split(".")[0]}.temp'.replace("/", "_")
-            tempfiles.append(temp)
+            temp = BytesIO()
+            streams.append(temp)
             # open temp file
             with OSFile(temp, "wb") as s:
                 # create arrow_writer
@@ -159,7 +155,7 @@ class Extract:
                 # loop through files in split
                 for (img_id, filepath) in tqdm(self.file_list[subdir]):
                     # we assume images will be read in brg format
-                    image, sizes, scale_hw = images.img_to_tensor(
+                    image, sizes, scale_hw = image.img_to_tensor(
                         filepath,
                         min_size=self.model.config.input.min_size_test,
                         max_size=self.model.config.input.max_size_test,
@@ -210,8 +206,6 @@ class Extract:
             )
 
         final = pickle.loads(pickle.dumps(final))
-        # for temp in tempfiles:
-        #     os.remove(temp)
         writer = ArrowWriter(path=self.output_file)
         writer.write_table(final._data)
         e, b = writer.finalize()

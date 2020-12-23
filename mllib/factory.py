@@ -1,10 +1,11 @@
 import os
 
 import torch
-from mllib.compatability import Config
-from mllib.models.frcnn import FRCNN
-from mllib.models.vit import VisionTransformer
 from transformers import LxmertConfig, LxmertForQuestionAnswering
+
+from mllib.compat import Config
+from mllib.modeling.frcnn import FRCNN
+from mllib.modeling.vit import VisionTransformer
 
 
 def frcnn_factory(config):

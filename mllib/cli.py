@@ -6,14 +6,11 @@ from io import StringIO
 import torch
 from fire import Fire
 
-from mllib import configs, experiments, utils
+from mllib import configs, utils
+from mllib.abc.experiment import Experiment
 
-EXPRDICT = {
-    'evallxmert': experiments.EvalLxmert,
-    'data': experiments.Data,
-    'trainvitlxmert': experiments.TrainViTLxmert
-}
 STDERR = sys.stderr = StringIO()
+EXPPATH = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")), "exp")
 
 
 @atexit.register
@@ -22,7 +19,7 @@ def crash_save():
     if "experiment" in globals():
         if experiment is not None and config is not None:
             save_on_crash = getattr(config, "save_on_crash", False)
-            if config.email is not None and config.email_on_failure:
+            if config.email is not None:
                 utils.send_email(config.email, errorlog)
             if save_on_crash:
                 try:
@@ -54,14 +51,35 @@ class Main(object):
         self.config = configs.GlobalConfig(**self.flags)
 
     def exp(self, name, datasets):
-        logname = utils.logfile_name(f'{name}_{datasets}')
-        if "logdir" not in self.flags:
-            self.config.update({"logdir": os.path.join(self.config.logdir, logname)})
-        print(f"\nUPDATED LOGDIR: {self.config.logdir}\n")
+        exp_dict = utils.get_classes(EXPPATH, Experiment, pkg="mllib.exp")
+        if "base_logdir" not in self.flags:
+            baselogdir = self.config.base_logdir
+        else:
+            baselogdir = self.flags.pop("base_logdir")
+        if "rel_logdir" not in self.flags:
+            rellogdir = utils.gen_relative_logdir(f'{name}_{datasets}')
+        else:
+            rellogdir = self.flags.pop("rel_logdir")
+        self.config.update({
+            "logdir": os.path.join(baselogdir, rellogdir),
+            "rel_logdir": rellogdir,
+            "base_logdir": baselogdir
+        })
+        if self.config.print_config:
+            print(self.config)
         global config
         config = self.config
+        priv = self.config.private_file
+        if priv is not None and priv:
+            extras = utils.get_classes(priv, Experiment, pkg=None)
+            for k in extras:
+                if k in exp_dict:
+                    print(f"WARNING: {k} is already a predefined experimment")
+                else:
+                    exp_dict[k] = extras[k]
+
         global experiment
-        experiment = EXPRDICT[name](config=self.config, datasets=datasets)
+        experiment = exp_dict[name](config=self.config, datasets=datasets)
         experiment()
         atexit.unregister(crash_save)
 
@@ -72,12 +90,19 @@ class Main(object):
         raise NotImplementedError()
 
     def data(self, datasets, method=""):
-        expr = EXPRDICT['data'](config=self.config, datasets=datasets)
+        exp_dict = utils.get_classes(EXPPATH, Experiment)
+        expr = exp_dict['data'](config=self.config, datasets=datasets)
         if method == "":
             call = expr
         else:
             call = getattr(expr, method)
         call()
+
+    def available(self):
+        exp_dict = utils.get_classes(EXPPATH, Experiment)
+        print("available experiments are:")
+        for k in exp_dict.keys():
+            print(f'-- {k}')
 
 
 def main():

@@ -9,8 +9,9 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 from transformers import LxmertTokenizer
 
-from mllib.processors import datasets, images
-from mllib.utils import get_duration
+from mllib.dataset.gqa import load_temp_gqa
+from mllib.decorators import get_duration
+from mllib.processing import Image
 
 
 # probably a better collate fucntion right here
@@ -70,7 +71,7 @@ class UniversalDataset(Dataset):
         self._data_checks()
 
     def _init_id2imgidx(self):
-        self._init_id2imgidx = defaultdict(dict)
+        self._id2imgidx = defaultdict(dict)
         if self.arrow_dict is not None:
             for dset in self.arrow_dict:
                 for i, k in enumerate(self.arrow_dict[dset]["img_id"]):
@@ -88,7 +89,7 @@ class UniversalDataset(Dataset):
         }
 
     def _init_dataset(self):
-        d = datasets.NAME2DATASET[self.dataset_name](self.config, self.split)
+        d = load_temp_gqa(self.config, self.split)
         self._text_data = d['text']
         self._labels = d['labels']
         self._arrow_dict = d['arrow']
@@ -120,7 +121,7 @@ class UniversalDataset(Dataset):
                 [len(self.id2imgidx[x]) for x in self.id2imgidx]
             ), len(arrow_img_ids)
             for x in self.text_data:
-                text_img_id = self.clean_imgid(x["img_id"])
+                text_img_id = x["img_id"]
                 assert isinstance(text_img_id, str)
                 if text_img_id not in arrow_img_ids:
                     unfound.add(text_img_id)
@@ -136,18 +137,11 @@ class UniversalDataset(Dataset):
                 )
             else:
                 print(f"removing {p_unfound}% of {self.split} data")
-                self.text_data = [
-                    x
-                    for x in self.text_data
-                    if self.clean_imgid(x["img_id"]) not in unfound
-                ]
+                self._text_data = [x for x in self.text_data if x["img_id"] not in unfound]
                 print(f"new num of text-img entries: {len(self.text_data)}")
             del arrow_img_ids
             del unfound
             del num_unfound
-
-    def clean_imgid(self, img_id):
-        return str(img_id).replace(" ", "")
 
     def get_img(self, dset, img_id):
         arrow_data = {}
@@ -181,7 +175,7 @@ class UniversalDataset(Dataset):
                 self.path_dict[dset], img_id + f".{self.config.data.img_format}"
             )
             assert os.path.isfile(file), (file, self.split)
-            img, (ogh, ogw), scales = images.img_to_tensor(
+            img, (ogh, ogw), scales = Image.img_to_tensor(
                 file,
                 min_size=self.config.data.img_max_size,
                 max_size=self.config.data.img_max_size,
@@ -253,7 +247,7 @@ class UniversalDataset(Dataset):
     def __getitem__(self, i):
         if not self.config.data.img_first:
             entry = self.text_data[i]
-            img_id = self.clean_imgid(entry.get("img_id"))
+            img_id = entry.get("img_id")
             dset = entry.get("dset")
             entries = [entry]
         else:
@@ -362,7 +356,12 @@ class UniversalLoader(DataLoader):
 
     @staticmethod
     def toCuda(batch, device=None):
-        if isinstance(device, int):
+        if device is None:
+            if torch.cuda.is_available():
+                device = "cuda"
+            else:
+                device = "cpu"
+        elif isinstance(device, int):
             if device == -1:
                 device = "cpu"
             else:
@@ -370,10 +369,6 @@ class UniversalLoader(DataLoader):
         for k in batch:
             v = batch.get(k)
             if isinstance(v, torch.Tensor):
-                if device is None:
-                    if torch.cuda.is_available():
-                        batch[k] = v.cuda()
-                    else:
-                        batch[k] = v.cpu()
-                else:
-                    batch[k] = v.to(device)
+                batch[k] = v.to(device)
+            elif isinstance(v, list) and isinstance(v[0], torch.Tensor):
+                batch[k] = [i.to(device) for i in v]

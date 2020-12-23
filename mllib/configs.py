@@ -1,111 +1,11 @@
-import json
 import os
-import tempfile
 from typing import List, Union
 
-import yaml
-
+from mllib.abc.config import Config
 from mllib.utils import get_most_free_gpu, get_nvidia_gpu_memory
 
-DELIM = ","
 
-
-class BaseConfig:
-    _identify = None
-    _overwritten = {}
-
-    def __init__(self, **kwargs):
-        for f, v in self:
-            if f in kwargs:
-                kv = kwargs.get(f)
-                if v != kv:
-                    setattr(self, f, kv)
-                    self._overwritten[f] = v
-
-    def __iter__(self):
-        for k in set(self.__class__.__dict__.keys()).union(set(self.__dict__.keys())):
-            if k[0] != "_":
-                yield k, getattr(self, k)
-
-    def __str__(self):
-        string = ""
-        for k, v in self:
-            if hasattr(v, "_identify"):
-                string += f"{k}:\n"
-                string += "".join([f"--{vsub}\n" for vsub in str(v).split("\n")])
-            else:
-                string += f"{k}:{v}\n"
-        return string[:-1]
-
-    @staticmethod
-    def parse(arg):
-        if isinstance(arg, str) and DELIM in arg:
-            arg = arg.split(DELIM)
-            if len(arg) == 0:
-                arg = ""
-            else:
-                arg = tuple(arg)
-        elif isinstance(arg, str) and arg.isdigit():
-            return int(arg)
-        elif isinstance(arg, str) and arg.lower() == "true":
-            arg = True
-        elif isinstance(arg, str) and arg.lower() == "false":
-            arg = False
-        return arg
-
-    def to_dict(self):
-        data = {}
-        for k, v in self:
-            if hasattr(v, "_identify"):
-                data[k] = v.to_dict()
-            else:
-                data[k] = v
-        return data
-
-    def dump_json(self, file):
-        json.dump(self.to_dict(), open(file, "w"))
-
-    def dump_yaml(self, file):
-        yaml.dump(self.to_dict(), open(file, "w"), default_flow_style=False)
-
-    @classmethod
-    def load(cls, fp_name_dict: Union[str, dict]):
-        raise NotImplementedError()
-
-    @classmethod
-    def from_dict(cls, config_dict):
-        config = cls()
-        config.update(config_dict)
-        return config
-
-    def update(self, updates: dict):
-        if hasattr(self, "dryrun") and not self.dryrun:
-            if "logdir" in updates:
-                logfile = updates.get("logfile", getattr(self, "logfile", None))
-                if logfile is not None:
-                    updates["logfile"] = os.path.join(
-                        updates.get("logdir"),
-                        logfile.split("/")[-1]
-                    )
-            elif "logfile" in updates:
-                updates["logfile"] = os.path.join(getattr(self, "logdir", ''), updates["logfile"])
-        elif hasattr(self, "dryrun") and self.dryrun:
-            self.logdir = tempfile.mkdtemp()
-            self.logfile = os.path.join(self.logdir, self.logfile.split("/")[-1])
-
-        for k, orig_v in self:
-            if k in updates:
-                v = updates.pop(k)
-                if isinstance(v, dict) and hasattr(orig_v, "_identify"):
-                    orig_v.update(v)
-                else:
-                    setattr(self, k, v)
-        logdir = getattr(self, "logdir", None)
-        if logdir is not None:
-            os.makedirs(self.logdir, exist_ok=True)
-
-
-class ExtractConfig(BaseConfig):
+class ExtractConfig(Config):
     outfile: str = ""
     inputdir: str = ""
     log_name: str = "extract_logs.txt"
@@ -117,7 +17,7 @@ class ExtractConfig(BaseConfig):
         self.inputdir = inputdir
 
 
-class LxmertConfig(BaseConfig):
+class LxmertConfig(Config):
     from_transformers: bool = True
     ckp_name_or_path = "unc-nlp/lxmert-base-uncased"
     known_labels: int = 1842
@@ -126,13 +26,13 @@ class LxmertConfig(BaseConfig):
     x_layers: int = 5
 
 
-class ViTConfig(BaseConfig):
+class ViTConfig(Config):
     from_transformers: bool = False
     vit_variant: Union[str, None] = "ViT-B_16"
     ckp_name_or_path: str = ""
 
 
-class ModelsConfig(BaseConfig):
+class ModelsConfig(Config):
     names = ("lxmert", "vit")
     main_model: str = "lxmert"
     aux_models: tuple = ("frcnn", "vit")
@@ -150,7 +50,7 @@ class ModelsConfig(BaseConfig):
         self.update(kwargs.get("models", {}))
 
 
-class PretrainConfig(BaseConfig):
+class PretrainConfig(Config):
     epochs: int = 4
     task_matched: bool = False
     task_mask_lm: bool = False
@@ -161,7 +61,7 @@ class PretrainConfig(BaseConfig):
     batch_size: int = 32
 
 
-class EvalConfig(BaseConfig):
+class EvalConfig(Config):
     half_precision: bool = True
     task_matched: bool = False
     task_mask_lm: bool = False
@@ -172,7 +72,7 @@ class EvalConfig(BaseConfig):
     batch_size: int = 32
 
 
-class TrainConfig(BaseConfig):
+class TrainConfig(Config):
     learning_rate: float = 1e-5
     half_precision: bool = True
     epochs: int = 4
@@ -189,7 +89,7 @@ class TrainConfig(BaseConfig):
     batch_size: int = 32
 
 
-class DataConfig(BaseConfig):
+class DataConfig(Config):
     img_first: bool = False
     pad_collate: bool = True
     shuffle: bool = True
@@ -227,7 +127,7 @@ class DataConfig(BaseConfig):
     pos_dim: int = 4
 
 
-class PathesConfig(BaseConfig):
+class PathesConfig(Config):
     datadirs: Union[List[str], str] = "/playpen1/home/avmendoz/data"
     vg_train: str = "vg/train"
     vg_test: str = "vg/test"
@@ -269,7 +169,7 @@ class PathesConfig(BaseConfig):
                 setattr(self, f, v)
 
 
-class GlobalConfig(BaseConfig):
+class GlobalConfig(Config):
 
     data: DataConfig = None
     models: ModelsConfig = None
@@ -278,7 +178,6 @@ class GlobalConfig(BaseConfig):
     run: Union[None, PretrainConfig, TrainConfig, ExtractConfig, EvalConfig] = None
 
     logging: bool = True
-    logfile: str = "logs.txt"
     gpu: int = None
     aux_gpu: int = None
     dryrun: bool = False
@@ -291,25 +190,27 @@ class GlobalConfig(BaseConfig):
     train_aliases: tuple = ("train", "finetune", "pretrain")
     valid_aliases: tuple = ("val", "valid", "validation")
     test_aliases: tuple = ("test",)
-    logdir: str = os.path.join(os.environ.get("HOME", os.getcwd()), "logs")
+    imgid_aliases: tuple = ("img", "image", "imgid", "img_id", "iid")
+    text_aliases: tuple = ("text", "sent", "que", "question")
+    base_logdir: str = os.path.join(os.environ.get("HOME", os.getcwd()), "logs")
+    rel_logdir: str = ''
+    logdir: str = None
     test_save: bool = False
     save_on_crash = False
     save_after_exp = True
     save_after_epoch = False
-    email_on_failure = False
     email = None
+    private_file = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.logdir = os.path.join(self.base_logdir, self.rel_logdir)
         self.run = TrainConfig(**kwargs)
         self.evaluate = EvalConfig(**kwargs)
         self.data = DataConfig(**kwargs)
         self.models = ModelsConfig(**kwargs)
         self.pathes = PathesConfig(**kwargs)
-        self.logfile = os.path.join(self.logdir, self.logfile)
         self._set_gpus()
-        if self.print_config:
-            print(self)
         os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
     def _set_gpus(self):
