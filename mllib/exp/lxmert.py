@@ -4,7 +4,7 @@ from mllib.loop import lxmert
 
 class Lxmert(Experiment):
 
-    name: str = "runlxmert"
+    name: str = "lxmert"
     loops_to_models: dict = {lxmert.Lxmert: ["lxmert"], lxmert.Lxmert.eval_instance("eval_lxmert"): ["lxmert"]}
 
     def loginfo(self, **kwargs):

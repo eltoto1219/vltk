@@ -52,9 +52,10 @@ def load_temp_gqa(config, split):
 
     if config.dryrun and not config.data.img_first:
         stop_int = config.run.batch_size
-    elif not config.dryrun and not config.data.img_fist:
+    elif not config.dryrun and not config.data.img_first:
         stop_int = max(1, int(np.ceil(stop_int * config.data.percent_data)))
 
+    print("attempt load ", stop_int, " data samples")
     text_data = []
     imgid_to_text = defaultdict(list)
     text_img_ids = set()
@@ -86,13 +87,12 @@ def load_temp_gqa(config, split):
                     text_img_ids.add(img_id)
                 text_data.append(entry)
             data_stop += 1
+
             if config.data.img_first and config.dryrun:
                 if all(list(map(lambda l: len(l) >= 2, imgid_to_text.values()))):
                     break
-            if stop_int == idx:
+            if stop_int == data_stop:
                 break
-        if stop_int == idx:
-            break
 
     if config.data.img_first:
         img_ids = list(imgid_to_text.keys())
@@ -107,6 +107,7 @@ def load_temp_gqa(config, split):
         img_ids = text_img_ids
 
     assert len(text_data) > 0
+    assert len(img_ids) > 0
     print(f"num ignored: {num_ignored} ignored: {ignored_labels}")
     return {"text": text_data, "pathes": path_dict, "arrow": arrow, "labels": labels, "img_ids": img_ids,
             "imgid_to_text": imgid_to_text}
