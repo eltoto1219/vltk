@@ -12,7 +12,7 @@ some immidiately visible funcitonality:
 2. save experiment information, models, optimizers, etc .. on crash for perfect recovery
 3. send email on experiment crash
 
-<br />
+
 <br />
 The idea is to make research prototyping/development as fast as possible. All the while, keeping all of your work confidential.
 We can do this by specifying a "private" experiment file and add a "private_file=sample.py" flag or option in a yaml file ("sample.yaml")
