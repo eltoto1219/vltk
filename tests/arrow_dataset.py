@@ -36,5 +36,3 @@ class ArrowDataset(unittest.TestCase):
 
     def test_remove_labeled_column_text(self):
         pass
-
-
