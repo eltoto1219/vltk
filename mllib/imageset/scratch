@@ -1,0 +1,41 @@
+    # @staticmethod
+    # def add_column_on_disk(path, extra_features, extra_data, save_to):
+    #     # calculate size differential
+    #     if path == save_to:
+    #         print("Warning: adding this column will now overwrite current data in:")
+    #         for x in range(1):
+    #             print(f"{x} seconds")
+    #             time.sleep(1)
+    #         print("Proceeding...")
+    #     else:
+    #         print(f"saving to {save_to}")
+
+    # @staticmethod
+    # def remove_column_from_disk(path, extra_features, extra_data, save_to):
+    #     # calculate size differntial
+    #     if path == save_to:
+    #         print("Warning: adding this column will now overwrite current data in:")
+    #         for x in range(1):
+    #             print(f"{x} seconds")
+    #             time.sleep(1)
+    #         print("Proceeding...")
+    #     else:
+    #         print(f"saving to {save_to}")
+
+    # def _add_labeled_text_data(self):
+    #     pass
+
+    # def _add_unlabeled_text_data(self):
+    #     pass
+
+    # def _add_label(self):
+    #     pass
+
+    # def _add_label_scores(self):
+    #     pass
+
+    # def _append_labeled_text_data(self):
+    #     pass
+
+    # def _append_unlabeled_text_data(self):
+    #     pass

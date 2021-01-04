@@ -17,12 +17,14 @@ import torch
 import yaml
 from torch import nn
 
-PATH = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "libdata")
+PATH = os.path.join(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "libdata"
+)
 
 
 def get_classes(path, cls_defintion, pkg):
     if os.path.isfile(path):
-        modules = import_from_file(path, pkg)
+        modules = import_classes_from_file(path, pkg)
     else:
         modules = import_from_dir(path, pkg)
     filter_mods = [m for m in modules if is_cls(m[1], cls_defintion)]
@@ -35,14 +37,20 @@ def get_classes(path, cls_defintion, pkg):
 
 
 def is_cls(inspect_class, cls_defintion):
-    if cls_defintion in inspect.getmro(inspect_class) and inspect_class.__name__ != cls_defintion.__name__:
+    if (
+        cls_defintion in inspect.getmro(inspect_class)
+        and inspect_class.__name__ != cls_defintion.__name__
+    ):
         return True
     else:
         return False
 
 
 def is_model(inspect_class):
-    if nn.Module in inspect.getmro(inspect_class) and inspect_class.__name__ != "Module":
+    if (
+        nn.Module in inspect.getmro(inspect_class)
+        and inspect_class.__name__ != "Module"
+    ):
         return True
     else:
         return False
@@ -52,21 +60,39 @@ def import_from_dir(clsdir, pkg):
     modules = []
     for p in os.listdir(clsdir):
         file = os.path.join(clsdir, p)
-        mods = import_from_file(file, pkg)
+        mods = import_classes_from_file(file, pkg)
         modules.extend(mods)
 
     return modules
 
 
-def import_from_file(clspath, pkg):
+def import_classes_from_file(clspath, pkg):
     clsfile = clspath.split("/")[-1]
     clsname = clsfile.split(".")[0]
     if pkg is not None:
         clsname = pkg + f".{clsname}"
-    clsdir = clspath.replace(clsfile, '')
+    clsdir = clspath.replace(clsfile, "")
     sys.path.insert(0, clsdir)
     mod = importlib.import_module(clsname, package=pkg)
     return inspect.getmembers(mod, inspect.isclass)
+
+
+def import_funcs_from_file(clspath, pkg):
+    clsfile = clspath.split("/")[-1]
+    clsname = clsfile.split(".")[0]
+    if pkg is not None:
+        clsname = pkg + f".{clsname}"
+    clsdir = clspath.replace(clsfile, "")
+    sys.path.insert(0, clsdir)
+    mod = importlib.import_module(clsname, package=pkg)
+    return {func[0]: func[1] for func in inspect.getmembers(mod, inspect.isfunction)}
+
+
+def get_func_signature(func):
+    sig = inspect.signature(func).parameters
+    return sig
+    # print(help(sig))
+    # sig_parsed = [arg.split("=")[0] for arg in sig]
 
 
 def clean_imgid(img_id):
@@ -105,27 +131,27 @@ def send_email(address, message, failure=True):
     msg = EmailMessage()
     msg.set_content(message)
     if failure:
-        msg['Subject'] = 'MLLIB failure!'
+        msg["Subject"] = "MLLIB failure!"
     else:
-        msg['Subject'] = 'MLLIB success!'
-    msg['From'] = sender
-    msg['To'] = [address]
-    s = smtplib.SMTP('localhost')
+        msg["Subject"] = "MLLIB success!"
+    msg["From"] = sender
+    msg["To"] = [address]
+    s = smtplib.SMTP("localhost")
     s.send_message(msg)
     s.quit()
 
 
 def gen_relative_logdir(base):
-    specifications = ['year', 'month', 'day', 'hour']
+    specifications = ["year", "month", "day", "hour"]
     date = datetime.now()
-    date = ':'.join([str(getattr(date, s)) for s in specifications])
+    date = ":".join([str(getattr(date, s)) for s in specifications])
     return base + "_" + date
 
 
 def unflatten_dict(d):
     ret = defaultdict(dict)
     for k, v in d.items():
-        k1, delim, k2 = k.partition('.')
+        k1, delim, k2 = k.partition(".")
         if delim:
             ret[k1].update({k2: v})
         else:

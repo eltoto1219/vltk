@@ -53,7 +53,8 @@ setup(
         "mllib/exp",
         "mllib/loop"
         "mllib/abc"
-        "mllib/dataset"
+        "mllib/textset"
+        "mlib/imageset"
     ],
     install_requires=dependencies(),
 )

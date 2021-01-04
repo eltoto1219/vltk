@@ -1,9 +1,8 @@
 import os
-import torch
 import unittest
 
+import torch
 from mllib import Config, GeneralizedRCNN, Preprocess, SingleImageViz, get_data
-
 
 PATH = os.path.dirname(os.path.realpath(__file__))
 URL = "https://raw.githubusercontent.com/airsplay/py-bottom-up-attention/master/demo/data/images/input.jpg"

@@ -24,8 +24,8 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
-from mllib.compat import (WEIGHTS_NAME, Config, cached_path,
-                                 hf_bucket_url, is_remote_url, load_checkpoint)
+from mllib.compat import (WEIGHTS_NAME, Config, cached_path, hf_bucket_url,
+                          is_remote_url, load_checkpoint)
 from torch import nn
 from torch.nn import functional as F
 from torch.nn.modules.batchnorm import BatchNorm2d
@@ -1597,8 +1597,7 @@ class RPN(nn.Module):
     def training(self, images, image_shapes, features, gt_boxes):
         pass
 
-    def inference(self, outputs, images, image_shapes, features, gt_boxes=None,
-            scales_yx=None, ignorey=None):
+    def inference(self, outputs, images, image_shapes, features, gt_boxes=None, scales_yx=None, ignorey=None):
         outputs = find_top_rpn_proposals(
             outputs.predict_proposals(),
             outputs.predict_objectness_logits(),
@@ -1623,8 +1622,7 @@ class RPN(nn.Module):
         (proposal_boxes, logits) = tuple(map(list, zip(*results)))
         return proposal_boxes, logits
 
-    def forward(self, images, image_shapes, features, gt_boxes=None, ignorey=None,
-            scales_yx=None):
+    def forward(self, images, image_shapes, features, gt_boxes=None, ignorey=None, scales_yx=None):
         """
         Args:
             images (torch.Tensor): input images of length `N`
@@ -1731,13 +1729,15 @@ class FRCNN(nn.Module):
     def __init__(self, cfg):
         super().__init__()
 
-        self.config= cfg
+        self.min_detections = cfg.min_detections
+        self.max_detections = cfg.max_detections
+        self.config = cfg
         self.device = torch.device(cfg.MODEL.DEVICE)
         self.backbone = build_backbone(cfg)
         self.proposal_generator = RPN(cfg, self.backbone.output_shape())
         self.roi_heads = Res5ROIHeads(cfg, self.backbone.output_shape())
         self.roi_outputs = ROIOutputs(cfg)
-        self.to(self.device)
+        self.to(cfg.model.device)
 
     @classmethod
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
@@ -1821,12 +1821,13 @@ class FRCNN(nn.Module):
 
         #config.device = "cuda:0"
         model = cls(config)
+        model = model.to(torch.device(config.model.device))
         #model.cuda()
 
         if state_dict is None:
             try:
                 try:
-                    state_dict = torch.load(resolved_archive_file, map_location=torch.device(model.config.device))
+                    state_dict = torch.load(resolved_archive_file, map_location=torch.device(config.model.device))
                 except Exception:
                     state_dict = load_checkpoint(resolved_archive_file)
 
@@ -1905,8 +1906,7 @@ class FRCNN(nn.Module):
 
         return model
 
-    def forward(self, images, image_shapes, gt_boxes=None, proposals=None,
-            scales_yx=None, ignorey=None,**kwargs):
+    def forward(self, images, image_shapes, gt_boxes=None, proposals=None, scales_yx=None, ignorey=None,**kwargs):
         '''
         kwargs:
             max_detections (int), return_tensors {"np", "pt", None}, padding {None,
@@ -1964,7 +1964,7 @@ class FRCNN(nn.Module):
 
         # will we pad???
         subset_kwargs = {
-            "max_detections": kwargs.get("max_detections", None),
+            "max_detections": self.max_detections,
             "return_tensors": kwargs.get("return_tensors", None),
             "pad_value": kwargs.get("pad_value", 0),
             "padding": kwargs.get("padding", None)

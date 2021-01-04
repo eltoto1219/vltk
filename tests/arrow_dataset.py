@@ -1,12 +1,9 @@
 import os
-import unittest
-
-from mllib import get_data
 
 TEST_PATH = os.path.dirname(os.path.realpath(__file__))
 
 
-class TestGeneric(unittest.TestCase):
+class ArrowDataset(unittest.TestCase):
 
     # setup rando things like schema, etc
     # for tests, we will want to test each new method, plus a test extraction. The test extraction will have to be first
@@ -41,9 +38,3 @@ class TestGeneric(unittest.TestCase):
         pass
 
 
-'''
-useful methods:
-    save_to_disk
-    datasets.concatenate_datasets
-    load from disk
-'''
