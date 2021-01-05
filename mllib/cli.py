@@ -10,7 +10,9 @@ from mllib import configs, utils
 from mllib.abc.experiment import Experiment
 
 STDERR = sys.stderr = StringIO()
-EXPPATH = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), ".")), "exp")
+EXPPATH = os.path.join(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), ".")), "exp"
+)
 
 
 @atexit.register
@@ -49,7 +51,7 @@ class Main(object):
         print(kwargs)
         utils.unflatten_dict(kwargs)
         self.flags = kwargs
-        self.config = configs.GlobalConfig(**self.flags)
+        self.config = configs.Config(**self.flags)
 
     def exp(self, name, datasets):
         exp_dict = utils.get_classes(EXPPATH, Experiment, pkg="mllib.exp")
@@ -58,14 +60,16 @@ class Main(object):
         else:
             baselogdir = self.flags.pop("base_logdir")
         if "rel_logdir" not in self.flags:
-            rellogdir = utils.gen_relative_logdir(f'{name}_{datasets}')
+            rellogdir = utils.gen_relative_logdir(f"{name}_{datasets}")
         else:
             rellogdir = self.flags.pop("rel_logdir")
-        self.config.update({
-            "logdir": os.path.join(baselogdir, rellogdir),
-            "rel_logdir": rellogdir,
-            "base_logdir": baselogdir
-        })
+        self.config.update(
+            {
+                "logdir": os.path.join(baselogdir, rellogdir),
+                "rel_logdir": rellogdir,
+                "base_logdir": baselogdir,
+            }
+        )
         if self.config.print_config:
             print(self.config)
         global config
@@ -92,7 +96,7 @@ class Main(object):
 
     def data(self, datasets, method=""):
         exp_dict = utils.get_classes(EXPPATH, Experiment)
-        expr = exp_dict['data'](config=self.config, datasets=datasets)
+        expr = exp_dict["data"](config=self.config, datasets=datasets)
         if method == "":
             call = expr
         else:
@@ -103,7 +107,7 @@ class Main(object):
         exp_dict = utils.get_classes(EXPPATH, Experiment)
         print("available experiments are:")
         for k in exp_dict.keys():
-            print(f'-- {k}')
+            print(f"-- {k}")
 
 
 def main():

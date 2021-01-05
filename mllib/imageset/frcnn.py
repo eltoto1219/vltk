@@ -13,7 +13,12 @@ TESTPATH = "/home/avmendoz/mllib/tests"
 
 
 class FRCNNSet(Imageset):
+    @property
+    def dataset(self):
+        return self._dataset
+
     def forward(filepath, image_preprocessor, model, **kwargs):
+
         pad_value = kwargs.get("pad_value", 0.0)
         min_size = kwargs.get("min_size", 800)
         max_size = kwargs.get("max_size", 800)

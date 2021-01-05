@@ -1,4 +1,5 @@
 import json
+from collections import Iterable
 from typing import Union
 
 import yaml
@@ -24,6 +25,7 @@ class Config:
                 yield k, getattr(self, k)
 
     def __str__(self):
+        # or, i could have simply done a yaml dumps
         string = ""
         for k, v in self:
             if hasattr(v, "_identify"):
@@ -81,4 +83,17 @@ class Config:
                 if isinstance(v, dict) and hasattr(orig_v, "_identify"):
                     orig_v.update(v)
                 else:
-                    setattr(self, k, v)
+                    if isinstance(orig_v, Iterable):
+                        if isinstance(v, Iterable):
+                            setattr(self, k, orig_v + v)
+                        else:
+                            setattr(self, k, orig_v.add(v))
+                    else:
+                        setattr(self, k, v)
+
+    def list_subconfigs(self):
+        subconfig_names = []
+        for k, orig_v in self:
+            if hasattr(orig_v, "_identify"):
+                subconfig_names.append(k)
+        return subconfig_names

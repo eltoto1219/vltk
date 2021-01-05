@@ -1,8 +1,12 @@
 import json
 import os
 
-PATH = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "libdata")
+PATH = os.path.join(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "libdata"
+)
 ANS_CONVERT = json.load(open(os.path.join(PATH, "convert_answers.json")))
+
+def single_label(label):
 
 
 def process_answer_default(ans):

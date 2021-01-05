@@ -11,3 +11,13 @@ def get_duration(func):
         return output
 
     return wrapper
+
+
+def external_config(config_class):
+    @functools.wraps(config_class)
+    def wrapper():
+        setattr(config_class, "_identify", None)
+        assert hasattr(config_class, "_identify", None)
+        return config_class
+
+    return wrapper

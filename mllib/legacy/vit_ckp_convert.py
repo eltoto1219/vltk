@@ -20,7 +20,7 @@ import os
 import ml_collections
 import numpy as np
 import torch
-from mllib.configs import GlobalConfig, ModelConfig, PathesConfig, TrainConfig
+from mllib.configs import Config, ModelConfig, PathesConfig, TrainConfig
 from mllib.models.vit import VisionTransformer as VisionTransformerPytorch
 from mllib.utils import convert_jax_to_torch_weights
 
@@ -277,7 +277,7 @@ MODEL_SIZES = {
 }
 
 
-def vit_jax_to_pytorch(model_config, train_config, global_config, pathes_config):
+def vit_jax_to_pytorch(model_config, train_config, config, pathes_config):
     vit_variant = model_config.vit_variant
     vit_pretrained_dir = pathes_config.vit_pretrained_dir
     vitfp = os.path.join(vit_pretrained_dir, vit_variant + ".npz")
@@ -316,6 +316,6 @@ if __name__ == "__main__":
     # print(f'\nChanged CWD to "{root}"')
     model_config = ModelConfig
     train_config = TrainConfig
-    global_config = GlobalConfig
+    config = Config
     pathes_config = PathesConfig
-    vit_jax_to_pytorch(model_config, train_config, global_config, pathes_config)
+    vit_jax_to_pytorch(model_config, train_config, config, pathes_config)

@@ -294,14 +294,8 @@ class Imageset(ds.Dataset, ABC):
     def forward(filepath, image_preprocessor, model, **kwargs):
         raise Exception("child forward is not being called")
 
-
-"""
-figure out how to load specific split
-       dataset_kwargs = ArrowReader(self._cache_dir, self.info).read(
-            name=self.name,
-            instructions=split,
-            split_infos=self.info.splits.values(),
-        )
-
-record batch stream reader for partial readers, perhaps it will be easiest to load schema here
-"""
+    # def raw_image_dir(self, config, split):
+    #     if split in config.train_aliases:
+    #         return config.pathes.coco_raw_train
+    #     if split in config.valid_aliases or split in config.eval_aliases:
+    #         return config.pathes.coco_raw_val

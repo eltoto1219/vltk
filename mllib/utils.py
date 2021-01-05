@@ -2,6 +2,7 @@ import collections
 import contextlib
 import importlib
 import inspect
+import json
 import os
 import smtplib
 import subprocess
@@ -12,6 +13,7 @@ from email.message import EmailMessage
 from typing import Tuple, Union
 
 import datasets
+import jsonlines
 import numpy as np
 import torch
 import yaml
@@ -20,6 +22,19 @@ from torch import nn
 PATH = os.path.join(
     os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "libdata"
 )
+
+
+
+def get_raw_images()
+
+
+def try_load_json(filepath):
+    try:
+        with open(filepath) as f:
+            yield json.load(f)
+    except json.decoder.JSONDecodeError:
+        with open(filepath) as f:
+            yield jsonlines.open(f)
 
 
 def get_classes(path, cls_defintion, pkg):

@@ -19,8 +19,16 @@ def load_temp_gqa(config, split):
     # labels
     labels = json.load(open(config.pathes.gqa_labels))
     # imgs
-    arrow_fp = config.pathes.vg_train_arrow if split in config.train_aliases else config.pathes.vg_test_arrow
-    raw_fp = config.pathes.vg_train if split in config.train_aliases else config.pathes.vg_test
+    arrow_fp = (
+        config.pathes.vg_train_arrow
+        if split in config.train_aliases
+        else config.pathes.vg_test_arrow
+    )
+    raw_fp = (
+        config.pathes.vg_train
+        if split in config.train_aliases
+        else config.pathes.vg_test
+    )
     arrow = load_arrow({"gqa": arrow_fp}, config.data.arrow_fields)
     if config.data.use_raw_imgs:
         path_dict = {"gqa": raw_fp}
@@ -77,9 +85,18 @@ def load_temp_gqa(config, split):
                 ignored_labels.add(label)
                 continue
             else:
-                entry = {"img_id": img_id, "text": data["sent"], "dset": "gqa", "label": torch.tensor(labels[label])}
+                entry = {
+                    "img_id": img_id,
+                    "text": data["sent"],
+                    "dset": "gqa",
+                    "label": torch.tensor(labels[label]),
+                }
                 if config.data.img_first:
-                    if config.dryrun and len(imgid_to_text) == bz and img_id not in imgid_to_text:
+                    if (
+                        config.dryrun
+                        and len(imgid_to_text) == bz
+                        and img_id not in imgid_to_text
+                    ):
                         pass
                     else:
                         imgid_to_text[img_id].append(entry)
@@ -109,5 +126,11 @@ def load_temp_gqa(config, split):
     assert len(text_data) > 0
     assert len(img_ids) > 0
     print(f"num ignored: {num_ignored} ignored: {ignored_labels}")
-    return {"text": text_data, "pathes": path_dict, "arrow": arrow, "labels": labels, "img_ids": img_ids,
-            "imgid_to_text": imgid_to_text}
+    return {
+        "text": text_data,
+        "pathes": path_dict,
+        "arrow": arrow,
+        "labels": labels,
+        "img_ids": img_ids,
+        "imgid_to_text": imgid_to_text,
+    }
