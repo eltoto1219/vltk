@@ -6,7 +6,6 @@ import pickle
 import tempfile
 from abc import ABC, abstractmethod
 from collections import OrderedDict
-from io import BytesIO
 from pathlib import Path
 
 import datasets
@@ -293,9 +292,3 @@ class Imageset(ds.Dataset, ABC):
     @abstractmethod
     def forward(filepath, image_preprocessor, model, **kwargs):
         raise Exception("child forward is not being called")
-
-    # def raw_image_dir(self, config, split):
-    #     if split in config.train_aliases:
-    #         return config.pathes.coco_raw_train
-    #     if split in config.valid_aliases or split in config.eval_aliases:
-    #         return config.pathes.coco_raw_val

@@ -13,3 +13,16 @@ def accuracy(logits: torch.Tensor, gold: torch.Tensor, sigfigs=3):
 def roc_score():
     # roc_auc_score
     pass
+
+
+def soft_score(occurences):
+    if occurences == 0:
+        return 0
+    elif occurences == 1:
+        return 0.3
+    elif occurences == 2:
+        return 0.6
+    elif occurences == 3:
+        return 0.9
+    else:
+        return 1

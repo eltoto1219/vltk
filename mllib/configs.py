@@ -90,6 +90,11 @@ class FinetuneConfig(config.Config):
 
 
 class DataConfig(config.Config):
+    dryrun: bool = True
+    test_aliases: set = {"test"}
+    imgid_aliases: set = {"img", "image", "imgid", "img_id", "iid", "image_id"}
+    text_aliases: set = {"text", "sent", "que", "question"}
+    label_aliases: set = {"label", "truth", "answer", "gold"}
     textfile_extensions: Union[List[str], str] = ["json", "jsonl"]
     datadirs: Union[List[str], str] = "/playpen1/home/avmendoz/data"
     img_first: bool = False
@@ -141,7 +146,6 @@ class Config(config.Config):
     logging: bool = True
     gpu: int = None
     aux_gpu: int = None
-    dryrun: bool = False
     seed: int = 9595
     percent_min_gpu_free_mem: float = 0.75
     print_config: bool = True
@@ -149,10 +153,6 @@ class Config(config.Config):
     eval_aliases: set = {"testdev", "eval", "dev", "evaluation", "inference"}
     train_aliases: set = {"train", "finetune", "pretrain"}
     valid_aliases: set = {"val", "valid", "validation"}
-    test_aliases: set = {"test"}
-    imgid_aliases: set = {"img", "image", "imgid", "img_id", "iid", "image_id"}
-    text_aliases: set = {"text", "sent", "que", "question"}
-    label_aliases: set = {"label", "truth", "answer", "gold"}
     base_logdir: str = os.path.join(os.environ.get("HOME", os.getcwd()), "logs")
     rel_logdir: str = ""
     logdir: str = None

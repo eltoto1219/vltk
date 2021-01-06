@@ -24,10 +24,6 @@ PATH = os.path.join(
 )
 
 
-
-def get_raw_images()
-
-
 def try_load_json(filepath):
     try:
         with open(filepath) as f:

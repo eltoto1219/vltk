@@ -14,7 +14,9 @@ def frcnn(max_detections, pos_dim, visual_dim):
                     length=max_detections, feature=ds.Value("float32")
                 ),
                 "boxes": ds.Array2D((max_detections, pos_dim), dtype="float32"),
-                "normalized_boxes": ds.Array2D((max_detections, pos_dim), dtype="float32"),
+                "normalized_boxes": ds.Array2D(
+                    (max_detections, pos_dim), dtype="float32"
+                ),
                 "img_id": ds.Value("string"),
                 "obj_ids": ds.Sequence(
                     length=max_detections, feature=ds.Value("float32")
@@ -30,4 +32,3 @@ def frcnn(max_detections, pos_dim, visual_dim):
             }
         )
     )
-
