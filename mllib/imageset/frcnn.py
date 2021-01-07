@@ -1,10 +1,9 @@
-import json
-
-import pyarrow as pa
 import torch
+from mllib import compat
 from mllib.abc.imageset import Imageset
-from mllib.compat import Config
+from mllib.configs import Config
 from mllib.modeling.frcnn import FRCNN
+from mllib.textset.vqa import VQAset
 
 TESTPATH = "/home/avmendoz/mllib/tests"
 
@@ -13,10 +12,6 @@ TESTPATH = "/home/avmendoz/mllib/tests"
 
 
 class FRCNNSet(Imageset):
-    @property
-    def dataset(self):
-        return self._dataset
-
     def forward(filepath, image_preprocessor, model, **kwargs):
 
         pad_value = kwargs.get("pad_value", 0.0)
@@ -58,29 +53,30 @@ class FRCNNSet(Imageset):
 
 if __name__ == "__main__":
 
-    config = Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
-    config.model.device = 0
-    frcnn = FRCNN.from_pretrained("unc-nlp/frcnn-vg-finetuned", config=config)
-    imageset = FRCNNSet.extract(
-        path=TESTPATH,
-        model=frcnn,
-        img_format="jpg",
-        image_preprocessor="img_to_tensor",
-        features="frcnn",
-        max_detections=config.max_detections,
-        pos_dim=4,
-        visual_dim=2048,
-        device=config.model.device,
-        save_to="test.arrow",
-    )
+    # frcnnconfig = compat.Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
+    # frcnnconfig.model.device = 0
+    # frcnn = FRCNN.from_pretrained("unc-nlp/frcnn-vg-finetuned", config=frcnnconfig)
+    config = Config().data
 
-    loaded = FRCNNSet.from_file("test.arrow")
-    imap = loaded.img_to_row_map
-    imgid = next(iter(imap.keys()))
-    print(imap)
-    print("is aligned?", loaded.check_imgid_alignment())
-    print(f"entry for {imgid}: ", loaded.get_image(imgid).keys())
+    # imageset = FRCNNSet.extract(
+    #     dataset_name="coco2014",
+    #     config=config,
+    #     model=frcnn,
+    #     image_preprocessor="img_to_tensor",
+    #     features="frcnn",
+    #     max_detections=config.max_detections,
+    #     pos_dim=config.pos_dim,
+    #     visual_dim=config.visual_dim,
+    #     device=frcnnconfig.model.device,
+    # )
 
-    # load specific split:
-    loaded = FRCNNSet.from_file("test.arrow", split="subdir_extract_2")
-    print(loaded)
+    vqa = VQAset.from_config(config, split="val")["val"]
+    arrow_path = VQAset.locations(
+        config, split="trainval", imageset="coco2014", textset=VQAset.name
+    )["arrow"][0]
+    coco2014 = FRCNNSet.from_file(arrow_path)
+
+    imgid = next(iter(coco2014.img_to_row_map.keys()))
+
+    print("is aligned?", coco2014.check_imgid_alignment())
+    print(f"entry for {imgid}: ", coco2014.get_image(imgid).keys())

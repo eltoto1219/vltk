@@ -3,7 +3,6 @@ import json
 import logging as logger
 import os
 import pickle
-import tempfile
 from abc import ABC, abstractmethod
 from collections import OrderedDict
 from pathlib import Path
@@ -13,6 +12,9 @@ import datasets as ds
 import pyarrow
 from datasets import ArrowWriter, Features, Split
 from mllib.utils import get_func_signature, import_funcs_from_file
+from tqdm import tqdm
+
+TEST = True
 
 FEATURESPATH = os.path.join(
     os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "features.py"
@@ -100,18 +102,17 @@ class Imageset(ds.Dataset, ABC):
     @classmethod
     def extract(
         cls,
-        path,
         image_preprocessor,
         model,
         features,
+        dataset_name,
         config=None,
+        path=None,
         img_format="jpg",
         subset_ids=None,
         save_to=None,
         **kwargs,
     ):
-        imgid2row = {}
-        cur_row = 0
 
         if config is not None:
             presets = config.to_dict()
@@ -121,6 +122,19 @@ class Imageset(ds.Dataset, ABC):
         else:
             presets = kwargs
 
+        # will save in specified path or in the datadir specified in config
+        if save_to is None:
+            dd = config.datadirs
+            if isinstance(dd, str):
+                datadir = dd
+            else:
+                datadir = config.datadirs[-1]
+        else:
+            assert os.path.isdir(save_to) or not os.path.exists(save_to)
+            datadir = os.path.join(save_to)
+
+        print(f"SEARCHING recursively in {datadir}")
+
         if callable(image_preprocessor):
             pass
         elif isinstance(image_preprocessor, str):
@@ -129,7 +143,10 @@ class Imageset(ds.Dataset, ABC):
             raise ValueError("processor must be a string or function")
 
         assert model is not None, "must specify model"
-        assert os.path.isdir(path), "dir does not exist, images elsewhere?"
+        if path is not None:
+            assert os.path.isdir(path), "dir does not exist, images elsewhere?"
+        else:
+            path = datadir
 
         cls._check_forward(image_preprocessor, model, cls.forward)
 
@@ -155,100 +172,129 @@ class Imageset(ds.Dataset, ABC):
         split2buffer = OrderedDict()
         split2stream = OrderedDict()
         split2writer = OrderedDict()
-        for path in Path(path).rglob(f"*.{img_format}"):
-            split = path.parent.name
-            if split not in split2buffer:
-                # buffer = pyarrow.allocate_buffer(size=64, resizable=True)
-                buffer = pyarrow.BufferOutputStream()
-                # buffer = BytesIO()
-                split2buffer[split] = buffer
-                stream = pyarrow.output_stream(buffer)
-                split2stream[split] = stream
-                writer = ArrowWriter(features=features, stream=stream)
-                split2writer[split] = writer
-            else:
-                buffer = split2buffer[split]
-                stream = split2stream[split]
-                writer = split2writer[split]
+        split2imgid2row = {}
+        split2currow = {}
+        total = len(
+            [
+                p
+                for p in Path(path).rglob(f"*.{img_format}")
+                if dataset_name in str(p).lower()
+            ]
+        )
+        for path in tqdm(Path(path).rglob(f"*.{img_format}"), total=total):
+            if dataset_name in str(path).lower():
+                split = path.parent.name
 
-            # make sure file is not empty
-            if path.stat().st_size < 10:
-                continue
+                if split not in split2buffer:
+                    imgid2row = {}
+                    cur_row = 0
+                    # buffer = pyarrow.allocate_buffer(size=64, resizable=True)
+                    buffer = pyarrow.BufferOutputStream()
+                    # buffer = BytesIO()
+                    split2buffer[split] = buffer
+                    stream = pyarrow.output_stream(buffer)
+                    split2stream[split] = stream
+                    writer = ArrowWriter(features=features, stream=stream)
+                    split2writer[split] = writer
+                else:
+                    imgid2row = split2imgid2row[split]
+                    cur_row = split2currow[split]
+                    buffer = split2buffer[split]
+                    stream = split2stream[split]
+                    writer = split2writer[split]
+                if TEST and cur_row >= 10:
+                    continue
 
-            img_id = path.stem
-            if img_id in imgid2row:
-                print(f"skipping {img_id}. Already written to table")
-            imgid2row[img_id] = cur_row
-            cur_row += 1
-            filepath = str(path)
+                # make sure file is not empty
+                if path.stat().st_size < 10:
+                    continue
 
-            if subset_ids is not None and img_id not in subset_ids:
-                continue
+                img_id = path.stem
+                if img_id in imgid2row:
+                    print(f"skipping {img_id}. Already written to table")
+                imgid2row[img_id] = cur_row
+                cur_row += 1
+                split2currow[split] = cur_row
+                split2imgid2row[split] = imgid2row
+                filepath = str(path)
 
-            # now do model forward
-            output_dict = cls.forward(
-                filepath=filepath,
-                image_preprocessor=image_preprocessor,
-                model=model,
-                **presets,
-            )
-            assert isinstance(
-                output_dict, dict
-            ), "model outputs should be in dict format"
-            output_dict["img_id"] = [img_id]
-            assert set(features.keys()) == set(output_dict.keys()), (
-                f"mismatch between feature items"
-                f" and model output keys: {set(output_dict.keys()).symmetric_difference(set(features.keys()))}"
-            )
+                if subset_ids is not None and img_id not in subset_ids:
+                    continue
 
-            # write features
-            batch = features.encode_batch(output_dict)
-            writer.write_batch(batch)
+                # now do model forward
+                output_dict = cls.forward(
+                    filepath=filepath,
+                    image_preprocessor=image_preprocessor,
+                    model=model,
+                    **presets,
+                )
+                assert isinstance(
+                    output_dict, dict
+                ), "model outputs should be in dict format"
+                output_dict["img_id"] = [img_id]
+                assert set(features.keys()) == set(output_dict.keys()), (
+                    f"mismatch between feature items"
+                    f" and model output keys: {set(output_dict.keys()).symmetric_difference(set(features.keys()))}"
+                )
 
+                # write features
+                batch = features.encode_batch(output_dict)
+                writer.write_batch(batch)
+
+        split2imgid2row[split] = imgid2row
         # define datasets
         dsets = []
         splitdict = {}
+        print("saving...")
         for (_, writer), (split, b) in zip(split2writer.items(), split2buffer.items()):
             dset = datasets.Dataset.from_buffer(b.getvalue(), split=Split(split))
             dsets.append(dset)
+            imgid2row = split2imgid2row[split]
             # writer.finalize(close_stream=False)
             try:
                 writer.finalize(close_stream=False)
             except Exception:
                 pass
-            splitdict[split] = Split(split)
 
-        # concat datasets if multiple splits
-        if len(dsets) != 1:
-            dset = datasets.concatenate_datasets(dsets=dsets)
+            # concat datasets if multiple splits
+            # if len(dsets) != 1:
+            #     dset = datasets.concatenate_datasets(dsets=dsets)
 
-        # misc.
-        dset = pickle.loads(pickle.dumps(dset))
-        dset.info.splits = splitdict
-        if save_to is None:
-            tf = tempfile.NamedTemporaryFile()
-            save_to = tf.name
+            # misc.
+            dset = pickle.loads(pickle.dumps(dset))
+            save_to = os.path.join(datadir, "arrow", dataset_name, f"{split}.arrow")
+            os.makedirs(os.path.join(datadir, "arrow", dataset_name), exist_ok=True)
 
-        # add extra metadata
-        extra_meta = {"img_to_row_map": imgid2row}
-        table = set_metadata(dset._data, tbl_meta=extra_meta)
+            # add extra metadata
+            extra_meta = {"img_to_row_map": imgid2row}
+            table = set_metadata(dset._data, tbl_meta=extra_meta)
 
-        # define new writer
-        writer = ArrowWriter(path=save_to, schema=table.schema, with_metadata=False)
-        # raise Exception(writer._schema.metadata.keys())
+            # define new writer
+            writer = ArrowWriter(path=save_to, schema=table.schema, with_metadata=False)
+            # raise Exception(writer._schema.metadata.keys())
 
-        # save new table
-        writer.write_table(table)
-        e, b = Imageset.custom_finalize(writer, close_stream=True)
-        print(f"Success! You wrote {e} entry(s) and {b >> 20} mb")
-        print(f"Located: {save_to}")
+            # save new table
+            writer.write_table(table)
+            e, b = Imageset.custom_finalize(writer, close_stream=True)
+            print(f"Success! You wrote {e} entry(s) and {b >> 20} mb")
+            print(f"Located: {save_to}")
 
-        # return class
-        arrow_dset = cls(arrow_table=table, img_to_row_map=imgid2row, info=dset.info)
-        return arrow_dset
+            # return class
+            arrow_dset = cls(
+                arrow_table=table, img_to_row_map=imgid2row, info=dset.info
+            )
+            splitdict[split] = arrow_dset
+        return splitdict
 
     def set_img_to_row_map(self, imap):
         self._img_to_row_map = imap
+
+    @property
+    def get_imgids(self):
+        return set(self._img_to_row_map.keys())
+
+    def num_imgs(self):
+        return len(self.get_imgids)
 
     def align_imgids(self):
         for i in range(len(self)):

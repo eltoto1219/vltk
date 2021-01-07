@@ -2,7 +2,6 @@ import json
 import logging
 import os
 import pickle
-import tempfile
 from abc import ABCMeta, abstractmethod
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -13,19 +12,14 @@ import datasets as ds
 import pyarrow
 from datasets import ArrowWriter
 from mllib import utils
+from mllib.utils import import_funcs_from_file
 from tqdm import tqdm
 
-# LABELPROCPATH = os.path.join(
-#     os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "features.py"
-# )
+LABELPROCPATH = os.path.join(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "Label.py"
+)
 
-# LABELPROC = import_funcs_from_file(LABELPROCPATH, pkg="mllib.processing")
-
-
-def batcher(iterable, n=66):
-    l = len(iterable)
-    for ndx in range(0, l, n):
-        yield iterable[ndx : min(ndx + n, l)]
+LABELPROC = import_funcs_from_file(LABELPROCPATH, pkg="mllib.processing")
 
 
 def set_metadata(tbl, tbl_meta={}):
@@ -112,27 +106,27 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
             raise Exception(f"{split} is not a valid split")
         return splits
 
-    def _check_frequency(self, row, min_freq):
-        labels_scores = list(
-            filter(
-                lambda x: self.get_freq(x[0]) > min_freq,
-                [
-                    (l, s)
-                    for l, s in zip(
-                        row.get(Textset.label_key), row.get(Textset.score_key)
-                    )
-                ],
-            )
-        )
-        if labels_scores:
-            row[Textset.label_key] = []
-            row[Textset.score_key] = []
-            for ls in labels_scores:
-                row[Textset.label_key].append(ls[0])
-                row[Textset.score_key].append(ls[1])
-            return row
-        else:
-            return {k: [] for k in row}
+    # def _check_frequency(self, row, min_freq):
+    #     labels_scores = list(
+    #         filter(
+    #             lambda x: self.get_freq(x[0]) > min_freq,
+    #             [
+    #                 (l, s)
+    #                 for l, s in zip(
+    #                     row.get(Textset.label_key), row.get(Textset.score_key)
+    #                 )
+    #             ],
+    #         )
+    #     )
+    #     if labels_scores:
+    #         row[Textset.label_key] = []
+    #         row[Textset.score_key] = []
+    #         for ls in labels_scores:
+    #             row[Textset.label_key].append(ls[0])
+    #             row[Textset.score_key].append(ls[1])
+    #         return row
+    #     else:
+    #         return {k: [] for k in row}
 
     @staticmethod
     def _alias_check(key, aliases, batch_entry):
@@ -160,20 +154,21 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
         path_or_dir=None,
         supervised=True,
         save_to=None,
-        img_key=None,
-        label_key=None,
-        text_key=None,
+        min_label_frequency=None,
+        label_processor="label_default",
+        **kwargs,
     ):
-
-        # setup
-        if img_key is not None and label_key is not None and text_key is not None:
-            aliases = False
-        else:
-            assert config is not None
-            aliases = True
-            imgid_aliases = config.imgid_aliases
-            text_aliases = config.text_aliases
-            label_aliases = config.label_aliases
+        if supervised:
+            if min_label_frequency is None:
+                assert config is not None
+                min_label_frequency = config.min_label_frequency
+            kwargs["min_label_frequency"] = min_label_frequency
+            if label_processor is None:
+                assert config is not None
+                label_processor = config.label_processor
+            if not callable(label_processor):
+                assert isinstance(label_processor, str), type(label_processor)
+                label_processor = LABELPROC[label_processor]
 
         if config is None:
             suffixes = extensions
@@ -186,7 +181,6 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
         if split is None:
             assert config is not None
             split = config.split
-            # split = path_or_dir
         if extensions is None:
             extensions = ["json", "jsonl"]
 
@@ -250,20 +244,13 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
             # custom forward from user
             print("begin extraction")
             batch_entries = cls.forward(
-                text_data,
-                aliases=aliases,
-                imgid_aliases=imgid_aliases,
-                label_aliases=label_aliases,
-                text_aliases=text_aliases,
-                img_key=img_key,
-                label_key=label_key,
-                text_key=text_key,
+                text_data, label_processor=label_processor, **kwargs
             )
+
             # pre-checks
             print("writing rows to arrow dataset")
             # this is 4 am coder
-            total = len(batch_entries)
-            for sub_batch_entries in batcher(batch_entries):
+            for sub_batch_entries in utils.batcher(batch_entries, n=64):
                 flat_entry = None
                 for b in sub_batch_entries:
                     imgid2rows[b[Textset.img_key]].append(cur_row)
@@ -310,7 +297,6 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
             e, b = Textset.custom_finalize(writer, close_stream=True)
             print(f"Success! You wrote {e} entry(s) and {b >> 20} mb")
             print(f"Located: {save_to}")
-            print(total)
 
             # return class
             arrow_dset = cls(
@@ -438,6 +424,7 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
     ):
         if config is not None:
             img_format = config.img_format
+            assert isinstance(img_format, str)
         if arrow is not None:
             assert isinstance(arrow, bool)
         else:
@@ -528,7 +515,10 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
 
     def get_from_img(self, img_id, min_freq=14):
         small_dataset = self[self.img_to_rows_map[img_id]]
-        small_dataset[Textset.img_key] = small_dataset.pop(Textset.img_key)[0]
+        img_ids = set(small_dataset.pop(Textset.img_key))
+        assert len(img_ids) == 1, img_ids
+        img_id = next(iter(img_ids))
+        small_dataset[Textset.img_key] = img_id
         return small_dataset
 
     def get_row(self, i):
@@ -536,20 +526,17 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
         x[Textset.text_reference] = self.name
         return x
 
-    def text_iter(self, min_freq=14):
+    def text_iter(self):
         for i in range(len(self)):
             row = self.get_row(i)
-            row = self._check_frequency(row, min_freq)
             if row:
                 yield row
 
-    def text_first(self, min_freq=14):
+    def text_first(self):
         text_data = []
         for i in tqdm(range(len(self))):
             row = self.get_row(i)
-            row = self._check_frequency(row, min_freq)
-            if row:
-                text_data.append(row)
+            text_data.append(row)
         return text_data
 
     def get_freq(self, label):
@@ -565,13 +552,23 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
         raise Exception("Do not call from abstract class")
 
     @abstractmethod
-    def forward(self, text_data: List[dict], **kwargs) -> List[dict]:
+    def forward(
+        self, text_data: List[dict], label_processor=None, **kwargs
+    ) -> List[dict]:
         pass
 
     @property
     @abstractmethod
     def name(self) -> str:
         raise Exception("Do not call from abstract class")
+
+    @property
+    def labels(self):
+        return set(self.answer_frequencies.keys())
+
+    @property
+    def num_labels(self):
+        return len(self.labels)
 
     @property
     @abstractmethod

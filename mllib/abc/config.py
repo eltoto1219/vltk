@@ -21,7 +21,7 @@ class Config:
 
     def __iter__(self):
         for k in set(self.__class__.__dict__.keys()).union(set(self.__dict__.keys())):
-            if k[0] != "_":
+            if k[0] != "_" and not callable(getattr(self, k)):
                 yield k, getattr(self, k)
 
     def __str__(self):

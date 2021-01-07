@@ -1,0 +1,19 @@
+so, what we need to do now is:
+5. save into split files for the image extraction too
+4. re-test the datset extraction thing
+5.5. add extraction functionality back to command line commands and then do extraction
+1. look into batch samplers
+6. update the universal loader with new batch sampler and the imageset and the textset
+8. test dryrun for data
+7. fix model outputs
+9. test dryrun for lxmert gqa finetuning
+10. add coco captions, vg-qa, vg-captions, datsets to the thing
+11. retest dataloader
+12. dryrun of the pretraining process
+14. start the finetuning experiments (vqa + gqa (img_first) + (text first)) on each gpu
+13. move to different machine for the pretraining process (wait for mohit approval)
+
+
+
+
+3. look into how to batch imageset extaction (LATER)

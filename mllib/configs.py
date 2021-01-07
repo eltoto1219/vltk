@@ -5,18 +5,6 @@ from mllib.abc import config
 from mllib.utils import get_most_free_gpu, get_nvidia_gpu_memory
 
 
-class ExtractConfig(config.Config):
-    outfile: str = ""
-    inputdir: str = ""
-    log_name: str = "extract_logs.txt"
-    config_path: str = ""
-
-    def __init__(self, outfile, inputdir, **kwargs):
-        super().__init__(**kwargs)
-        self.outfile = outfile
-        self.inputdir = inputdir
-
-
 class LxmertConfig(config.Config):
     from_transformers: bool = True
     ckp_name_or_path = "unc-nlp/lxmert-base-uncased"
@@ -91,7 +79,8 @@ class FinetuneConfig(config.Config):
 
 class DataConfig(config.Config):
     dryrun: bool = True
-    test_aliases: set = {"test"}
+    label_processor: str = "label_default"
+    min_label_occurence = 9
     imgid_aliases: set = {"img", "image", "imgid", "img_id", "iid", "image_id"}
     text_aliases: set = {"text", "sent", "que", "question"}
     label_aliases: set = {"label", "truth", "answer", "gold"}
@@ -132,6 +121,8 @@ class DataConfig(config.Config):
     arrow_fields: Union[None, tuple, str] = None
     use_raw_imgs: bool = False
     pos_dim: int = 4
+    visual_dim: int = 2048
+    max_detections: str = 36
     vit_pretrained_dir = "vit/"
     min_label_frequency: int = 14
     datasets: Union[List[str], str] = ""
@@ -152,6 +143,7 @@ class Config(config.Config):
     datasets: Union[None, str] = None
     eval_aliases: set = {"testdev", "eval", "dev", "evaluation", "inference"}
     train_aliases: set = {"train", "finetune", "pretrain"}
+    test_aliases: set = {"test"}
     valid_aliases: set = {"val", "valid", "validation"}
     base_logdir: str = os.path.join(os.environ.get("HOME", os.getcwd()), "logs")
     rel_logdir: str = ""

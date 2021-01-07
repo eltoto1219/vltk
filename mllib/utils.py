@@ -24,6 +24,12 @@ PATH = os.path.join(
 )
 
 
+def batcher(iterable, n=64):
+    l = len(iterable)
+    for ndx in range(0, l, n):
+        yield iterable[ndx : min(ndx + n, l)]
+
+
 def try_load_json(filepath):
     try:
         with open(filepath) as f:
