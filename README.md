@@ -22,15 +22,17 @@ run exp sample gqa --save_on_crash=true --email=your@email.com
 ```
 
 and do NOT include the "sample.yaml" flag which points to the private file, "sample.py", the the `run exp` command will throw an error as the experiment "sample" is not registerd into this repo by default.
+
+
+The user can further use any pytorch model in the libary or any pytorch model that they  define in their sample file
+
 <br />
 <br />
 
+# creating an image dataset
 
 
 There are two abtract classes for text-based datasets and image-based datasets
-
-
-#creating an image dataset
 
 
 To create an image-based dataset
@@ -59,10 +61,10 @@ imageset = FRCNNSet.extract(
 ```
 coco2014 = FRCNNSet.from_file(arrow_path)
 ```
-4. The defined extractor class works for any set of image(s), and thus for any image dataset
+5. The defined extractor class works for any set of image(s), and thus for any image dataset
 
 
-#creating a text dataset
+# creating a text dataset
 
 
 To create an text-based dataset
@@ -121,7 +123,7 @@ freq of answer table: 878
 num_labels 5246
 ```
 
-# Tying it all together
+# tying it all together
 
 
 Now, it is possible to create any arbitrary text-image dataset instantly. By specifying a preset config this is as easy as doing the following:
@@ -143,7 +145,7 @@ entry for COCO_val2014_000000000042:  dict_keys(['attr_ids', 'attr_probs', 'boxe
 ized_boxes', 'obj_ids', 'obj_probs', 'preds_per_image', 'roi_features', 'sizes'])
 ```
 
-# The Universal image-text dataset loader
+# universal image-text dataset loader
 
 Once specific (and explictly named) text/image dataset classes are created,
 they are forever available n the library our library. in the backend,
