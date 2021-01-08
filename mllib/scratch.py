@@ -20,10 +20,8 @@ from mllib.maps import dirs, files
 l = files.Label()
 t = dirs.Textsets()
 i = dirs.Imagesets()
-print(t.avail())
-t.add("gqa", None)
-print(t.avail())
-
+e = dirs.Exps()
+print(e.avail())
 # imageproc = maps.Imageproc()
 # lxmert = models.get_model("lxmertforquestionanswering")
 # config = Config().data

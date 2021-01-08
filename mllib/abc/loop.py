@@ -284,11 +284,19 @@ class Loop(utils.IdentifierClass, ABC):
     def _init_loader(self):
         if self.is_train:
             split = "train"
+            self.loader = UniversalLoader(
+                config=self.config, split=split, dataset_name=self.datasets
+            )
         else:
             split = self.config.data.eval_split
-        self.loader = UniversalLoader(
-            config=self.config, split=split, dataset_name=self.datasets
-        )
+            eval_dataset = self.config.data.eval_dataset
+            datasets = self.datasets
+            if isinstance(datasets, str):
+                datasets = [datasets]
+            assert eval_dataset in datasets
+            self.loader = UniversalLoader(
+                config=self.config, split=split, dataset_name=eval_dataset
+            )
         self._split = split
 
     @classmethod

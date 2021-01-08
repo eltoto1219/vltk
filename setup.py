@@ -39,7 +39,7 @@ setup(
     version="1.0.0",
     # this command is to be used if we want to auto run any scripts
     # cmdclass={"develop": Develop, "install": Install},
-    entry_points={"console_scripts": ["run = mllib.cli:main"]},
+    entry_points={"console_scripts": ["run = mllib.cli:entry_point"]},
     author="Antonio Mendoza",
     author_email="avmendoz@cs.unc.edu",
     description="Personal AI library for quick projects",
@@ -51,10 +51,7 @@ setup(
         "mllib/legacy",
         "mllib/processing",
         "mllib/exp",
-        "mllib/loop"
-        "mllib/abc"
-        "mllib/textset"
-        "mlib/imageset"
+        "mllib/loop" "mllib/abc" "mllib/textset" "mlib/imageset",
     ],
     install_requires=dependencies(),
 )

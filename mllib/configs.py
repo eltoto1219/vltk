@@ -78,11 +78,16 @@ class FinetuneConfig(config.Config):
 
 
 class DataConfig(config.Config):
+    eval_dataset = "gqa"
     dryrun: bool = True
     label_processor: str = "label_default"
     min_label_occurence = 9
     imgid_aliases: set = {"img", "image", "imgid", "img_id", "iid", "image_id"}
     text_aliases: set = {"text", "sent", "que", "question"}
+    eval_aliases: set = {"testdev", "eval", "dev", "evaluation", "inference"}
+    train_aliases: set = {"train", "finetune", "pretrain"}
+    test_aliases: set = {"test"}
+    valid_aliases: set = {"val", "valid", "validation"}
     label_aliases: set = {"label", "truth", "answer", "gold"}
     textfile_extensions: Union[List[str], str] = ["json", "jsonl"]
     datadirs: Union[List[str], str] = "/playpen1/home/avmendoz/data"
@@ -102,7 +107,7 @@ class DataConfig(config.Config):
     percent_data: int = 1.0
     skip_eval: bool = False
     skip_train: bool = False
-    split: bool = "train"
+    train_split: bool = "trainval"
     eval_split: bool = "eval"
     valid_split: bool = "valid"
     num_attrs: int = 400
@@ -141,10 +146,6 @@ class Config(config.Config):
     percent_min_gpu_free_mem: float = 0.75
     print_config: bool = True
     datasets: Union[None, str] = None
-    eval_aliases: set = {"testdev", "eval", "dev", "evaluation", "inference"}
-    train_aliases: set = {"train", "finetune", "pretrain"}
-    test_aliases: set = {"test"}
-    valid_aliases: set = {"val", "valid", "validation"}
     base_logdir: str = os.path.join(os.environ.get("HOME", os.getcwd()), "logs")
     rel_logdir: str = ""
     logdir: str = None

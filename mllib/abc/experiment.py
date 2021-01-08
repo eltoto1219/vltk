@@ -12,7 +12,7 @@ from mllib.utils import IdentifierClass
 
 __all__ = ["Experiment"]
 
-_loop = dirs.Loop()
+_loop = dirs.Loops()
 
 
 class Experiment(IdentifierClass, ABC):

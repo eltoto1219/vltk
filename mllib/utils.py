@@ -29,9 +29,42 @@ class IdentifierClass:
     pass
 
 
-def get_classes(dir_name, cls_defintion, pkg):
+def update_config_with_logdir(config, flags, name, datasets):
+    if "base_logdir" not in flags:
+        baselogdir = config.base_logdir
+    else:
+        baselogdir = flags.pop("base_logdir")
+    if "rel_logdir" not in flags:
+        rellogdir = gen_relative_logdir(f"{name}_{datasets}")
+    else:
+        rellogdir = flags.pop("rel_logdir")
+
+    config.update(
+        {
+            "logdir": os.path.join(baselogdir, rellogdir),
+            "rel_logdir": rellogdir,
+            "base_logdir": baselogdir,
+        }
+    )
+
+
+def get_classes(path_or_dir_name, cls_defintion=None, pkg=None):
+    if os.path.isfile(path_or_dir_name):
+        clsses = import_classes_from_file(path_or_dir_name, pkg=pkg)
+        filter_dict = {}
+        if cls_defintion is not None:
+            for n, c in clsses.items():
+                if cls_defintion in inspect.getmro(c) or hasattr(c, "name"):
+                    try:
+                        filter_dict[c.name] = c
+                    except Exception:
+                        filter_dict[n] = c
+            return filter_dict
+        else:
+            return clsses
+
     classes = {}
-    for p in os.listdir(dir_name):
+    for p in os.listdir(path_or_dir_name):
         if p[0] != "_":
             npkg = pkg + f".{p.split('.')[0]}"
             try:
@@ -214,15 +247,15 @@ def import_from_dir(clsdir, pkg):
     return modules
 
 
-def import_classes_from_file(clspath, pkg):
+def import_classes_from_file(clspath, pkg=None):
     clsfile = clspath.split("/")[-1]
     clsname = clsfile.split(".")[0]
     if pkg is not None:
         clsname = pkg + f".{clsname}"
     clsdir = clspath.replace(clsfile, "")
     sys.path.insert(0, clsdir)
-    mod = importlib.import_module(clsname, package=pkg)
-    return inspect.getmembers(mod, inspect.isclass)
+    mod = importlib.import_module(clsname, package=None)
+    return {clss[0]: clss[1] for clss in inspect.getmembers(mod, inspect.isclass)}
 
 
 def import_funcs_from_file(clspath, pkg):

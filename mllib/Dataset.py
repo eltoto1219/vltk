@@ -11,7 +11,6 @@ from transformers import LxmertTokenizer
 
 # from mllib.dataset.gqa import load_temp_gqa
 from mllib.decorators import get_duration
-from mllib.maps import avail_datasets, get_datasets
 from mllib.processing import Image
 
 
@@ -76,17 +75,6 @@ class UniversalDataset(Dataset):
             for dset in self.arrow_dict:
                 for i, k in enumerate(self.arrow_dict[dset]["img_id"]):
                     self._id2imgidx[dset][str(k)] = i
-
-    def _init_tokenizer_args(self):
-        self._tokenizer_args = {
-            "padding": "max_length",
-            "max_length": self.config.sent_length,
-            "truncation": self.config.truncate_sentence,
-            "return_token_type_ids": self.config.return_token_type_ids,
-            "return_attention_mask": self.config.return_attention_mask,
-            "add_special_tokens": self.config.add_special_tokens,
-            "return_tensors": self.config.return_tensors,
-        }
 
     def _init_dataset(self):
         d = load_temp_gqa(self.config, self.split)
@@ -299,33 +287,6 @@ class UniversalDataset(Dataset):
         #     img_data["masked_inds"] = masked_inds
 
         return img_data
-
-    @staticmethod
-    def transpose_img2txt(batch, img_keys, device=None):
-        n_sents_per_img = [len(i) for i in batch["input_ids"]]
-        for img_key in img_keys:
-            assert img_key in batch, f"{img_key} not in {list(batch.keys())}"
-            imgs = torch.cat(
-                [
-                    i.unsqueeze(0).repeat((n,) + tuple([1] * (len(i.shape))))
-                    for i, n in zip(batch.pop(img_key), n_sents_per_img)
-                ],
-                dim=0,
-            )
-            batch[img_key] = imgs
-            if device is not None:
-                batch[img_key] = batch[img_key].to(device)
-        for k in batch:
-            if k not in img_keys:
-                if isinstance(batch[k][0], torch.Tensor):
-                    batch[k] = torch.cat([i for i in batch[k]], dim=0)
-                    if device is not None:
-                        batch[k] = batch[k].to(device)
-                elif isinstance(batch[k][0], str):
-                    new_v = []
-                    for i, n in zip(batch[k], n_sents_per_img):
-                        new_v.extend(i * n)
-                    batch[k] = new_v
 
 
 class UniversalLoader(DataLoader):

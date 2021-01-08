@@ -1,0 +1,4 @@
+data:
+  eval_dataset: gqa
+  eval_split: eval
+  train_split: trainval
