@@ -4,7 +4,7 @@ from typing import Union
 
 import torch
 from mllib import utils
-from mllib.Dataset import UniversalLoader
+from mllib.dataset import UniversalLoader
 from mllib.outputs import LoopOutputs
 from tqdm import tqdm
 from transformers import AdamW, get_linear_schedule_with_warmup
@@ -24,7 +24,7 @@ class Loop(utils.IdentifierClass, ABC):
         self.datasets = datasets
         self.cur_step = 0
         self.scheduler = None
-        self.half_precision = getattr(config.run, "half_precision", False)
+        self.half_precision = getattr(config.train, "half_precision", False)
         self.dryrun = getattr(config, "dryrun", False)
         self.main_device = (
             f"cuda:{config.gpu}" if getattr(config, "gpu", -1) != -1 else "cpu"
@@ -120,13 +120,13 @@ class Loop(utils.IdentifierClass, ABC):
             assert parameters, "no parameters added to optimizer"
             self._optim = AdamW(
                 parameters,
-                lr=self.config.run.learning_rate,
-                weight_decay=self.config.run.weight_decay,
+                lr=self.config.train.learning_rate,
+                weight_decay=self.config.train.weight_decay,
             )
-            if self.config.run.warmup == 0.0:
+            if self.config.train.warmup == 0.0:
                 self._warmup = None
             total = self.total_steps
-            n_steps = int(total * self.config.run.warmup)
+            n_steps = int(total * self.config.train.warmup)
             self._warmup = get_linear_schedule_with_warmup(
                 self._optim, num_warmup_steps=n_steps, num_training_steps=total
             )
@@ -150,14 +150,14 @@ class Loop(utils.IdentifierClass, ABC):
             return self._bz
         else:
             if self.is_train:
-                return self.config.run.batch_size
+                return self.config.train.batch_size
             else:
                 return self.config.evaluate.batch_size
 
     @property
     def total_steps(self):
         if self.is_train:
-            return self.config.run.epochs * len(self.loader)
+            return self.config.train.epochs * len(self.loader)
         else:
             return len(self.loader)
 
@@ -219,14 +219,14 @@ class Loop(utils.IdentifierClass, ABC):
                 self.scaler.scale(loss).backward()
                 self.scaler.unscale_(self.optim)
                 torch.nn.utils.clip_grad_norm_(
-                    self.get_grad_params(), self.config.run.max_norm
+                    self.get_grad_params(), self.config.train.max_norm
                 )
                 self.scaler.step(self.optim)
                 self.scaler.update()
             else:
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(
-                    self.get_grad_params(), self.config.run.max_norm
+                    self.get_grad_params(), self.config.train.max_norm
                 )
                 self.optim.step()
 
@@ -285,7 +285,7 @@ class Loop(utils.IdentifierClass, ABC):
         if self.is_train:
             split = "train"
             self.loader = UniversalLoader(
-                config=self.config, split=split, dataset_name=self.datasets
+                config=self.config.data, split=split, names=self.datasets
             )
         else:
             split = self.config.data.eval_split
@@ -293,9 +293,9 @@ class Loop(utils.IdentifierClass, ABC):
             datasets = self.datasets
             if isinstance(datasets, str):
                 datasets = [datasets]
-            assert eval_dataset in datasets
+            assert eval_dataset in datasets, (eval_dataset, datasets)
             self.loader = UniversalLoader(
-                config=self.config, split=split, dataset_name=eval_dataset
+                config=self.config.data, split=split, names=eval_dataset
             )
         self._split = split
 

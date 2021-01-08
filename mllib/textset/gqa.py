@@ -14,7 +14,7 @@ from mllib.utils import clip_img_ids, get_subfiles_from_path, load_arrow
 def load_temp_gqa(config, split):
     # get batch_size
     if split in config.train_aliases:
-        bz = config.run.batch_size
+        bz = config.train.batch_size
     else:
         bz = config.evaluate.batch_size
     # labels
@@ -60,7 +60,7 @@ def load_temp_gqa(config, split):
         streams.append(data_split)
 
     if config.dryrun and not config.data.img_first:
-        stop_int = config.run.batch_size
+        stop_int = config.train.batch_size
     elif not config.dryrun and not config.data.img_first:
         stop_int = max(1, int(np.ceil(stop_int * config.data.percent_data)))
 

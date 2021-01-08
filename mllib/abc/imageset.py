@@ -12,6 +12,7 @@ import datasets as ds
 import pyarrow
 from datasets import ArrowWriter, Features, Split
 from mllib.maps import files
+from mllib.processing import Label
 from mllib.utils import get_func_signature, set_metadata
 from tqdm import tqdm
 
@@ -75,7 +76,7 @@ class Imageset(ds.Dataset, ABC):
     def img_to_row_map(self):
         return self._img_to_row_map
 
-    def get_image(self, img_id):
+    def get(self, img_id):
         return self[self.img_to_row_map[img_id]]
 
     @classmethod
@@ -141,6 +142,18 @@ class Imageset(ds.Dataset, ABC):
                 )
                 feat_options[k] = presets.pop(k)
             features = feature_func(**feat_options)
+        elif callable(features):
+            sig_dict = get_func_signature(features)
+            feat_options = {}
+            feat_options = {}
+            for k in sig_dict.keys():
+                assert k in presets, (
+                    f"user must specify {k} in config or kwargs"
+                    " in the the Imageset.extract method"
+                    f"\nThe following are required: {list(sig_dict.keys())}"
+                )
+                feat_options[k] = presets.pop(k)
+            features = features(**feat_options)
         elif not isinstance(features, Features):
             raise Exception(
                 "provide string mapping to features, or the features themselves"
@@ -199,6 +212,7 @@ class Imageset(ds.Dataset, ABC):
                     continue
 
                 # now do model forward
+                presets.pop("image_preprocessor", None)
                 output_dict = cls.forward(
                     filepath=filepath,
                     image_preprocessor=image_preprocessor,
@@ -208,7 +222,7 @@ class Imageset(ds.Dataset, ABC):
                 assert isinstance(
                     output_dict, dict
                 ), "model outputs should be in dict format"
-                output_dict["img_id"] = [img_id]
+                output_dict["img_id"] = [Label.clean_imgid_default(img_id)]
                 assert set(features.keys()) == set(output_dict.keys()), (
                     f"mismatch between feature items"
                     f" and model output keys: {set(output_dict.keys()).symmetric_difference(set(features.keys()))}"
@@ -288,7 +302,9 @@ class Imageset(ds.Dataset, ABC):
         return True
 
     @classmethod
-    def from_file(cls, path, split=None):
+    def from_file(cls, path, split=None, name=None):
+        if name is not None:
+            setattr(cls, "name", name)
         mmap = pyarrow.memory_map(path)
         f = pyarrow.ipc.open_stream(mmap)
         pa_table = f.read_all()

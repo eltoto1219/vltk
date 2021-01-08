@@ -28,7 +28,7 @@ class Experiment(IdentifierClass, ABC):
         random.seed(self.seed)
         torch.manual_seed(self.seed)
         assert self.datasets is not None, "must specify 'datasets' when firing command"
-        self.epochs = self.config.run.epochs
+        self.epochs = self.config.train.epochs
         self.main_device = f"cuda:{config.gpu}" if config.gpu != -1 else "cpu"
         self.aux_model_device = f"cuda:{config.aux_gpu}" if config.gpu != -1 else "cpu"
         self.logdir = getattr(self.config, "logdir", None)

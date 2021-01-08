@@ -1,4 +1,8 @@
 data:
-  eval_dataset: gqa
-  eval_split: eval
+  eval_dataset: vqa
+  eval_split: val
   train_split: trainval
+  img_first: True
+  eval_batch_size: 2
+  train_batch_size: 4
+

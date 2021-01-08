@@ -21,7 +21,7 @@ l = files.Label()
 t = dirs.Textsets()
 i = dirs.Imagesets()
 e = dirs.Exps()
-print(e.avail())
+print(i.avail())
 # imageproc = maps.Imageproc()
 # lxmert = models.get_model("lxmertforquestionanswering")
 # config = Config().data

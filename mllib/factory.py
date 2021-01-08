@@ -20,12 +20,12 @@ def lxmert_factory(config):
         x_layers=config.models.lxmert.x_layers,
         l_layers=config.models.lxmert.l_layers,
         r_layers=config.models.lxmert.r_layers,
-        task_matched=config.run.task_matched,
-        task_mask_lm=config.run.task_mask_lm,
-        task_obj_predict=config.run.task_obj_predict,
-        visual_attr_loss=config.run.visual_attr_loss,
-        visual_obj_loss=config.run.visual_obj_loss,
-        visual_feat_loss=config.run.visual_feat_loss,
+        task_matched=config.train.task_matched,
+        task_mask_lm=config.train.task_mask_lm,
+        task_obj_predict=config.train.task_obj_predict,
+        visual_attr_loss=config.train.visual_attr_loss,
+        visual_obj_loss=config.train.visual_obj_loss,
+        visual_feat_loss=config.train.visual_feat_loss,
     )
     lxmert = LxmertForQuestionAnswering(lxmert_config)
     if ckp_name is not None:

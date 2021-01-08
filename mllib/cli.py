@@ -5,15 +5,14 @@ from io import StringIO
 import torch
 from fire import Fire
 
-from mllib import configs, main, utils
+from mllib import compat, configs, main_functions, utils
 from mllib.abc.experiment import Experiment
-from mllib.maps import dirs
+from mllib.maps import dirs, files
 
 _experiments = dirs.Exps()
 STDERR = sys.stderr = StringIO()
 
 
-@atexit.register
 def crash_save():
     errorlog = STDERR.getvalue()
     if "experiment" in globals():
@@ -51,6 +50,10 @@ class Main(object):
         self.config = configs.Config(**self.flags)
 
     def exp(self, name, datasets):
+        @atexit.register
+        def inner_crash_save():
+            return crash_save()
+
         global config
         config = self.config
         priv = self.config.private_file
@@ -60,16 +63,46 @@ class Main(object):
                 if name in _experiments.avail():
                     print(f"WARNING: {name} is already a predefined experiment")
                     _experiments.add(name, clss)
-        main.run_experiment(config, flags=self.flags, name=name, datasets=datasets)
-        atexit.unregister(crash_save)
+        main_functions.run_experiment(
+            config, flags=self.flags, name=name, datasets=datasets
+        )
+        atexit.unregister(inner_crash_save)
 
     def download(self, name, **kwargs):
         raise NotImplementedError()
 
-    def extract(self, input_dir, out_file, preproc=None, name=None):
-        raise NotImplementedError()
+    def extract(self, extractor, dataset):
+        _imagesets = dirs.Imagesets()
+        _models = dirs.Models()
+        _feature_schema = files.Feature()
+        Imageset = _imagesets.get(extractor)
+        Model = _models.get(extractor)
+        Features = _feature_schema.get(extractor)
+        # hard code for now:
+        if extractor == "frcnn":
+            frcnnconfig = compat.Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
+            frcnnconfig.model.device = self.config.gpu
+            model = Model.from_pretrained(
+                "unc-nlp/frcnn-vg-finetuned", config=frcnnconfig
+            )
+        else:
+            model = None
 
-    def data(self, datasets, method=""):
+        config = self.config.data
+
+        Imageset.extract(
+            dataset_name=dataset,
+            config=config,
+            model=model,
+            image_preprocessor=config.image_preprocessor,
+            features=Features,
+            device=self.config.gpu,
+            max_detections=config.max_detections,
+            pos_dim=config.pos_dim,
+            visual_dim=config.visual_dim,
+        )
+
+    def rundata(self, datasets, method=""):
         expr = _experiments.get("data")(config=self.config, datasets=datasets)
         if method == "":
             call = expr
@@ -78,5 +111,5 @@ class Main(object):
         call()
 
 
-def entry_point():
+def main():
     Fire(Main)

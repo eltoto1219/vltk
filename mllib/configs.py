@@ -46,7 +46,6 @@ class PretrainConfig(config.Config):
     visual_attr_loss: bool = False
     visual_obj_loss: bool = False
     visual_feat_loss: bool = False
-    batch_size: int = 32
 
 
 class EvalConfig(config.Config):
@@ -57,7 +56,6 @@ class EvalConfig(config.Config):
     visual_attr_loss: bool = False
     visual_obj_loss: bool = False
     visual_feat_loss: bool = False
-    batch_size: int = 32
 
 
 class FinetuneConfig(config.Config):
@@ -74,14 +72,16 @@ class FinetuneConfig(config.Config):
     visual_attr_loss: bool = False
     visual_obj_loss: bool = False
     visual_feat_loss: bool = False
-    batch_size: int = 32
 
 
 class DataConfig(config.Config):
     eval_dataset = "gqa"
+    eval_batch_size = 32
+    train_batch_size = 64
     dryrun: bool = True
     label_processor: str = "label_default"
     min_label_occurence = 9
+    from_extractor: str = "frcnn"
     imgid_aliases: set = {"img", "image", "imgid", "img_id", "iid", "image_id"}
     text_aliases: set = {"text", "sent", "que", "question"}
     eval_aliases: set = {"testdev", "eval", "dev", "evaluation", "inference"}
@@ -131,6 +131,7 @@ class DataConfig(config.Config):
     vit_pretrained_dir = "vit/"
     min_label_frequency: int = 14
     datasets: Union[List[str], str] = ""
+    image_preprocessor = "img_to_tensor"
 
 
 class Config(config.Config):

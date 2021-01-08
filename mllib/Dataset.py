@@ -61,8 +61,8 @@ class UniversalDataset(Dataset):
         self.mask_id = self.tokenizer.mask_token_id
         self.ignore_id = self.config.ignore_id
         self.pad_id = self.tokenizer.pad_token_id
-        self.do_sentence_matching = self.config.run.task_matched
-        self.do_language_masking = self.config.run.task_mask_lm
+        self.do_sentence_matching = self.config.train.task_matched
+        self.do_language_masking = self.config.train.task_mask_lm
 
         self._init_dataset()
         self._init_tokenizer_args()
@@ -295,10 +295,10 @@ class UniversalLoader(DataLoader):
             if hasattr(config, "eval"):
                 batch_size = config.eval.batch_size
             else:
-                batch_size = config.run.batch_size
+                batch_size = config.train.batch_size
             num_workers = 0
         else:
-            batch_size = config.run.batch_size
+            batch_size = config.train.batch_size
             num_workers = config.num_workers
         shuffle = config.shuffle
         split = config.split if split is None else split

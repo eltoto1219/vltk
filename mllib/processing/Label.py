@@ -8,6 +8,21 @@ ANS_CONVERT = json.load(open(os.path.join(PATH, "convert_answers.json")))
 CONTRACTION_CONVERT = json.load(open(os.path.join(PATH, "convert_answers.json")))
 
 
+def clean_imgid_default(imgid):
+    return imgid.split("_")[-1]
+    # started = False
+    # new_id = ""
+    # for i in imgid:
+    #     if not i.isalnum():
+    #         started = True
+    #         new_id += i
+    #     else:
+    #         if started:
+    #             return new_id
+    #         else:
+    #             pass
+
+
 def label_default(ans):
     if len(ans) == 0:
         return ""

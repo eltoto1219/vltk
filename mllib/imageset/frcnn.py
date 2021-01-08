@@ -11,6 +11,7 @@ TESTPATH = "/home/avmendoz/mllib/tests"
 
 
 class FRCNNSet(Imageset):
+    # name will be overwritten with the name of the dataset when loaded from file
     name = "frcnn"
 
     def forward(filepath, image_preprocessor, model, **kwargs):

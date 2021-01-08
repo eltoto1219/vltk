@@ -9,7 +9,7 @@ from transformers import LxmertTokenizer
 
 # from mllib.dataset.gqa import load_temp_gqa
 from mllib.decorators import get_duration
-from mllib.maps import avail_datasets, dirs, get_datasets
+from mllib.maps import dirs
 from mllib.processing import Image
 from mllib.utils import CollatedSets
 
@@ -51,7 +51,9 @@ def collate(
 
 class UniversalLoader(DataLoader):
     def __init__(self, names, config, split=None):
-        if split is not None and split in config.eval_aliases + config.valid_aliases:
+        if split is not None and split in config.eval_aliases.union(
+            config.valid_aliases
+        ):
             num_workers = 0
         else:
             num_workers = config.num_workers
@@ -64,12 +66,10 @@ class UniversalLoader(DataLoader):
             drop_last = config.drop_last
         pin_memory = config.pin_memory
         # init dataset
-        dataset = (
-            UniversalDataset(
-                names=names,
-                config=config,
-                split=split,
-            ),
+        dataset = UniversalDataset(
+            names=names,
+            config=config,
+            split=split,
         )
         # init loader
         super().__init__(
@@ -135,8 +135,11 @@ class UniversalDataset(Dataset):
                     )
                     imgset_path = path_dict["arrow"]
                     assert len(imgset_path) == 1
+                    from_extractor = config.from_extractor
                     imgset_path = imgset_path[0]
-                    imageset = _imagesets.get(imageset_name).from_file(imgset_path)
+                    imageset = _imagesets.get(from_extractor).from_file(
+                        imgset_path, name=textset.imageset
+                    )
                     self.imagesets.append(imageset)
                     self.imagesetdict[textset.name][split] = imageset
 
@@ -144,7 +147,7 @@ class UniversalDataset(Dataset):
         self.img2textset = {}
         for ts_name, ts_splits in self.textsetdict.items():
             for split_name, ts in self.textsetdict[ts_name].items():
-                for img in ts.labels:
+                for img in ts.uniq_imgs:
                     self.img2textset[img] = (ts_name, split_name)
 
         self.uniq_imgs = list(self.img2textset.keys())
@@ -180,10 +183,13 @@ class UniversalDataset(Dataset):
         if self.config.img_first:
             img_id = self.uniq_imgs[i]
             ts_name, ts_split = self.img2textset[img_id]
-            img_text_dict = self.textset_dict[ts_name][ts_split].get_from_img(img_id)
-            img_info_dict = self.imageset_dict[ts_name][ts_split].get(img_id)
+            img_text_dict = self.textsetdict[ts_name][ts_split].get_from_img(img_id)
+            try:
+                img_info_dict = self.imagesetdict[ts_name][ts_split].get(img_id)
+            except Exception:
+                raise Exception(self.imagesetdict[ts_name][ts_split].get_imgids)
             entry = {**img_text_dict, **img_info_dict}
-            raise Exception
+            raise Exception(entry)
             return entry
         else:
             text_info = self.datasets[i]
@@ -191,15 +197,15 @@ class UniversalDataset(Dataset):
             ts_name, ts_split = self.img2textset[img_id]
             img_info_dict = self.imageset_dict[ts_name][ts_split].get(img_id)
             entry = {**text_info, **img_info_dict}
-            raise Exception
+            raise Exception(entry)
             return entry
 
     @property
     def batch_size(self):
         if len(set(self.splits).intersection(self.config.train_aliases)) == 0:
-            return self.eval.batch_size
+            return self.config.eval_batch_size
         else:
-            return self.train.batch_size
+            return self.config.train_batch_size
 
     @staticmethod
     def transpose_img2txt(batch, img_keys, device=None):
