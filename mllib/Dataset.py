@@ -9,13 +9,13 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 from transformers import LxmertTokenizer
 
-from mllib.dataset.gqa import load_temp_gqa
+# from mllib.dataset.gqa import load_temp_gqa
 from mllib.decorators import get_duration
+from mllib.maps import avail_datasets, get_datasets
 from mllib.processing import Image
 
 
-# probably a better collate fucntion right here
-def collate_v3(
+def collate(
     columns: List[Dict[str, torch.Tensor]], pad: bool = True, img_first=False
 ) -> Dict[str, torch.Tensor]:
     batch = OrderedDict()
@@ -53,14 +53,14 @@ class UniversalDataset(Dataset):
         super().__init__()
         self.dataset_name = dataset_name
         self.config = config
-        self.split = config.data.split if split is None else split
-        self.max_objs = self.config.data.max_objects
-        self.img_format = self.config.data.img_format
+        self.split = config.split if split is None else split
+        self.max_objs = self.config.max_objects
+        self.img_format = self.config.img_format
         self.tokenizer = LxmertTokenizer.from_pretrained(
             "unc-nlp/lxmert-base-uncased", never_split=set()
         )
         self.mask_id = self.tokenizer.mask_token_id
-        self.ignore_id = self.config.data.ignore_id
+        self.ignore_id = self.config.ignore_id
         self.pad_id = self.tokenizer.pad_token_id
         self.do_sentence_matching = self.config.run.task_matched
         self.do_language_masking = self.config.run.task_mask_lm
@@ -80,20 +80,20 @@ class UniversalDataset(Dataset):
     def _init_tokenizer_args(self):
         self._tokenizer_args = {
             "padding": "max_length",
-            "max_length": self.config.data.sent_length,
-            "truncation": self.config.data.truncate_sentence,
-            "return_token_type_ids": self.config.data.return_token_type_ids,
-            "return_attention_mask": self.config.data.return_attention_mask,
-            "add_special_tokens": self.config.data.add_special_tokens,
-            "return_tensors": self.config.data.return_tensors,
+            "max_length": self.config.sent_length,
+            "truncation": self.config.truncate_sentence,
+            "return_token_type_ids": self.config.return_token_type_ids,
+            "return_attention_mask": self.config.return_attention_mask,
+            "add_special_tokens": self.config.add_special_tokens,
+            "return_tensors": self.config.return_tensors,
         }
 
     def _init_dataset(self):
         d = load_temp_gqa(self.config, self.split)
-        self._text_data = d['text']
-        self._labels = d['labels']
-        self._arrow_dict = d['arrow']
-        self._path_dict = d['pathes']
+        self._text_data = d["text"]
+        self._labels = d["labels"]
+        self._arrow_dict = d["arrow"]
+        self._path_dict = d["pathes"]
         self._img_ids = d["img_ids"]
         self._imgid2text = d["imgid_to_text"]
         self._num_labels = len(self.labels) if self.labels is not None else None
@@ -104,7 +104,7 @@ class UniversalDataset(Dataset):
         assert self.num_labels <= len(
             self.labels
         ), f"{self.num_labels} {len(self.labels)}"
-        if self.config.data.img_first:
+        if self.config.img_first:
             print("\nnum of examples:", len(self.img_ids))
         else:
             print("\nnum of examples:", len(self.text_data))
@@ -137,7 +137,9 @@ class UniversalDataset(Dataset):
                 )
             else:
                 print(f"removing {p_unfound}% of {self.split} data")
-                self._text_data = [x for x in self.text_data if x["img_id"] not in unfound]
+                self._text_data = [
+                    x for x in self.text_data if x["img_id"] not in unfound
+                ]
                 print(f"new num of text-img entries: {len(self.text_data)}")
             del arrow_img_ids
             del unfound
@@ -170,15 +172,15 @@ class UniversalDataset(Dataset):
             roi_features = arrow_data.get("roi_features", None)
             if roi_features is not None:
                 arrow_data["roi_features"] = roi_features[: self.max_objs]
-        if self.config.data.use_raw_imgs:
+        if self.config.use_raw_imgs:
             file = os.path.join(
-                self.path_dict[dset], img_id + f".{self.config.data.img_format}"
+                self.path_dict[dset], img_id + f".{self.config.img_format}"
             )
             assert os.path.isfile(file), (file, self.split)
             img, (ogh, ogw), scales = Image.img_to_tensor(
                 file,
-                min_size=self.config.data.img_max_size,
-                max_size=self.config.data.img_max_size,
+                min_size=self.config.img_max_size,
+                max_size=self.config.img_max_size,
                 use_gpu=False,
                 pad_value=0,
             )
@@ -238,14 +240,14 @@ class UniversalDataset(Dataset):
         return self._imgid2text
 
     def __len__(self):
-        if not self.config.data.img_first:
+        if not self.config.img_first:
             return len(self.text_data)
         else:
             return len(self.img_ids)
 
     @torch.no_grad()
     def __getitem__(self, i):
-        if not self.config.data.img_first:
+        if not self.config.img_first:
             entry = self.text_data[i]
             img_id = entry.get("img_id")
             dset = entry.get("dset")
@@ -275,19 +277,21 @@ class UniversalDataset(Dataset):
         attention_mask = [i.attention_mask.squeeze(0) for i in inputs]
         token_type_ids = [i.token_type_ids.squeeze(0) for i in inputs]
         img_data["input_ids"] = (
-            input_ids[0] if not self.config.data.img_first else torch.stack(input_ids)
+            input_ids[0] if not self.config.img_first else torch.stack(input_ids)
         )
         img_data["attention_mask"] = (
             attention_mask[0]
-            if not self.config.data.img_first
+            if not self.config.img_first
             else torch.stack(attention_mask)
         )
         img_data["token_type_ids"] = (
             token_type_ids[0]
-            if not self.config.data.img_first
+            if not self.config.img_first
             else torch.stack(token_type_ids)
         )
-        img_data["labels"] = labels[0] if not self.config.data.img_first else torch.stack(labels)
+        img_data["labels"] = (
+            labels[0] if not self.config.img_first else torch.stack(labels)
+        )
         # if self.do_language_masking:
         #     input_ids = img_data.get("input_ids")
         #     masked_inds, masked_sequence = self.masked_language_modeling(input_ids)
@@ -301,10 +305,13 @@ class UniversalDataset(Dataset):
         n_sents_per_img = [len(i) for i in batch["input_ids"]]
         for img_key in img_keys:
             assert img_key in batch, f"{img_key} not in {list(batch.keys())}"
-            imgs = torch.cat([
-                i.unsqueeze(0).repeat((n,) + tuple([1] * (len(i.shape))))
-                for i, n in zip(batch.pop(img_key), n_sents_per_img)
-            ], dim=0)
+            imgs = torch.cat(
+                [
+                    i.unsqueeze(0).repeat((n,) + tuple([1] * (len(i.shape))))
+                    for i, n in zip(batch.pop(img_key), n_sents_per_img)
+                ],
+                dim=0,
+            )
             batch[img_key] = imgs
             if device is not None:
                 batch[img_key] = batch[img_key].to(device)
@@ -322,7 +329,7 @@ class UniversalDataset(Dataset):
 
 
 class UniversalLoader(DataLoader):
-    def __init__(self, dataset_name, config, split=None):
+    def __init__(self, names, config, split=None):
         if split is not None and split not in ("pretrain", "train", "finetune"):
             if hasattr(config, "eval"):
                 batch_size = config.eval.batch_size
@@ -331,22 +338,24 @@ class UniversalLoader(DataLoader):
             num_workers = 0
         else:
             batch_size = config.run.batch_size
-            num_workers = config.data.num_workers
-        shuffle = config.data.shuffle
-        split = config.data.split if split is None else split
+            num_workers = config.num_workers
+        shuffle = config.shuffle
+        split = config.split if split is None else split
         shuffle = shuffle if (split in ("pretrain", "train")) else 0
         if config.dryrun:
             drop_last = False
         else:
-            drop_last = config.data.drop_last
-        pin_memory = config.data.pin_memory
+            drop_last = config.drop_last
+        pin_memory = config.pin_memory
         super().__init__(
             dataset=UniversalDataset(
-                dataset_name=dataset_name,
+                names=names,
                 config=config,
                 split=split,
             ),
-            collate_fn=lambda x: collate_v3(x, pad=config.data.pad_collate, img_first=config.data.img_first),
+            collate_fn=lambda x: collate(
+                x, pad=config.pad_collate, img_first=config.img_first
+            ),
             drop_last=drop_last,
             pin_memory=pin_memory,
             num_workers=num_workers,

@@ -7,14 +7,15 @@ from typing import Dict, List, Union
 
 import torch
 from mllib import factory, outputs
-from mllib.abc.loop import Loop
-from mllib.utils import get_classes
+from mllib.maps import dirs
+from mllib.utils import IdentifierClass
 
-LOOPPATH = os.path.join(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "loop")
-LOOPDICT = get_classes(LOOPPATH, Loop, pkg="mllib.loop")
+__all__ = ["Experiment"]
+
+_loop = dirs.Loop()
 
 
-class Experiment(ABC):
+class Experiment(IdentifierClass, ABC):
     # for now lets just define dataset in loop
     def __init__(self, config, datasets):
 
@@ -88,15 +89,15 @@ class Experiment(ABC):
     def _init_loops(self):
         # move to auto detect models in the future
         model_dict = {
-            model: factory.model_name_to_instance(
-                model_name=model, config=self.config)
-            for model in set(chain(*list(self.loops_to_models.values()))) if model is not None
+            model: factory.model_name_to_instance(model_name=model, config=self.config)
+            for model in set(chain(*list(self.loops_to_models.values())))
+            if model is not None
         }
         loop_dict = {}
         loop_info = {}
         for loop_key, model_list in self.loops_to_models.items():
             if isinstance(loop_key, str):
-                loop_cls = LOOPDICT[loop_key]
+                loop_cls = _loop.get(loop_key)
             else:
                 loop_cls = loop_key
 
@@ -105,22 +106,27 @@ class Experiment(ABC):
             loop = loop_cls(
                 config=self.config,
                 model_dict={
-                    k: v for k, v in model_dict.items() if k in
-                    self.loops_to_models.get(loop_key)
+                    k: v
+                    for k, v in model_dict.items()
+                    if k in self.loops_to_models.get(loop_key)
                 },
                 extra_modules=self.extra_modules,
-                datasets=self.datasets
+                datasets=self.datasets,
             )
 
-            if (loop.is_train and not self.config.data.skip_train) or (not loop.is_train and not self.config.data.skip_eval):
+            if (loop.is_train and not self.config.data.skip_train) or (
+                not loop.is_train and not self.config.data.skip_eval
+            ):
                 loop_dict[loop_name] = loop
                 loop_info[loop_name] = loop.is_train
-        print(f'LOOPS: {list(loop_dict.keys())}')
+        print(f"LOOPS: {list(loop_dict.keys())}")
 
         self._model_dict = model_dict
         self._loop_dict = loop_dict
         self._loop_info = loop_info
-        order = sorted(list(loop_info.keys()), key=lambda x: int(loop_info[x]), reverse=True)
+        order = sorted(
+            list(loop_info.keys()), key=lambda x: int(loop_info[x]), reverse=True
+        )
         self._order = order
 
     def write(self, info: str = None):
@@ -168,7 +174,7 @@ class Experiment(ABC):
             "epochs": self.epochs,
             "total_steps": {},
             "schedulers": {},
-            "warmups": {}
+            "warmups": {},
         }
         for loop_name, loop in self:
             exp_info["cur_steps"][loop_name] = loop.cur_step
@@ -203,14 +209,16 @@ class Experiment(ABC):
             self.write(self.loginfo(**epoch_output))
             if self.config.test_save or (self.config.save_after_epoch and any_train):
                 self.save()
-        if not self.config.save_after_epoch and ((any_train and self.config.save_after_exp) or self.config.test_save):
+        if not self.config.save_after_epoch and (
+            (any_train and self.config.save_after_exp) or self.config.test_save
+        ):
             self.save()
             print("or here")
 
     @property
     @abstractmethod
     def name(self) -> str:
-        return ''
+        return ""
 
     @property
     @abstractmethod
@@ -219,7 +227,7 @@ class Experiment(ABC):
 
     @abstractmethod
     def loginfo(self, **kwargs) -> str:
-        return ''
+        return ""
 
 
 def get_experiment(name):

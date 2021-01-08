@@ -11,35 +11,14 @@ import datasets
 import datasets as ds
 import pyarrow
 from datasets import ArrowWriter, Features, Split
-from mllib.utils import get_func_signature, import_funcs_from_file
+from mllib.maps import files
+from mllib.utils import get_func_signature, set_metadata
 from tqdm import tqdm
 
-TEST = True
+__all__ = ["Imageset"]
 
-FEATURESPATH = os.path.join(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "features.py"
-)
-IMAGEPROCPATH = os.path.join(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), "..")),
-    "processing/Image.py",
-)
-MODEL2FEATURES = import_funcs_from_file(FEATURESPATH, pkg="mllib")
-IMAGEPROC = import_funcs_from_file(IMAGEPROCPATH, pkg="mllib.processing")
-
-
-def set_metadata(tbl, tbl_meta={}):
-    fields = []
-    for f in tbl.schema.names:
-        fields.append(tbl.schema.field_by_name(f))
-
-    tbl_metadata = tbl.schema.metadata
-    for k, v in tbl_meta.items():
-        tbl_metadata[k] = json.dumps(v).encode("utf-8")
-
-    schema = pyarrow.schema(fields, metadata=tbl_metadata)
-    tbl = pyarrow.Table.from_arrays(list(tbl.itercolumns()), schema=schema)
-
-    return tbl
+_featureproc = files.Feature()
+_imageproc = files.Image()
 
 
 class Imageset(ds.Dataset, ABC):
@@ -138,7 +117,7 @@ class Imageset(ds.Dataset, ABC):
         if callable(image_preprocessor):
             pass
         elif isinstance(image_preprocessor, str):
-            image_preprocessor = IMAGEPROC[image_preprocessor]
+            image_preprocessor = _imageproc.get(image_preprocessor)
         else:
             raise ValueError("processor must be a string or function")
 
@@ -151,7 +130,7 @@ class Imageset(ds.Dataset, ABC):
         cls._check_forward(image_preprocessor, model, cls.forward)
 
         if isinstance(features, str):
-            feature_func = MODEL2FEATURES[features]
+            feature_func = _featureproc.get(features)
             sig_dict = get_func_signature(feature_func)
             feat_options = {}
             for k in sig_dict.keys():
@@ -202,8 +181,6 @@ class Imageset(ds.Dataset, ABC):
                     buffer = split2buffer[split]
                     stream = split2stream[split]
                     writer = split2writer[split]
-                if TEST and cur_row >= 10:
-                    continue
 
                 # make sure file is not empty
                 if path.stat().st_size < 10:
@@ -338,3 +315,8 @@ class Imageset(ds.Dataset, ABC):
     @abstractmethod
     def forward(filepath, image_preprocessor, model, **kwargs):
         raise Exception("child forward is not being called")
+
+    @property
+    @abstractmethod
+    def name(self):
+        return ""

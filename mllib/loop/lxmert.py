@@ -16,7 +16,7 @@ class Lxmert(Loop):
                 "acc": f"{acc:.3f}%",
                 "lrs": [f"{l:.3e}" for l in self.get_lr()],
                 "loss": f"{model_outputs.loss:.3f}",
-                "bz": flatten_bz
+                "bz": flatten_bz,
             }
         )
 
@@ -34,8 +34,8 @@ class Lxmert(Loop):
                     "obj_ids",
                     "obj_probs",
                     "preds_per_image",
-                    "sizes"
-                ]
+                    "sizes",
+                ],
             )
         self.toCuda(batch, device=self.config.gpu)
         batch["return_dict"] = True

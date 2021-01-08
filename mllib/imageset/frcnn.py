@@ -3,7 +3,6 @@ from mllib import compat
 from mllib.abc.imageset import Imageset
 from mllib.configs import Config
 from mllib.modeling.frcnn import FRCNN
-from mllib.textset.vqa import VQAset
 
 TESTPATH = "/home/avmendoz/mllib/tests"
 
@@ -12,6 +11,8 @@ TESTPATH = "/home/avmendoz/mllib/tests"
 
 
 class FRCNNSet(Imageset):
+    name = "frcnn"
+
     def forward(filepath, image_preprocessor, model, **kwargs):
 
         pad_value = kwargs.get("pad_value", 0.0)
@@ -70,13 +71,13 @@ if __name__ == "__main__":
     #     device=frcnnconfig.model.device,
     # )
 
-    vqa = VQAset.from_config(config, split="val")["val"]
-    arrow_path = VQAset.locations(
-        config, split="trainval", imageset="coco2014", textset=VQAset.name
-    )["arrow"][0]
-    coco2014 = FRCNNSet.from_file(arrow_path)
+    # vqa = VQAset.from_config(config, split="val")["val"]
+    # arrow_path = VQAset.locations(
+    #     config, split="trainval", imageset="coco2014", textset=VQAset.name
+    # )["arrow"][0]
+    # coco2014 = FRCNNSet.from_file(arrow_path)
 
-    imgid = next(iter(coco2014.img_to_row_map.keys()))
+    # imgid = next(iter(coco2014.img_to_row_map.keys()))
 
-    print("is aligned?", coco2014.check_imgid_alignment())
-    print(f"entry for {imgid}: ", coco2014.get_image(imgid).keys())
+    # print("is aligned?", coco2014.check_imgid_alignment())
+    # print(f"entry for {imgid}: ", coco2014.get_image(imgid).keys())

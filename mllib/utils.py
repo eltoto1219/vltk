@@ -15,6 +15,7 @@ from typing import Tuple, Union
 import datasets
 import jsonlines
 import numpy as np
+import pyarrow
 import torch
 import yaml
 from torch import nn
@@ -22,6 +23,136 @@ from torch import nn
 PATH = os.path.join(
     os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "libdata"
 )
+
+
+class IdentifierClass:
+    pass
+
+
+def get_classes(dir_name, cls_defintion, pkg):
+    classes = {}
+    for p in os.listdir(dir_name):
+        if p[0] != "_":
+            npkg = pkg + f".{p.split('.')[0]}"
+            try:
+                mod = importlib.import_module(npkg)
+                mod = inspect.getmembers(mod, inspect.isclass)
+                for t in mod:
+                    if cls_defintion in inspect.getmro(t[-1]):
+                        if not inspect.isabstract(t[-1]):
+                            try:
+                                classes[t[-1].name] = t[-1]
+                            except AttributeError:
+                                classes[t[0]] = t[-1]
+            except ModuleNotFoundError:
+                pass
+    return classes
+
+
+# from datasets import Dataset
+def my_import(name):
+    components = name.split(".")
+    p = ".".join(components[:-1])
+    mod = __import__(p, fromlist=[components[-1]])
+    klass = getattr(mod, components[-1])
+    return klass
+
+
+def set_metadata(tbl, tbl_meta={}):
+    fields = []
+    for f in tbl.schema.names:
+        fields.append(tbl.schema.field_by_name(f))
+
+    tbl_metadata = tbl.schema.metadata
+    for k, v in tbl_meta.items():
+        tbl_metadata[k] = json.dumps(v).encode("utf-8")
+
+    schema = pyarrow.schema(fields, metadata=tbl_metadata)
+    tbl = pyarrow.Table.from_arrays(list(tbl.itercolumns()), schema=schema)
+
+    return tbl
+
+
+class CollatedSets:
+    def __init__(self, *args):
+        self.args = args
+        self.range2listpos = {}
+        start = 0
+        for i, a in enumerate(args):
+            self.range2listpos[range(start, len(a) + start)] = i
+            start += len(a)
+
+    def __getitem__(self, x):
+        if x >= len(self):
+            raise IndexError(f"index {x} is out of range 0 to {len(self)}")
+        for rng in self.range2listpos:
+            if x in rng:
+                listpos = self.range2listpos[rng]
+                listind = x - rng.start
+                return self.args[listpos][listind]
+
+    def __len__(self):
+        return sum(map(lambda x: len(x), self.args))
+
+    def __iter__(self):
+        return iter(map(lambda x: self[x], range(0, len(self))))
+
+
+def get_func_signature_v2(func):
+    required = set()
+    keyword = {}
+    sig = inspect.signature(func).parameters
+    for k, v in sig.items():
+        if v.default == inspect._empty:
+            required.add(k)
+        else:
+            keyword[k] = v.default
+    return required, keyword
+
+
+def check_args_to_func(func, kwargs=None):
+    func_input = {}
+    if kwargs is None:
+        kwargs = {}
+    else:
+        assert isinstance(kwargs, dict)
+    req, keyw = get_func_signature_v2(func)
+    for r in req:
+        assert r in kwargs, (
+            "\n"
+            f"The required args of {func.__name__} are: {req}"
+            f" but '{r}' not found in kwargs: {list(kwargs.keys())}"
+        )
+        func_input[r] = kwargs[r]
+    for k in keyw:
+        if k in kwargs:
+            func_input[k] = kwargs[k]
+    return func_input
+
+
+def apply_args_to_func(func, kwargs=None):
+    func_input = {}
+    if kwargs is None:
+        kwargs = {}
+    else:
+        assert isinstance(kwargs, dict)
+    req, keyw = get_func_signature_v2(func)
+    for r in req:
+        assert r in kwargs, (
+            "\n"
+            f"The required args of {func.__name__} are: {req}"
+            f" but '{r}' not found in kwargs: {list(kwargs.keys())}"
+        )
+        func_input[r] = kwargs[r]
+    for k in keyw:
+        if k in kwargs:
+            func_input[k] = kwargs[k]
+    return func(**func_input)
+
+
+def myfunc(x, y, z, a=1, b=2, c=3):
+    print(x, y, z, a, b, c)
+    return "success"
 
 
 def batcher(iterable, n=64):
@@ -39,18 +170,18 @@ def try_load_json(filepath):
             yield jsonlines.open(f)
 
 
-def get_classes(path, cls_defintion, pkg):
-    if os.path.isfile(path):
-        modules = import_classes_from_file(path, pkg)
-    else:
-        modules = import_from_dir(path, pkg)
-    filter_mods = [m for m in modules if is_cls(m[1], cls_defintion)]
-    cls_dict = {}
-    for (name, inst) in filter_mods:
-        # inst = importlib.reload(inst)
-        name = getattr(inst, "name", name)
-        cls_dict[name] = inst
-    return cls_dict
+# def get_classes(path, cls_defintion, pkg):
+#     if os.path.isfile(path):
+#         modules = import_classes_from_file(path, pkg)
+#     else:
+#         modules = import_from_dir(path, pkg)
+#     filter_mods = [m for m in modules if is_cls(m[1], cls_defintion)]
+#     cls_dict = {}
+#     for (name, inst) in filter_mods:
+#         # inst = importlib.reload(inst)
+#         name = getattr(inst, "name", name)
+#         cls_dict[name] = inst
+#     return cls_dict
 
 
 def is_cls(inspect_class, cls_defintion):

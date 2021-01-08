@@ -12,29 +12,13 @@ import datasets as ds
 import pyarrow
 from datasets import ArrowWriter
 from mllib import utils
-from mllib.utils import import_funcs_from_file
+from mllib.maps import files
+from mllib.utils import set_metadata
 from tqdm import tqdm
 
-LABELPROCPATH = os.path.join(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "Label.py"
-)
+__all__ = ["Textset"]
 
-LABELPROC = import_funcs_from_file(LABELPROCPATH, pkg="mllib.processing")
-
-
-def set_metadata(tbl, tbl_meta={}):
-    fields = []
-    for f in tbl.schema.names:
-        fields.append(tbl.schema.field_by_name(f))
-
-    tbl_metadata = tbl.schema.metadata
-    for k, v in tbl_meta.items():
-        tbl_metadata[k] = json.dumps(v).encode("utf-8")
-
-    schema = pyarrow.schema(fields, metadata=tbl_metadata)
-    tbl = pyarrow.Table.from_arrays(list(tbl.itercolumns()), schema=schema)
-
-    return tbl
+_labelproc = files.Label()
 
 
 class Textset(ds.Dataset, metaclass=ABCMeta):
@@ -106,28 +90,6 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
             raise Exception(f"{split} is not a valid split")
         return splits
 
-    # def _check_frequency(self, row, min_freq):
-    #     labels_scores = list(
-    #         filter(
-    #             lambda x: self.get_freq(x[0]) > min_freq,
-    #             [
-    #                 (l, s)
-    #                 for l, s in zip(
-    #                     row.get(Textset.label_key), row.get(Textset.score_key)
-    #                 )
-    #             ],
-    #         )
-    #     )
-    #     if labels_scores:
-    #         row[Textset.label_key] = []
-    #         row[Textset.score_key] = []
-    #         for ls in labels_scores:
-    #             row[Textset.label_key].append(ls[0])
-    #             row[Textset.score_key].append(ls[1])
-    #         return row
-    #     else:
-    #         return {k: [] for k in row}
-
     @staticmethod
     def _alias_check(key, aliases, batch_entry):
         if key not in batch_entry:
@@ -168,7 +130,7 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
                 label_processor = config.label_processor
             if not callable(label_processor):
                 assert isinstance(label_processor, str), type(label_processor)
-                label_processor = LABELPROC[label_processor]
+                label_processor = _labelproc.get(label_processor)
 
         if config is None:
             suffixes = extensions

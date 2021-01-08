@@ -1,9 +1,19 @@
-import functools
 import timeit
+from functools import wraps
+
+
+def parametrized(dec):
+    def layer(*args, **kwargs):
+        def repl(f):
+            return dec(f, *args, **kwargs)
+
+        return repl
+
+    return layer
 
 
 def get_duration(func):
-    @functools.wraps(func)
+    @wraps(func)
     def wrapper(*args, **kwargs):
         starttime = timeit.default_timer()
         output = func(*args, **kwargs)
@@ -14,10 +24,12 @@ def get_duration(func):
 
 
 def external_config(config_class):
-    @functools.wraps(config_class)
-    def wrapper():
-        setattr(config_class, "_identify", None)
-        assert hasattr(config_class, "_identify", None)
-        return config_class
+    setattr(config_class, "_identify", None)
+    assert hasattr(config_class, "_identify")
+    return config_class
 
-    return wrapper
+
+@parametrized
+def named_model(class_name, name):
+    class_name.name = name
+    return class_name

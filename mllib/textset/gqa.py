@@ -1,3 +1,4 @@
+'''
 import json
 from collections import defaultdict
 
@@ -134,3 +135,4 @@ def load_temp_gqa(config, split):
         "img_ids": img_ids,
         "imgid_to_text": imgid_to_text,
     }
+'''

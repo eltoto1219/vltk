@@ -5,16 +5,16 @@ from dataclasses import dataclass
 from typing import Optional, Tuple
 
 import torch
+from mllib import decorators
 from torch import nn
 from torch.nn import CrossEntropyLoss
-from transformers.activations import gelu, swish
+from transformers.activations import gelu
 from transformers.configuration_utils import PretrainedConfig
 from transformers.file_utils import ModelOutput
 from transformers.modeling_utils import (PreTrainedModel,
                                          apply_chunking_to_forward,
                                          find_pruneable_heads_and_indices,
                                          prune_linear_layer)
-from transformers.tokenization_bert import BertTokenizer, BertTokenizerFast
 
 # SECTION 1: tokenization
 
@@ -28,28 +28,13 @@ PRETRAINED_POSITIONAL_EMBEDDINGS_SIZES = {"visualbert-base-uncased": 512}
 PRETRAINED_INIT_CONFIGURATION = {"visualbert-base-uncased": {"do_lower_case": True}}
 
 
-class VisualBertTokenizer(BertTokenizer):
-
-    vocab_files_names = VOCAB_FILES_NAMES
-    pretrained_vocab_files_map = PRETRAINED_VOCAB_FILES_MAP
-    max_model_input_sizes = PRETRAINED_POSITIONAL_EMBEDDINGS_SIZES
-    pretrained_init_configuration = PRETRAINED_INIT_CONFIGURATION
-
-
-class VisualBertTokenizerFast(BertTokenizerFast):
-    vocab_files_names = VOCAB_FILES_NAMES
-    pretrained_vocab_files_map = PRETRAINED_VOCAB_FILES_MAP
-    max_model_input_sizes = PRETRAINED_POSITIONAL_EMBEDDINGS_SIZES
-    pretrained_init_configuration = PRETRAINED_INIT_CONFIGURATION
-
-
 # SECTION 2: modeling
 
-ACT2FN = {"gelu": gelu, "relu": torch.nn.functional.relu, "swish": swish}
-VisualBertLayerNorm = torch.nn.LayerNorm
+ACT2FN = {"gelu": gelu, "relu": torch.nn.functional.relu}
+UniterLayerNorm = torch.nn.LayerNorm
 
 
-class VisualBertConfig(PretrainedConfig):
+class UniterConfig(PretrainedConfig):
 
     model_type = "visualbert"
 
@@ -110,14 +95,14 @@ class GeLU(nn.Module):
 
 
 @dataclass
-class VisualBertModelOutput(ModelOutput):
+class UniterModelOutput(ModelOutput):
     last_hidden_state: Optional[Tuple[torch.FloatTensor]] = None
     hidden_states: Optional[Tuple[torch.FloatTensor]] = None
     attentions: Optional[Tuple[torch.FloatTensor]] = None
 
 
 @dataclass
-class VisualBertForQuestionAnsweringOutput(ModelOutput):
+class UniterForQuestionAnsweringOutput(ModelOutput):
     loss: Optional[torch.FloatTensor] = None
     question_answering_score: Optional[torch.FloatTensor] = None
     hidden_states: Optional[Tuple[torch.FloatTensor]] = None
@@ -195,7 +180,7 @@ def load_tf_weights_in_visualbert(model, config, tf_checkpoint_path):
     return model
 
 
-class VisualBertSelfAttention(nn.Module):
+class UniterSelfAttention(nn.Module):
     def __init__(self, config):
         super().__init__()
         if config.hidden_size % config.num_attention_heads != 0 and not hasattr(
@@ -251,7 +236,7 @@ class VisualBertSelfAttention(nn.Module):
         attention_scores = torch.matmul(query_layer, key_layer.transpose(-1, -2))
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
         if attention_mask is not None:
-            # Apply the attention mask is (precomputed for all layers in VisualBertModel forward() function)
+            # Apply the attention mask is (precomputed for all layers in UniterModel forward() function)
             attention_scores = attention_scores + attention_mask
 
         # Normalize the attention scores to probabilities.
@@ -277,13 +262,11 @@ class VisualBertSelfAttention(nn.Module):
         return outputs
 
 
-class VisualBertSelfOutput(nn.Module):
+class UniterSelfOutput(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
-        self.LayerNorm = VisualBertLayerNorm(
-            config.hidden_size, eps=config.layer_norm_eps
-        )
+        self.LayerNorm = UniterLayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     def forward(self, hidden_states, input_tensor):
@@ -293,11 +276,11 @@ class VisualBertSelfOutput(nn.Module):
         return hidden_states
 
 
-class VisualBertAttention(nn.Module):
+class UniterAttention(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.self = VisualBertSelfAttention(config)
-        self.output = VisualBertSelfOutput(config)
+        self.self = UniterSelfAttention(config)
+        self.output = UniterSelfOutput(config)
         self.pruned_heads = set()
 
     def prune_heads(self, heads):
@@ -347,7 +330,7 @@ class VisualBertAttention(nn.Module):
         return outputs
 
 
-class VisualBertIntermediate(nn.Module):
+class UniterIntermediate(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.intermediate_size)
@@ -362,13 +345,11 @@ class VisualBertIntermediate(nn.Module):
         return hidden_states
 
 
-class VisualBertOutput(nn.Module):
+class UniterOutput(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.dense = nn.Linear(config.intermediate_size, config.hidden_size)
-        self.LayerNorm = VisualBertLayerNorm(
-            config.hidden_size, eps=config.layer_norm_eps
-        )
+        self.LayerNorm = UniterLayerNorm(config.hidden_size, eps=config.layer_norm_eps)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     def forward(self, hidden_states, input_tensor):
@@ -378,21 +359,21 @@ class VisualBertOutput(nn.Module):
         return hidden_states
 
 
-class VisualBertLayer(nn.Module):
+class UniterLayer(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.chunk_size_feed_forward = config.chunk_size_feed_forward
         self.seq_len_dim = 1
-        self.attention = VisualBertAttention(config)
+        self.attention = UniterAttention(config)
         self.is_decoder = config.is_decoder
         self.add_cross_attention = config.add_cross_attention
         if self.add_cross_attention:
             assert (
                 self.is_decoder
             ), f"{self} should be used as a decoder model if cross attention is added"
-            self.crossattention = VisualBertAttention(config)
-        self.intermediate = VisualBertIntermediate(config)
-        self.output = VisualBertOutput(config)
+            self.crossattention = UniterAttention(config)
+        self.intermediate = UniterIntermediate(config)
+        self.output = UniterOutput(config)
 
     def forward(
         self,
@@ -446,12 +427,12 @@ class VisualBertLayer(nn.Module):
         return layer_output
 
 
-class VisualBertEncoder(nn.Module):
+class UniterEncoder(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.config = config
         self.layer = nn.ModuleList(
-            [VisualBertLayer(config) for _ in range(config.num_hidden_layers)]
+            [UniterLayer(config) for _ in range(config.num_hidden_layers)]
         )
 
     def forward(
@@ -511,14 +492,14 @@ class VisualBertEncoder(nn.Module):
                 for v in [hidden_states, all_hidden_states, all_attentions]
                 if v is not None
             )
-        return VisualBertModelOutput(
+        return UniterModelOutput(
             last_hidden_state=hidden_states,
             hidden_states=all_hidden_states,
             attentions=all_attentions,
         )
 
 
-class VisualBertPooler(nn.Module):
+class UniterPooler(nn.Module):
     def __init__(self, config):
         super().__init__()
         self.dense = nn.Linear(config.hidden_size, config.hidden_size)
@@ -533,7 +514,7 @@ class VisualBertPooler(nn.Module):
         return pooled_output
 
 
-class VisualBertEmbeddings(nn.Module):
+class UniterEmbeddings(nn.Module):
     """Construct the embeddings from word, position and token_type embeddings."""
 
     def __init__(self, config):
@@ -548,7 +529,7 @@ class VisualBertEmbeddings(nn.Module):
             config.type_vocab_size, config.hidden_size, padding_idx=0
         )
 
-        self.LayerNorm = VisualBertLayerNorm(config.hidden_size, eps=1e-12)
+        self.LayerNorm = UniterLayerNorm(config.hidden_size, eps=1e-12)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
     def forward(self, input_ids, token_type_ids=None, inputs_embeds=None):
@@ -579,24 +560,24 @@ class VisualBertEmbeddings(nn.Module):
         return embeddings
 
 
-class VisualBertAnswerHead(nn.Module):
+class UniterAnswerHead(nn.Module):
     def __init__(self, config, num_labels):
         super().__init__()
         hid_dim = config.hidden_size
         self.ll1 = nn.Linear(hid_dim, hid_dim)
-        self.LayerNorm = VisualBertLayerNorm(hid_dim, eps=1e-12)
+        self.LayerNorm = UniterLayerNorm(hid_dim, eps=1e-12)
         self.ll2 = nn.Linear(hid_dim, num_labels)
 
     def forward(self, hidden_states):
         return self.ll2(self.LayerNorm(gelu(self.ll1(hidden_states))))
 
 
-class VisualBertPreTrainedModel(PreTrainedModel):
+class UniterPreTrainedModel(PreTrainedModel):
     """An abstract class to handle weights initialization and
     a simple interface for downloading and loading pretrained models.
     """
 
-    config_class = VisualBertConfig
+    config_class = UniterConfig
     load_tf_weights = load_tf_weights_in_visualbert
     base_model_prefix = "visualbert"
 
@@ -604,14 +585,14 @@ class VisualBertPreTrainedModel(PreTrainedModel):
         """ Initialize the weights """
         if isinstance(module, (nn.Linear, nn.Embedding)):
             module.weight.data.normal_(mean=0.0, std=self.config.initializer_range)
-        elif isinstance(module, VisualBertLayerNorm):
+        elif isinstance(module, UniterLayerNorm):
             module.bias.data.zero_()
             module.weight.data.fill_(1.0)
         if isinstance(module, nn.Linear) and module.bias is not None:
             module.bias.data.zero_()
 
 
-class VisualBertMultiModalEmbeddings(VisualBertEmbeddings):
+class UniterMultiModalEmbeddings(UniterEmbeddings):
     def __init__(self, config, *args, **kwargs):
         super().__init__(config)
 
@@ -767,18 +748,19 @@ class VisualBertMultiModalEmbeddings(VisualBertEmbeddings):
         return embeddings
 
 
-class VisualBertModel(VisualBertPreTrainedModel):
+@decorators.named_model("uniter")
+class UniterModel(UniterPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
         self.config = config
 
-        self.embeddings = VisualBertMultiModalEmbeddings(config)
-        self.encoder = VisualBertEncoder(config)
-        self.pooler = VisualBertPooler(config)
+        self.embeddings = UniterMultiModalEmbeddings(config)
+        self.encoder = UniterEncoder(config)
+        self.pooler = UniterPooler(config)
         self.bypass_transformer = config.bypass_transformer
 
         if self.bypass_transformer:
-            self.additional_layer = VisualBertLayer(config)
+            self.additional_layer = UniterLayer(config)
 
         self.output_attentions = config.output_attentions
         self.output_hidden_states = config.output_hidden_states
@@ -849,7 +831,8 @@ class VisualBertModel(VisualBertPreTrainedModel):
             return sequence_output, pooled_output, attn_data_list
 
 
-class VisualBertForQuestionAnswering(VisualBertPreTrainedModel):
+@decorators.named_model("uniter_for_qa")
+class UniterForQuestionAnswering(UniterPreTrainedModel):
     def __init__(self, config):
         super().__init__(config)
         self.config = config
@@ -859,14 +842,14 @@ class VisualBertForQuestionAnswering(VisualBertPreTrainedModel):
         self.num_labels = config.num_labels
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-        self.visualbert = VisualBertModel(config)
+        self.visualbert = UniterModel(config)
         self.init_weights()
-        self.classifier = VisualBertAnswerHead(config, self.num_labels)
+        self.classifier = UniterAnswerHead(config, self.num_labels)
 
         # Weight initialization
 
         # Loss function
-        self.aux_classifier = VisualBertAnswerHead(config, 10)
+        self.aux_classifier = UniterAnswerHead(config, 10)
         self.loss = CrossEntropyLoss()
         self.extra_loss = CrossEntropyLoss()
 
@@ -969,7 +952,7 @@ class VisualBertForQuestionAnswering(VisualBertPreTrainedModel):
             loss += self.loss(aux_logits, extras.view(-1))
 
         if not return_dict:
-            return VisualBertForQuestionAnsweringOutput(
+            return UniterForQuestionAnsweringOutput(
                 loss=loss,
                 question_answering_score=logits,
                 hidden_states=sequence_output,

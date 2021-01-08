@@ -10,13 +10,13 @@ from tqdm import tqdm
 from transformers import AdamW, get_linear_schedule_with_warmup
 
 
-class Loop(ABC):
+class Loop(utils.IdentifierClass, ABC):
     def __init__(
         self,
         config: object,
         datasets: str,
         model_dict: Union[dict, None],
-        extra_modules: Union[dict, None] = None
+        extra_modules: Union[dict, None] = None,
     ):
         self.model_dict = model_dict
         self.extra_modules = extra_modules
@@ -26,13 +26,17 @@ class Loop(ABC):
         self.scheduler = None
         self.half_precision = getattr(config.run, "half_precision", False)
         self.dryrun = getattr(config, "dryrun", False)
-        self.main_device = f"cuda:{config.gpu}"\
-            if getattr(config, "gpu", -1) != -1 else "cpu"
-        self.aux_model_device = f"cuda:{config.aux_gpu}"\
-            if getattr(config, "aux_gpu", -1) != -1 else "cpu"
+        self.main_device = (
+            f"cuda:{config.gpu}" if getattr(config, "gpu", -1) != -1 else "cpu"
+        )
+        self.aux_model_device = (
+            f"cuda:{config.aux_gpu}" if getattr(config, "aux_gpu", -1) != -1 else "cpu"
+        )
         self.scaler = None if not self.half_precision else torch.cuda.amp.GradScaler()
         self._init_loader()
-        assert hasattr(self, "loader"), "property 'loader' must be set in 'self._init_loader()'"
+        assert hasattr(
+            self, "loader"
+        ), "property 'loader' must be set in 'self._init_loader()'"
         assert isinstance(self.loader, torch.utils.data.DataLoader)
         self._dataset = self.loader.dataset
         self._init_models_and_extras(model_dict, extra_modules)
@@ -42,13 +46,13 @@ class Loop(ABC):
         name = self.is_name + "_"
         train = str(id(self.is_train)) + "_"
         if self.model_dict is None:
-            models = ''
+            models = ""
         else:
-            models = '_'.join(list(self.model_dict.keys())) + "_"
+            models = "_".join(list(self.model_dict.keys())) + "_"
         if self.extra_modules is None:
-            extras = ''
+            extras = ""
         else:
-            extras = '_'.join(list(self.extra_modules.keys())) + "_"
+            extras = "_".join(list(self.extra_modules.keys())) + "_"
         return name + train + models + extras
 
     def __str__(self):
@@ -60,12 +64,9 @@ class Loop(ABC):
     # make MUCH better in the future
     def __eq__(self, other):
         if isinstance(other, Loop):
-            if (
-                self.name == other.name
-                and (
-                    (self.is_train and other.is_train)
-                    or (not self.is_train and not other.is_train)
-                )
+            if self.name == other.name and (
+                (self.is_train and other.is_train)
+                or (not self.is_train and not other.is_train)
             ):
                 if self.extra_modules is None and other.extra_modules is None:
                     pass
@@ -239,7 +240,7 @@ class Loop(ABC):
         else:
             lrs = []
             for param_group in self.optim.param_groups:
-                lrs.append(param_group['lr'])
+                lrs.append(param_group["lr"])
             return lrs
 
     def __iter__(self):
@@ -286,9 +287,7 @@ class Loop(ABC):
         else:
             split = self.config.data.eval_split
         self.loader = UniversalLoader(
-            config=self.config,
-            split=split,
-            dataset_name=self.datasets
+            config=self.config, split=split, dataset_name=self.datasets
         )
         self._split = split
 
@@ -309,7 +308,7 @@ class Loop(ABC):
     @property
     @abstractmethod
     def name(self) -> str:
-        return ''
+        return ""
 
     @property
     @abstractmethod

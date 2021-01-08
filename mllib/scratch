@@ -1,10 +1,3 @@
-so, what we need to do now is:
-5. save into split files for the image extraction too
-4. re-test the datset extraction thing
-5.5. add extraction functionality back to command line commands and then do extraction
-1. look into batch samplers
-6. update the universal loader with new batch sampler and the imageset and the textset
-8. test dryrun for data
 7. fix model outputs
 9. test dryrun for lxmert gqa finetuning
 10. add coco captions, vg-qa, vg-captions, datsets to the thing

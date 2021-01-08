@@ -2,6 +2,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from mllib import decorators
 
 
 class PositionEmbs(nn.Module):
@@ -170,6 +171,7 @@ class Encoder(nn.Module):
         return out
 
 
+@decorators.named_model("vit")
 class VisionTransformer(nn.Module):
     """ Vision Transformer """
 
