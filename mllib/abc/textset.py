@@ -11,7 +11,7 @@ import datasets
 import datasets as ds
 import pyarrow
 from datasets import ArrowWriter
-from mllib import utils
+from mllib import IMAGEKEY, LABELKEY, SCOREKEY, TEXTKEY, utils
 from mllib.maps import files
 from mllib.utils import set_metadata
 from tqdm import tqdm
@@ -24,10 +24,18 @@ _labelproc = files.Label()
 class Textset(ds.Dataset, metaclass=ABCMeta):
     text_reference = "textset"
     dataset_reference = "imageset"
-    img_key = "img_id"
-    text_key = "text"
-    score_key = "score"
-    label_key = "label"
+    img_key = IMAGEKEY
+    text_key = TEXTKEY
+    score_key = SCOREKEY
+    label_key = LABELKEY
+    _extensions = ["json", "jsonl"]
+    _known_image_formats = ("jpg", "png", "jpeg")
+    _base_features = {
+        IMAGEKEY: ds.Value("string"),
+        TEXTKEY: ds.Value("string"),
+        LABELKEY: ds.Sequence(length=-1, feature=ds.Value("string")),
+        SCOREKEY: ds.Sequence(length=-1, feature=ds.Value("float32")),
+    }
 
     def __init__(
         self,
@@ -35,22 +43,26 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
         answer_frequencies,
         img_to_rows_map,
         info=None,
-        imageset_files=None,
-        raw_files=None,
         split="",
         **kwargs,
     ):
-        super().__init__(arrow_table=arrow_table, info=info, **kwargs)
+        super().__init__(arrow_table=arrow_table, info=info, fingerprint="", **kwargs)
         self._answer_frequencies = answer_frequencies
         self._img_to_rows_map = img_to_rows_map
-        self._imageset_files = imageset_files
-        self._raw_files = raw_files
         self._split = split
-        if raw_files is not None:
-            self._raw_map = {s.split("/")[-1].split(".")[0]: s for s in raw_files}
 
     @staticmethod
-    def custom_finalize(writer, close_stream=True):
+    def _check_features(default_features):
+        feature_dict = default_features
+        feature_dict[IMAGEKEY] = Textset._base_features[IMAGEKEY]
+        feature_dict[SCOREKEY] = Textset._base_features[SCOREKEY]
+        feature_dict[TEXTKEY] = Textset._base_features[TEXTKEY]
+        feature_dict[LABELKEY] = Textset._base_features[LABELKEY]
+        features = ds.Features(feature_dict)
+        return features
+
+    @staticmethod
+    def _custom_finalize(writer, close_stream=True):
         if writer.pa_writer is None:
             if writer._schema is not None:
                 writer._build_writer(writer._schema)
@@ -69,53 +81,130 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
         )
         return writer._num_examples, writer._num_bytes
 
-    @staticmethod
-    def _split_handler(split):
-        if "valid" in split:
-            split = split.replace("valid", "val")
-        if "testdev" in split:
-            split = split.replace("testdev", "eval")
-        elif "dev" in split:
-            split = split.replace("dev", "eval")
-
-        if split == "trainval":
-            splits = ["train", "val"]
-        elif split == "traineval":
-            splits = ["train", "eval"]
-        elif split in {"train", "eval", "val"}:
-            splits = [split]
-        elif split is None:
-            return ""
+    def _get_pathes(self, datadirs, split, extractor=None, feat_type="arrow"):
+        assert feat_type in ("arrow", "raw")
+        if feat_type == "arrow":
+            assert extractor is not None
+            files = Textset._locate_arrow_files(
+                datadirs, self.info, extractor, split=split
+            )
         else:
-            raise Exception(f"{split} is not a valid split")
-        return splits
+            files = Textset._locate_raw_files(datadirs, self.info, split=split)
+        return files
+
+    def get_imgid_to_raw_path(self, datadirs, split):
+        files = self._get_pathes(datadirs, split=split, feat_type="raw")
+        imgid2path = {Path(p).stem: p for p in files}
+        return imgid2path
+
+    def get_arrow_split(self, datadirs, split, extractor):
+        files = self._get_pathes(
+            datadirs, split=split, extractor=extractor, feat_type="arrow"
+        )
+        assert (
+            len(files) == 1
+        ), f"was expecting to find only one file, but found the following: {files}"
+
+        return files[0]
 
     @staticmethod
-    def _alias_check(key, aliases, batch_entry):
-        if key not in batch_entry:
-            if not aliases:
-                batch_entry[key] = batch_entry[key]
-            else:
-                found = False
-                for a in aliases:
-                    if a in batch_entry:
-                        batch_entry[key] = batch_entry[a]
-                        found = True
-                assert found, (
-                    f"{key} could not be set"
-                    f"\n add correct image key in {batch_entry.keys()}"
-                    f"\n to the set: {aliases}"
-                )
+    def _locate_arrow_files(datadirs, textset_info, extractor, split=None):
+        if split is None:
+            split = ""
+        image_set_splits = set()
+        uniq_datasets = set()
+        if split != "":
+            for ds_dict in textset_info[split]:
+                for dset, splits in ds_dict.items():
+                    uniq_datasets.add(dset)
+                    for s in splits:
+                        image_set_splits.add(s)
+        else:
+            for split, ds_dict in textset_info.items():
+                for dset, splits in ds_dict.items():
+                    uniq_datasets.add(dset)
+                    for s in splits:
+                        image_set_splits.add(s)
+        search_files = []
+        for dd in datadirs:
+            for ud in uniq_datasets:
+                for split in image_set_splits:
+                    search_files.append(
+                        os.path.join(dd, ud, extractor, "{split}.arrow")
+                    )
+        valid_search_files = list(filter(lambda x: os.path.isfile(x), search_files))
+        assert any(valid_search_files), (
+            f"attempting to load *.arrow datasets from the following pathes: '{search_files}'"
+            f" but none of these are real files"
+        )
+        print(f"Attempting to load from: {valid_search_files}")
+        return valid_search_files
+
+    @staticmethod
+    def _locate_raw_files(datadirs, textset_info, split=None):
+        raw_files = set()
+        if split is None:
+            split = ""
+        known_suffixes = Textset._known_image_formats
+        image_set_splits = set()
+        uniq_datasets = set()
+        if split != "":
+            for ds_dict in textset_info[split]:
+                for dset, splits in ds_dict.items():
+                    uniq_datasets.add(dset)
+                    for s in splits:
+                        image_set_splits.add(s)
+        else:
+            for split, ds_dict in textset_info.items():
+                for dset, splits in ds_dict.items():
+                    uniq_datasets.add(dset)
+                    for s in splits:
+                        image_set_splits.add(s)
+        search_dirs = []
+        for dd in datadirs:
+            for ud in uniq_datasets:
+                for split in image_set_splits:
+                    search_dirs.append(os.path.join(dd, ud, split))
+        valid_search_dirs = list(filter(lambda x: os.path.isdir(x), search_dirs))
+        assert any(valid_search_dirs), (
+            f"looking for raw images in the following dirs '{search_dirs}'"
+            f" but none of these are real directories"
+        )
+        print(f"locating images in the following dirs: {valid_search_dirs}")
+        for sdir in valid_search_dirs:
+            for path in Path(sdir).glob("**/*"):
+                if path.sufix in known_suffixes:
+                    raw_files.add(str(path))
+        return list(raw_files)
+
+    @staticmethod
+    def _locate_text_files(path_or_dir, textset_name, split):
+        if os.path.isfile(path_or_dir):
+            return [path_or_dir]
+        text_files = []
+        suffixes = Textset._extensions
+        for datadir in path_or_dir:
+            for suffix in suffixes:
+                for path in Path(datadir).glob(
+                    f"**/*.{suffix}",
+                ):
+                    path = str(path)
+                    if textset_name in path:
+                        if split in path:
+                            text_files.append(path)
+
+        assert text_files, "could not locate text file locations"
+        text_files = list(set(text_files))
+        return text_files
 
     @classmethod
     def extract(
         cls,
         config=None,
-        split=None,
-        extensions=None,
+        splits=None,
         path_or_dir=None,
         supervised=True,
-        save_to=None,
+        savedir=None,
         min_label_frequency=None,
         label_processor="label_default",
         **kwargs,
@@ -132,75 +221,52 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
                 assert isinstance(label_processor, str), type(label_processor)
                 label_processor = _labelproc.get(label_processor)
 
-        if config is None:
-            suffixes = extensions
-        else:
-            suffixes = config.textfile_extensions
-        if not isinstance(suffixes, list):
-            suffixes = [suffixes]
-
-        input_split = split
-        if split is None:
+        if splits is None:
             assert config is not None
-            split = config.split
-        if extensions is None:
-            extensions = ["json", "jsonl"]
+            splits = config.train_split
+            if isinstance(splits, str):
+                splits = [splits]
+        else:
+            if isinstance(splits, str):
+                splits = [splits]
 
         if path_or_dir is None:
             path_or_dir = config.datadirs
             if isinstance(path_or_dir, str):
                 path_or_dir = [path_or_dir]
         else:
-            path_or_dir = [path_or_dir]
+            if isinstance(path_or_dir, str):
+                path_or_dir = [path_or_dir]
 
-        splits = cls._split_handler(split)
+        if savedir is None:
+            savedir = os.path.join(path_or_dir[-1], cls.name)
+        os.makedirs(savedir, exist_ok=True)
+
         print(f"searching for input files for splits: {splits}")
         split_dict = {}
-        orig_save_to = save_to
         for split in splits:
-            if supervised:
-                label_dict = Counter()
-            else:
-                label_dict = None
-
+            label_dict = Counter()
             cur_row = 0
             imgid2rows = defaultdict(list)
 
-            text_files = []
-            for datadir in path_or_dir:
-                for suffix in suffixes:
-                    for path in Path(datadir).glob(
-                        f"**/*.{suffix}",
-                    ):
-                        path = str(path)
-                        if cls.name in path:
-                            if split in path:
-                                text_files.append(path)
+            text_files = cls._locate_text_files(
+                datadirs=path_or_dir, textset_name=cls.name, slit=split
+            )
 
-            assert text_files, "could not locate text file locations"
-            text_files = list(set(text_files))
-            # print(f"extracting from: {text_files}")
-
+            features = Textset._check_features(cls.default_features)
+            if not supervised:
+                features.pop(SCOREKEY)
+                features.pop(LABELKEY)
             # setup arrow writer
             buffer = pyarrow.BufferOutputStream()
             stream = pyarrow.output_stream(buffer)
-            writer = ArrowWriter(features=cls.features, stream=stream)
+            writer = ArrowWriter(features=features, stream=stream)
 
             # load data
             text_data = []
-            # data_type = None
-            # data_sub_type = None
-            print("loading json files")
+            print(f"loading json files from: {text_files}")
             for t in tqdm(text_files):
                 data = utils.try_load_json(t)
-                # if data_type is None:
-                #     data_type = type(next(data))
-                # else:
-                #     assert isinstance(next(data), data_type)
-                # if data_sub_type is None:
-                #     data_sub_type = type(next(data))
-                # else:
-                #     assert isinstance(next(data), data_sub_type)
                 text_data.extend(data)
 
             # custom forward from user
@@ -211,14 +277,17 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
 
             # pre-checks
             print("writing rows to arrow dataset")
-            # this is 4 am coder
             for sub_batch_entries in utils.batcher(batch_entries, n=64):
                 flat_entry = None
                 for b in sub_batch_entries:
+                    if not supervised:
+                        b.pop(SCOREKEY, None)
+                        b.pop(LABELKEY, None)
+                    else:
+                        for l in b["label"]:
+                            label_dict.update([l])
                     imgid2rows[b[Textset.img_key]].append(cur_row)
                     cur_row += 1
-                    for l in b["label"]:
-                        label_dict.update([l])
                     b = {k: [v] for k, v in b.items()}
 
                     if flat_entry is None:
@@ -231,17 +300,11 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
                 writer.write_batch(batch)
 
             dset = datasets.Dataset.from_buffer(buffer.getvalue())
-            Textset.custom_finalize(writer, cls)
+            Textset._custom_finalize(writer, cls)
 
             # misc.
             dset = pickle.loads(pickle.dumps(dset))
-            if orig_save_to is None:
-                save_to = os.path.join(datadir, cls.name, f"{split}.arrow")
-                os.makedirs(os.path.join(datadir, cls.name), exist_ok=True)
-            else:
-                assert os.path.isdir(save_to)
-                os.makedirs(os.path.join(save_to, cls.name), exist_ok=True)
-                save_to = os.path.join(save_to, cls.name, f"{split}.arrow")
+            savefile = os.path.join(savedir, f"{split}.arrow")
 
             # add extra metadata
             extra_meta = {
@@ -252,13 +315,15 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
             table = set_metadata(dset._data, tbl_meta=extra_meta)
 
             # define new writer
-            writer = ArrowWriter(path=save_to, schema=table.schema, with_metadata=False)
+            writer = ArrowWriter(
+                path=savefile, schema=table.schema, with_metadata=False
+            )
 
             # save new table
             writer.write_table(table)
-            e, b = Textset.custom_finalize(writer, close_stream=True)
+            e, b = Textset._custom_finalize(writer, close_stream=True)
             print(f"Success! You wrote {e} entry(s) and {b >> 20} mb")
-            print(f"Located: {save_to}")
+            print(f"Located: {savedir}")
 
             # return class
             arrow_dset = cls(
@@ -267,7 +332,7 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
                 img_to_rows_map=imgid2rows,
                 info=dset.info,
                 answer_frequencies=dict(label_dict),
-                split="" if input_split is None else split,
+                split=split,
             )
             split_dict[split] = arrow_dset
         return split_dict
@@ -295,25 +360,30 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
                 return labels, scores
 
     @classmethod
-    def from_config(cls, config, split=None):
-        if split is None:
-            split = config.split
-        splits = cls._split_handler(split)
+    def from_config(cls, config, splits=None):
+        if splits is None:
+            splits = config.train_split
+        if isinstance(splits, str):
+            splits = [splits]
+        else:
+            assert isinstance(splits, list)
+
+        datadirs = config.datadirs
+        if isinstance(datadirs, str):
+            datadirs = [datadirs]
+        else:
+            assert isinstance(datadirs, list)
+
         split_dict = {}
         for split in splits:
-            path_dict = Textset.locations(
-                config, imageset=cls.imageset, split=split, textset=cls.name
+            text_path = Textset._locate_text_files(
+                datadirs=datadirs, split=split, textset_name=cls.name
             )
-            text_path = [p for p in path_dict["text"] if split in p]
             assert len(text_path) == 1, f"not sure which to load: {text_path}"
-            path = text_path[0]
-            raw_files = path_dict["raw"]
-            imageset_files = path_dict["arrow"]
-            print("read table")
-            mmap = pyarrow.memory_map(path)
+            text_path = text_path[0]
+            mmap = pyarrow.memory_map(text_path)
             f = pyarrow.ipc.open_stream(mmap)
             pa_table = f.read_all()
-            print("read metadata")
             assert "img_to_rows_map".encode("utf-8") in pa_table.schema.metadata.keys()
             assert (
                 "answer_frequencies".encode("utf-8") in pa_table.schema.metadata.keys()
@@ -324,17 +394,13 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
             answer_frequencies = pa_table.schema.metadata[
                 "answer_frequencies".encode("utf-8")
             ]
-            print("load json from metdata")
             img_to_rows_map = json.loads(img_to_rows_map)
             answer_frequencies = json.loads(answer_frequencies)
-            print("return textset")
 
             arrow_dset = cls(
                 arrow_table=pa_table,
                 img_to_rows_map=img_to_rows_map,
                 answer_frequencies=answer_frequencies,
-                raw_files=raw_files,
-                imageset_files=imageset_files,
                 split="" if split is None else split,
             )
             split_dict[split] = arrow_dset
@@ -342,119 +408,25 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
         return split_dict
 
     @classmethod
-    def from_file(cls, path, split=None, raw_files=None, imageset_files=None):
-        print("read table")
+    def from_file(cls, path):
         mmap = pyarrow.memory_map(path)
         f = pyarrow.ipc.open_stream(mmap)
         pa_table = f.read_all()
-        print("read metadata")
         assert "img_to_rows_map".encode("utf-8") in pa_table.schema.metadata.keys()
         assert "answer_frequencies".encode("utf-8") in pa_table.schema.metadata.keys()
         img_to_rows_map = pa_table.schema.metadata["img_to_rows_map".encode("utf-8")]
         answer_frequencies = pa_table.schema.metadata[
             "answer_frequencies".encode("utf-8")
         ]
-        print("load json from metdata")
         img_to_rows_map = json.loads(img_to_rows_map)
         answer_frequencies = json.loads(answer_frequencies)
-        print("return textset")
-        splits = cls._split_handler(split)
-        split_dict = {}
-        for split in splits:
-            arrow_dset = cls(
-                arrow_table=pa_table,
-                img_to_rows_map=img_to_rows_map,
-                answer_frequencies=answer_frequencies,
-                raw_files=raw_files,
-                imageset_files=imageset_files,
-                split="" if split is None else split,
-            )
-            split_dict[split] = arrow_dset
-
-        return split_dict
-
-    @staticmethod
-    def locations(
-        config,
-        imageset,
-        textset,
-        split=None,
-        basedir=None,
-        arrow=None,
-        raw=None,
-        img_format="jpg",
-    ):
-        if config is not None:
-            img_format = config.img_format
-            assert isinstance(img_format, str)
-        if arrow is not None:
-            assert isinstance(arrow, bool)
-        else:
-            fields = config.arrow_fields
-            if fields is None:
-                arrow = True
-            elif not fields:
-                arrow = False
-        if raw is not None:
-            assert isinstance(raw, bool)
-        else:
-            raw = config.use_raw_imgs
-
-        if split is None:
-            assert config is not None
-            splits = [config.split]
-        else:
-            splits = Textset._split_handler(split)
-
-        if basedir is None:
-            datadirs = config.datadirs
-        else:
-            datadirs = basedir
-        if isinstance(datadirs, list):
-            datadirs = [datadirs]
-
-        textset_name = textset
-        imageset_name = imageset
-        assert textset_name, "Textset must have a name"
-        assert imageset_name, "Textset must have a be associated with an imageset"
-
-        raw_files = []
-        arrow_files = []
-        text_files = []
-
-        if isinstance(datadirs, str):
-            datadirs = [datadirs]
-        if raw:
-            print("search for raw files")
-            for datadir in datadirs:
-                for path in Path(datadir).glob("**/*.{img_format}"):
-                    for split in splits:
-                        if (
-                            split in str(path).lower()
-                            and imageset_name in str(path).lower()
-                        ):
-                            raw_files.append(str(path))
-        if arrow:
-            print("search for arrow imageset")
-            for datadir in datadirs:
-                for path in Path(datadir).glob("**/*.arrow"):
-                    for split in splits:
-                        if (
-                            split in str(path).lower()
-                            and imageset_name in str(path).lower()
-                        ):
-                            arrow_files.append(str(path))
-
-        print("search for arrow textset")
-        for datadir in datadirs:
-            for path in Path(datadir).glob("**/*.arrow"):
-                for split in splits:
-                    if split in str(path).lower() and textset_name in str(path).lower():
-                        text_files.append(str(path))
-
-        file_dict = {"arrow": arrow_files, "text": text_files, "raw": raw_files}
-
-        return file_dict
+        arrow_dset = cls(
+            arrow_table=pa_table,
+            img_to_rows_map=img_to_rows_map,
+            answer_frequencies=answer_frequencies,
+            split="",
+        )
+        return arrow_dset
 
     @property
     def uniq_imgs(self):
@@ -510,7 +482,7 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def imageset(self) -> str:
+    def info(self) -> dict:
         raise Exception("Do not call from abstract class")
 
     @abstractmethod
@@ -534,5 +506,5 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def features(self):
-        return ds.Features
+    def default_features(self):
+        return dict

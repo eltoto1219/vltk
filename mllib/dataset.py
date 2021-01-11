@@ -50,7 +50,7 @@ def collate(
 
 
 class UniversalLoader(DataLoader):
-    def __init__(self, names, config, split=None):
+    def __init__(self, names, config, split=None, textsetdict=None, imagesetdict=None):
         if split is not None and split in config.eval_aliases.union(
             config.valid_aliases
         ):
@@ -70,6 +70,8 @@ class UniversalLoader(DataLoader):
             names=names,
             config=config,
             split=split,
+            textsetdict=textsetdict,
+            imagesetdict=imagesetdict,
         )
         # init loader
         super().__init__(
@@ -105,15 +107,21 @@ class UniversalLoader(DataLoader):
 
 
 class UniversalDataset(Dataset):
-    def __init__(self, names, config, split=None):
+    def __init__(self, names, config, split=None, textsetdict=None, imagesetdict=None):
         self.config = config
         self.names = names
         self.split = split
         self.splits = []
         self.imagesets = []
         self.textsets = []
-        self.textsetdict = defaultdict(dict)
-        self.imagesetdict = defaultdict(dict)
+        if textsetdict is None:
+            self.textsetdict = defaultdict(dict)
+        else:
+            self.textsetdict = textsetdict
+        if imagesetdict is None:
+            self.imagesetdict = defaultdict(dict)
+        else:
+            self.imagesetdict = imagesetdict
         if isinstance(names, str):
             names = [names]
         for name in names:

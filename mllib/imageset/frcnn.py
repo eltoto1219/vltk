@@ -1,8 +1,6 @@
+import datasets as ds
 import torch
-from mllib import compat
 from mllib.abc.imageset import Imageset
-from mllib.configs import Config
-from mllib.modeling.frcnn import FRCNN
 
 TESTPATH = "/home/avmendoz/mllib/tests"
 
@@ -13,6 +11,23 @@ TESTPATH = "/home/avmendoz/mllib/tests"
 class FRCNNSet(Imageset):
     # name will be overwritten with the name of the dataset when loaded from file
     name = "frcnn"
+
+    def default_features(self, max_detections, pos_dim, visual_dim):
+        return {
+            "attr_ids": ds.Sequence(length=max_detections, feature=ds.Value("float32")),
+            "attr_probs": ds.Sequence(
+                length=max_detections, feature=ds.Value("float32")
+            ),
+            "boxes": ds.Array2D((max_detections, pos_dim), dtype="float32"),
+            "normalized_boxes": ds.Array2D((max_detections, pos_dim), dtype="float32"),
+            "obj_ids": ds.Sequence(length=max_detections, feature=ds.Value("float32")),
+            "obj_probs": ds.Sequence(
+                length=max_detections, feature=ds.Value("float32")
+            ),
+            "roi_features": ds.Array2D((max_detections, visual_dim), dtype="float32"),
+            "sizes": ds.Sequence(length=2, feature=ds.Value("float32")),
+            "preds_per_image": ds.Value(dtype="int32"),
+        }
 
     def forward(filepath, image_preprocessor, model, **kwargs):
 
@@ -53,32 +68,7 @@ class FRCNNSet(Imageset):
         return output_dict
 
 
-if __name__ == "__main__":
-
-    # frcnnconfig = compat.Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
-    # frcnnconfig.model.device = 0
-    # frcnn = FRCNN.from_pretrained("unc-nlp/frcnn-vg-finetuned", config=frcnnconfig)
-    config = Config().data
-
-    # imageset = FRCNNSet.extract(
-    #     dataset_name="coco2014",
-    #     config=config,
-    #     model=frcnn,
-    #     image_preprocessor="img_to_tensor",
-    #     features="frcnn",
-    #     max_detections=config.max_detections,
-    #     pos_dim=config.pos_dim,
-    #     visual_dim=config.visual_dim,
-    #     device=frcnnconfig.model.device,
-    # )
-
-    # vqa = VQAset.from_config(config, split="val")["val"]
-    # arrow_path = VQAset.locations(
-    #     config, split="trainval", imageset="coco2014", textset=VQAset.name
-    # )["arrow"][0]
-    # coco2014 = FRCNNSet.from_file(arrow_path)
-
-    # imgid = next(iter(coco2014.img_to_row_map.keys()))
-
-    # print("is aligned?", coco2014.check_imgid_alignment())
-    # print(f"entry for {imgid}: ", coco2014.get_image(imgid).keys())
+# frcnnconfig = compat.Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
+# frcnnconfig.model.device = 0
+# frcnn = FRCNN.from_pretrained("unc-nlp/frcnn-vg-finetuned", config=frcnnconfig)
+# config = Config().data

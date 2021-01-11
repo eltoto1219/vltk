@@ -95,6 +95,7 @@ class Experiment(IdentifierClass, ABC):
         }
         loop_dict = {}
         loop_info = {}
+        first_loop_name = None
         for loop_key, model_list in self.loops_to_models.items():
             if isinstance(loop_key, str):
                 loop_cls = _loop.get(loop_key)
@@ -103,6 +104,14 @@ class Experiment(IdentifierClass, ABC):
 
             loop_name = loop_cls.name
 
+            if first_loop_name is not None:
+                first_loop = loop_dict[first_loop_name]
+                imagesetdict = first_loop.get_imageset()
+                textsetdict = first_loop.get_textsetdict()
+            else:
+                first_loop_name = loop_name
+                imagesetdict = None
+                textsetdict = None
             loop = loop_cls(
                 config=self.config,
                 model_dict={
@@ -112,6 +121,8 @@ class Experiment(IdentifierClass, ABC):
                 },
                 extra_modules=self.extra_modules,
                 datasets=self.datasets,
+                imagesetdict=imagesetdict,
+                textsetdict=textsetdict,
             )
 
             if (loop.is_train and not self.config.data.skip_train) or (
@@ -228,7 +239,3 @@ class Experiment(IdentifierClass, ABC):
     @abstractmethod
     def loginfo(self, **kwargs) -> str:
         return ""
-
-
-def get_experiment(name):
-    pass

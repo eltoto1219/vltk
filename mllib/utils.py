@@ -143,7 +143,7 @@ def get_func_signature_v2(func):
     return required, keyword
 
 
-def check_args_to_func(func, kwargs=None):
+def collect_args_to_func(func, kwargs=None):
     func_input = {}
     if kwargs is None:
         kwargs = {}

@@ -3,17 +3,21 @@ import json
 import logging as logger
 import os
 import pickle
+import sys
 from abc import ABC, abstractmethod
 from collections import OrderedDict
+from itertools import chain
 from pathlib import Path
 
 import datasets
 import datasets as ds
 import pyarrow
-from datasets import ArrowWriter, Features, Split
+from datasets import ArrowWriter, Split
+from mllib import IMAGEKEY
 from mllib.maps import files
 from mllib.processing import Label
-from mllib.utils import get_func_signature, set_metadata
+from mllib.processing.Image import img_to_tensor
+from mllib.utils import apply_args_to_func, set_metadata
 from tqdm import tqdm
 
 __all__ = ["Imageset"]
@@ -23,33 +27,22 @@ _imageproc = files.Image()
 
 
 class Imageset(ds.Dataset, ABC):
+    _batch_size = 32
+    _base_features = {
+        IMAGEKEY: ds.Value("string"),
+    }
+
     def __init__(self, arrow_table, img_to_row_map, split=None, info=None, **kwargs):
-        super().__init__(arrow_table=arrow_table, split=split, info=info, **kwargs)
+        super().__init__(
+            arrow_table=arrow_table, split=split, info=info, fingerprint="", **kwargs
+        )
         self._img_to_row_map = img_to_row_map
 
     def has_id(self, img_id):
         return img_id in self.img_to_row_map
 
-    def shuffle(
-        self,
-        seed,
-        generator,
-        keep_in_memory,
-        load_from_cache_file,
-        indices_cache_file_name,
-        writer_batch_size,
-        new_fingerprint,
-    ):
-        super().shuffle(
-            seed=seed,
-            generator=generator,
-            keep_in_memory=keep_in_memory,
-            load_from_cache_file=load_from_cache_file,
-            indices_cache_file_name=indices_cache_file_name,
-            writer_batch_size=writer_batch_size,
-            new_fingerprint=new_fingerprint,
-        )
-        self.align_imgids()
+    def shuffle(self):
+        print("WARNING: shuffle disabled for imaegeset")
 
     @staticmethod
     def custom_finalize(writer, close_stream=True):
@@ -79,42 +72,87 @@ class Imageset(ds.Dataset, ABC):
     def get(self, img_id):
         return self[self.img_to_row_map[img_id]]
 
+    def _get_path
+
     @classmethod
     def extract(
         cls,
         image_preprocessor,
         model,
-        features,
         dataset_name,
+        features=None,
+        searchdirs=None,
+        savedir=None,
+        splits=None,
         config=None,
-        path=None,
         img_format="jpg",
         subset_ids=None,
-        save_to=None,
         **kwargs,
     ):
+        assert model is not None, "must provide torch model, not none type"
 
+        # update img format if in kwargs or config
+        if "img_format" in kwargs:
+            img_format = kwargs.get("img_format")
+        elif hasattr(config, "img_format"):
+            img_format = config.img_format
+
+        # get split name if split name is available
+        if isinstance(splits, str):
+            splits = [splits]
+        elif splits is not None:
+            assert isinstance(splits, list)
+
+        if isinstance(searchdirs, str):
+            searchdirs = [searchdirs]
+        elif isinstance(searchdirs, list):
+            pass
+        elif searchdirs is None:
+            assert config is not None
+            # create searchdirs
+            print("collecting search dirs")
+            datadirs = config.datadirs
+            if isinstance(datadirs, list):
+                pass
+            else:
+                assert isinstance(datadirs, str)
+                datadirs = [datadirs]
+            searchdirs = [os.path.join(x, dataset_name) for x in datadirs]
+            gen_savedir = datadirs[-1]
+            # find only valid splits
+            temp_searchdirs = []
+            for i in range(len(searchdirs)):
+                sdir = searchdirs.pop(i)
+                if os.path.exists(sdir) and splits is not None:
+                    sdirs = [
+                        os.path.join(sdir, s) for s in os.listdir(sdir) if s in splits
+                    ]
+                else:
+                    sdirs = [os.path.join(sdir, s) for s in os.listdir(sdir)]
+                temp_searchdirs.extend(sdirs)
+            searchdirs = temp_searchdirs
+        else:
+            raise Exception
+
+        # get extractor name
+        extractor_name = cls.name
+        # make savedir if not provdied
+        if savedir is None:
+            savedir = os.path.join(gen_savedir, dataset_name, extractor_name)
+        os.makedirs(savedir, exist_ok=True)
+        print(f"will write to directory: {savedir}")
+
+        # turn options from config into dict
         if config is not None:
             presets = config.to_dict()
-            if kwargs is not None:
-                for k, v in kwargs.items():
-                    presets[k] = v
+            presets = {**presets, **kwargs}
         else:
             presets = kwargs
 
-        # will save in specified path or in the datadir specified in config
-        if save_to is None:
-            dd = config.datadirs
-            if isinstance(dd, str):
-                datadir = dd
-            else:
-                datadir = config.datadirs[-1]
-        else:
-            assert os.path.isdir(save_to) or not os.path.exists(save_to)
-            datadir = os.path.join(save_to)
-
-        print(f"SEARCHING recursively in {datadir}")
-
+        # check or init image preprocessor
+        if image_preprocessor is None:
+            print(f"defaulting to base image preprocessor: {img_to_tensor.__name__}")
+            image_preprocessor = img_to_tensor
         if callable(image_preprocessor):
             pass
         elif isinstance(image_preprocessor, str):
@@ -122,117 +160,99 @@ class Imageset(ds.Dataset, ABC):
         else:
             raise ValueError("processor must be a string or function")
 
-        assert model is not None, "must specify model"
-        if path is not None:
-            assert os.path.isdir(path), "dir does not exist, images elsewhere?"
-        else:
-            path = datadir
-
+        # prelim forward checks
         cls._check_forward(image_preprocessor, model, cls.forward)
 
-        if isinstance(features, str):
-            feature_func = _featureproc.get(features)
-            sig_dict = get_func_signature(feature_func)
-            feat_options = {}
-            for k in sig_dict.keys():
-                assert k in presets, (
-                    f"user must specify {k} in config or kwargs"
-                    " in the the Imageset.extract method"
-                    f"\nThe following are required: {list(sig_dict.keys())}"
-                )
-                feat_options[k] = presets.pop(k)
-            features = feature_func(**feat_options)
-        elif callable(features):
-            sig_dict = get_func_signature(features)
-            feat_options = {}
-            feat_options = {}
-            for k in sig_dict.keys():
-                assert k in presets, (
-                    f"user must specify {k} in config or kwargs"
-                    " in the the Imageset.extract method"
-                    f"\nThe following are required: {list(sig_dict.keys())}"
-                )
-                feat_options[k] = presets.pop(k)
-            features = features(**feat_options)
-        elif not isinstance(features, Features):
-            raise Exception(
-                "provide string mapping to features, or the features themselves"
-            )
+        # ensure features are in correct format
+        features = cls._check_features(features, presets)
 
-        assert "img_id" in features
-
+        # setup tracking dicts
         split2buffer = OrderedDict()
         split2stream = OrderedDict()
         split2writer = OrderedDict()
         split2imgid2row = {}
         split2currow = {}
-        total = len(
-            [
-                p
-                for p in Path(path).rglob(f"*.{img_format}")
-                if dataset_name in str(p).lower()
-            ]
-        )
-        for path in tqdm(Path(path).rglob(f"*.{img_format}"), total=total):
-            if dataset_name in str(path).lower():
-                split = path.parent.name
 
-                if split not in split2buffer:
-                    imgid2row = {}
-                    cur_row = 0
-                    # buffer = pyarrow.allocate_buffer(size=64, resizable=True)
-                    buffer = pyarrow.BufferOutputStream()
-                    # buffer = BytesIO()
-                    split2buffer[split] = buffer
-                    stream = pyarrow.output_stream(buffer)
-                    split2stream[split] = stream
-                    writer = ArrowWriter(features=features, stream=stream)
-                    split2writer[split] = writer
-                else:
-                    imgid2row = split2imgid2row[split]
-                    cur_row = split2currow[split]
-                    buffer = split2buffer[split]
-                    stream = split2stream[split]
-                    writer = split2writer[split]
+        print(f"SEARCHING recursively in {searchdirs}")
+        files = [list(Path(p).rglob(f"*.{img_format}")) for p in searchdirs]
+        files = list(chain(*files))
+        total_files = len(files)
+        print(f"found {total_files} images")
+        batch_size = cls._batch_size
+        cur_size = 0
+        cur_batch = None
+        for i, path in tqdm(enumerate(files), total=total_files, file=sys.stdout):
+            split = path.parent.name
+            img_id = path.stem
+            img_id = Label.clean_imgid_default(img_id)
+            imgs_left = abs(i + 1 - total_files)
+            if splits is not None and split not in splits:
+                continue
+            if subset_ids is not None and img_id not in subset_ids:
+                continue
+            # make sure file is not empty
+            if path.stat().st_size < 10:
+                continue
 
-                # make sure file is not empty
-                if path.stat().st_size < 10:
-                    continue
+            # oragnize by split now
+            if split not in split2buffer:
+                imgid2row = {}
+                cur_row = 0
+                cur_size = 0
+                buffer = pyarrow.BufferOutputStream()
+                split2buffer[split] = buffer
+                stream = pyarrow.output_stream(buffer)
+                split2stream[split] = stream
+                writer = ArrowWriter(features=features, stream=stream)
+                split2writer[split] = writer
+            else:
+                # if new split and cur size is not zero, make sure to clear
+                if cur_size != 0 and cur_batch is not None:
+                    cur_size = 0
+                    batch = features.encode_batch(cur_batch)
+                    writer.write_batch(batch)
+                imgid2row = split2imgid2row[split]
+                cur_row = split2currow[split]
+                buffer = split2buffer[split]
+                stream = split2stream[split]
+                writer = split2writer[split]
 
-                img_id = path.stem
-                if img_id in imgid2row:
-                    print(f"skipping {img_id}. Already written to table")
-                imgid2row[img_id] = cur_row
-                cur_row += 1
-                split2currow[split] = cur_row
-                split2imgid2row[split] = imgid2row
-                filepath = str(path)
+            if img_id in imgid2row:
+                print(f"skipping {img_id}. Already written to table")
+            imgid2row[img_id] = cur_row
+            cur_row += 1
+            split2currow[split] = cur_row
+            split2imgid2row[split] = imgid2row
+            filepath = str(path)
 
-                if subset_ids is not None and img_id not in subset_ids:
-                    continue
+            # now do model forward
+            presets.pop("image_preprocessor", None)
+            output_dict = cls.forward(
+                filepath=filepath,
+                image_preprocessor=image_preprocessor,
+                model=model,
+                **presets,
+            )
+            assert isinstance(
+                output_dict, dict
+            ), "model outputs should be in dict format"
+            output_dict["img_id"] = [img_id]
 
-                # now do model forward
-                presets.pop("image_preprocessor", None)
-                output_dict = cls.forward(
-                    filepath=filepath,
-                    image_preprocessor=image_preprocessor,
-                    model=model,
-                    **presets,
-                )
-                assert isinstance(
-                    output_dict, dict
-                ), "model outputs should be in dict format"
-                output_dict["img_id"] = [Label.clean_imgid_default(img_id)]
-                assert set(features.keys()) == set(output_dict.keys()), (
-                    f"mismatch between feature items"
-                    f" and model output keys: {set(output_dict.keys()).symmetric_difference(set(features.keys()))}"
-                )
+            if cur_batch is None or cur_size == 0:
+                cur_batch = output_dict
+                cur_size = 1
+            else:
+                for k, v in cur_batch.items():
+                    cur_batch[k].extend(v)
+                    cur_size += 1
 
-                # write features
-                batch = features.encode_batch(output_dict)
+            # write features
+            if cur_size == batch_size or imgs_left < batch_size:
+                cur_size = 0
+                batch = features.encode_batch(cur_batch)
                 writer.write_batch(batch)
+            split2imgid2row[split] = imgid2row
 
-        split2imgid2row[split] = imgid2row
         # define datasets
         dsets = []
         splitdict = {}
@@ -241,40 +261,35 @@ class Imageset(ds.Dataset, ABC):
             dset = datasets.Dataset.from_buffer(b.getvalue(), split=Split(split))
             dsets.append(dset)
             imgid2row = split2imgid2row[split]
-            # writer.finalize(close_stream=False)
             try:
                 writer.finalize(close_stream=False)
             except Exception:
                 pass
 
-            # concat datasets if multiple splits
-            # if len(dsets) != 1:
-            #     dset = datasets.concatenate_datasets(dsets=dsets)
-
             # misc.
             dset = pickle.loads(pickle.dumps(dset))
-            save_to = os.path.join(datadir, "arrow", dataset_name, f"{split}.arrow")
-            os.makedirs(os.path.join(datadir, "arrow", dataset_name), exist_ok=True)
+
+            savefile = os.path.join(savedir, f"{split}.arrow")
 
             # add extra metadata
             extra_meta = {"img_to_row_map": imgid2row}
             table = set_metadata(dset._data, tbl_meta=extra_meta)
-
             # define new writer
-            writer = ArrowWriter(path=save_to, schema=table.schema, with_metadata=False)
-            # raise Exception(writer._schema.metadata.keys())
-
-            # save new table
+            writer = ArrowWriter(
+                path=savefile, schema=table.schema, with_metadata=False
+            )
+            # savedir new table
             writer.write_table(table)
             e, b = Imageset.custom_finalize(writer, close_stream=True)
             print(f"Success! You wrote {e} entry(s) and {b >> 20} mb")
-            print(f"Located: {save_to}")
+            print(f"Located: {savefile}")
 
             # return class
             arrow_dset = cls(
                 arrow_table=table, img_to_row_map=imgid2row, info=dset.info
             )
             splitdict[split] = arrow_dset
+
         return splitdict
 
     def set_img_to_row_map(self, imap):
@@ -314,6 +329,7 @@ class Imageset(ds.Dataset, ABC):
         arrow_dset = cls(
             arrow_table=pa_table, split=split, img_to_row_map=img_to_row_map
         )
+        print("returning")
         return arrow_dset
 
     @staticmethod
@@ -328,9 +344,40 @@ class Imageset(ds.Dataset, ABC):
         )
 
     @staticmethod
+    def _check_features(features, presets=None):
+        if presets is None:
+            presets = {}
+        # check and/or init features
+        if features is not None and callable(features):
+            features = apply_args_to_func(features, presets)
+        if features is None:
+            feature_dict = apply_args_to_func(Imageset.default_features, presets)
+            feature_dict[IMAGEKEY] = Imageset._base_features[IMAGEKEY]
+            features = ds.Features(feature_dict)
+        if isinstance(features, str):
+            feature_func = _featureproc.get(features)
+            feature_dict = apply_args_to_func(feature_func, presets)
+            assert isinstance(features, dict), (
+                f"feature function: {feature_func.__name__}"
+                f" must return type dict, not type {type(features)}"
+            )
+            feature_dict[IMAGEKEY] = Imageset._base_features[IMAGEKEY]
+            features = ds.Features(feature_dict)
+        elif isinstance(features, dict):
+            features[IMAGEKEY] = Imageset._base_features[IMAGEKEY]
+            features = ds.Features(features)
+        else:
+            raise Exception(f"incorrect feature type: {type(features)}")
+        return features
+
+    @staticmethod
     @abstractmethod
     def forward(filepath, image_preprocessor, model, **kwargs):
         raise Exception("child forward is not being called")
+
+    @abstractmethod
+    def default_featues(self, *args, **kwargs):
+        return dict
 
     @property
     @abstractmethod

@@ -14,15 +14,18 @@
 # print(EvalLxmert.name)
 
 
-from mllib.configs import Config
-from mllib.maps import dirs, files
+from mllib.decorators import get_duration
+from mllib.imageset.frcnn import FRCNNSet
 
-l = files.Label()
-t = dirs.Textsets()
-i = dirs.Imagesets()
-e = dirs.Exps()
-print(i.avail())
-# imageproc = maps.Imageproc()
+
+@get_duration
+def load_coco_test():
+    return FRCNNSet.from_file("/playpen1/home/avmendoz/data/coco2014/frcnn/test.arrow")
+
+
+load_coco_test()
+
+
 # lxmert = models.get_model("lxmertforquestionanswering")
 # config = Config().data
 # add_label_processsor("foo", lambda x: x)

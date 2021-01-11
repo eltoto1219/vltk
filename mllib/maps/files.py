@@ -66,7 +66,7 @@ class Feature:
     def __init__(self):
         if "FEATUREDICT" not in globals():
             global FEATUREDICT
-            FEATUREDICT = import_funcs_from_file(FEATUREPATH, pkg="mllib")
+            FEATUREDICT = {}  # import_funcs_from_file(FEATUREPATH, pkg="mllib")
 
     def avail(self):
         return list(FEATUREDICT.keys())

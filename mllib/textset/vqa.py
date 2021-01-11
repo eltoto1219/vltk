@@ -1,8 +1,7 @@
-from collections import Counter, OrderedDict, defaultdict
+from collections import Counter
 
 import datasets as ds
 from mllib.abc.textset import Textset
-from mllib.configs import Config
 from mllib.metrics import soft_score
 from tqdm import tqdm
 
@@ -14,18 +13,14 @@ TESTPATH = "/playpen1/home/avmendoz/data/vqa/train"
 
 class VQAset(Textset):
     name = "vqa"
-    imageset = "coco2014"
-    features = ds.Features(
-        OrderedDict(
-            {
-                "img_id": ds.Value("string"),
-                "text": ds.Value("string"),
-                "label": ds.Sequence(length=-1, feature=ds.Value("string")),
-                "score": ds.Sequence(length=-1, feature=ds.Value("float32")),
-                "qid": ds.Value("string"),
-            }
-        )
-    )
+    info = {
+        "val": {"coco2014": ["val"]},
+        "train": {"coco2014": ["train"]},
+        "test": {"coco2014": ["test"]},
+    }
+    default_features = {
+        "qid": ds.Value("string"),
+    }
 
     def forward(text_data, label_processor=None, **kwargs):
         min_label_frequency = kwargs.get("min_label_frequency")
@@ -87,10 +82,8 @@ class VQAset(Textset):
         print(f"SKIPPEd {skipped} entries")
         return batch_entries
 
-
-if __name__ == "__main__":
-
-    config = Config().data
+    # from mllib.configs import Config
+    # config = Config().data
     # save_to
     # path_or_dir
 
@@ -98,13 +91,12 @@ if __name__ == "__main__":
     #     config=config,
     #     split="trainval",
     # )
-    print("FORM Conf")
-    loaded = VQAset.from_config(config, split="val")
-    # get min frequency of answers when loading, so we know the lenngth right away
-    print(loaded)
-    val = loaded["val"]
+    # loaded = VQAset.from_config(config, split="val")
+    # # get min frequency of answers when loading, so we know the lenngth right away
+    # print(loaded)
+    # val = loaded["val"]
 
-    print("entry at row 1:", val.get_row(1))
-    print("entries with img id 262148:", val.get_from_img("262148"))
-    print("freq of answer table:", val.get_freq("table"))
-    print("num_labels", val.num_labels)
+    # print("entry at row 1:", val.get_row(1))
+    # print("entries with img id 262148:", val.get_from_img("262148"))
+    # print("freq of answer table:", val.get_freq("table"))
+    # print("num_labels", val.num_labels)

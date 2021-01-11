@@ -17,6 +17,8 @@ class Loop(utils.IdentifierClass, ABC):
         datasets: str,
         model_dict: Union[dict, None],
         extra_modules: Union[dict, None] = None,
+        imagesetdict=None,
+        textsetdict=None,
     ):
         self.model_dict = model_dict
         self.extra_modules = extra_modules
@@ -33,7 +35,7 @@ class Loop(utils.IdentifierClass, ABC):
             f"cuda:{config.aux_gpu}" if getattr(config, "aux_gpu", -1) != -1 else "cpu"
         )
         self.scaler = None if not self.half_precision else torch.cuda.amp.GradScaler()
-        self._init_loader()
+        self._init_loader(imagesetdict=imagesetdict, textsetdict=textsetdict)
         assert hasattr(
             self, "loader"
         ), "property 'loader' must be set in 'self._init_loader()'"
@@ -281,11 +283,21 @@ class Loop(utils.IdentifierClass, ABC):
     def split(self):
         return self._split
 
-    def _init_loader(self):
+    def get_textset(self):
+        return self.loader.dataset.textsetdict
+
+    def get_imageset(self):
+        return self.loader.dataset.imagesetdict
+
+    def _init_loader(self, textsetdict=None, imagesetdict=None):
         if self.is_train:
             split = "train"
             self.loader = UniversalLoader(
-                config=self.config.data, split=split, names=self.datasets
+                config=self.config.data,
+                split=split,
+                names=self.datasets,
+                imagesetdict=imagesetdict,
+                textsetdict=textsetdict,
             )
         else:
             split = self.config.data.eval_split
@@ -295,7 +307,11 @@ class Loop(utils.IdentifierClass, ABC):
                 datasets = [datasets]
             assert eval_dataset in datasets, (eval_dataset, datasets)
             self.loader = UniversalLoader(
-                config=self.config.data, split=split, names=eval_dataset
+                config=self.config.data,
+                split=split,
+                names=eval_dataset,
+                textsetdict=textsetdict,
+                imagesetdict=imagesetdict,
             )
         self._split = split
 

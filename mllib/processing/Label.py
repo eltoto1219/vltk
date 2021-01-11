@@ -9,7 +9,7 @@ CONTRACTION_CONVERT = json.load(open(os.path.join(PATH, "convert_answers.json"))
 
 
 def clean_imgid_default(imgid):
-    return imgid.split("_")[-1]
+    return imgid.split("_")[-1].lstrip("0").strip("n")
     # started = False
     # new_id = ""
     # for i in imgid:
