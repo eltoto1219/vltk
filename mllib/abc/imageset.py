@@ -72,8 +72,6 @@ class Imageset(ds.Dataset, ABC):
     def get(self, img_id):
         return self[self.img_to_row_map[img_id]]
 
-    def _get_path
-
     @classmethod
     def extract(
         cls,

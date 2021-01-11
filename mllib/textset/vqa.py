@@ -13,7 +13,7 @@ TESTPATH = "/playpen1/home/avmendoz/data/vqa/train"
 
 class VQAset(Textset):
     name = "vqa"
-    info = {
+    data_info = {
         "val": {"coco2014": ["val"]},
         "train": {"coco2014": ["train"]},
         "test": {"coco2014": ["test"]},
@@ -82,19 +82,24 @@ class VQAset(Textset):
         print(f"SKIPPEd {skipped} entries")
         return batch_entries
 
-    # from mllib.configs import Config
-    # config = Config().data
-    # save_to
-    # path_or_dir
+
+if __name__ == "__main__":
+
+    from mllib.configs import Config
+
+    config = Config().data
 
     # VQAset.extract(
     #     config=config,
-    #     split="trainval",
+    #     splits=["train", "val"],
     # )
-    # loaded = VQAset.from_config(config, split="val")
-    # # get min frequency of answers when loading, so we know the lenngth right away
-    # print(loaded)
-    # val = loaded["val"]
+    val = VQAset.from_config(config, splits="val")["val"]
+    # get min frequency of answers when loading, so we know the lenngth right away
+
+    # get path to arrow file
+    val.get_arrow_split(datadirs=config.datadirs, extractor="frcnn", split="val"))
+    # get path to raw img ids
+    print(val.get_imgid_to_raw_path(datadirs=config.datadirs, split="val"))
 
     # print("entry at row 1:", val.get_row(1))
     # print("entries with img id 262148:", val.get_from_img("262148"))

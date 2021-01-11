@@ -13,6 +13,7 @@ import pyarrow
 from datasets import ArrowWriter
 from mllib import IMAGEKEY, LABELKEY, SCOREKEY, TEXTKEY, utils
 from mllib.maps import files
+from mllib.processing.Label import clean_imgid_default
 from mllib.utils import set_metadata
 from tqdm import tqdm
 
@@ -46,7 +47,14 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
         split="",
         **kwargs,
     ):
-        super().__init__(arrow_table=arrow_table, info=info, fingerprint="", **kwargs)
+
+        super().__init__(
+            arrow_table=arrow_table,
+            split=split,
+            info=info,
+            fingerprint="",
+            **kwargs,
+        )
         self._answer_frequencies = answer_frequencies
         self._img_to_rows_map = img_to_rows_map
         self._split = split
@@ -60,6 +68,28 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
         feature_dict[LABELKEY] = Textset._base_features[LABELKEY]
         features = ds.Features(feature_dict)
         return features
+
+    @staticmethod
+    def _label_handler(label):
+        single_label_score = [1]
+        if isinstance(label, str):
+            return [label], single_label_score
+        if isinstance(label, dict):
+            if len(label) == 0:
+                return [""], single_label_score
+            elif len(label) == 1:
+                label = next(iter(label))
+                assert isinstance(label, str), label
+                return [label], single_label_score
+            else:
+                labels = []
+                scores = []
+                for lab, score in label.items():
+                    assert isinstance(lab, str)
+                    score = float(score)
+                    labels.append(lab)
+                    scores.append(score)
+                return labels, scores
 
     @staticmethod
     def _custom_finalize(writer, close_stream=True):
@@ -81,46 +111,38 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
         )
         return writer._num_examples, writer._num_bytes
 
-    def _get_pathes(self, datadirs, split, extractor=None, feat_type="arrow"):
-        assert feat_type in ("arrow", "raw")
-        if feat_type == "arrow":
-            assert extractor is not None
-            files = Textset._locate_arrow_files(
-                datadirs, self.info, extractor, split=split
-            )
-        else:
-            files = Textset._locate_raw_files(datadirs, self.info, split=split)
-        return files
-
-    def get_imgid_to_raw_path(self, datadirs, split):
-        files = self._get_pathes(datadirs, split=split, feat_type="raw")
-        imgid2path = {Path(p).stem: p for p in files}
-        return imgid2path
-
-    def get_arrow_split(self, datadirs, split, extractor):
-        files = self._get_pathes(
-            datadirs, split=split, extractor=extractor, feat_type="arrow"
+    @staticmethod
+    def _locate_text_set(datadirs, textset_name, split):
+        search_files = []
+        for dd in datadirs:
+            search_files.append(os.path.join(dd, textset_name, f"{split}.arrow"))
+        valid_search_files = list(filter(lambda x: os.path.isfile(x), search_files))
+        assert any(valid_search_files), (
+            f"attempting to load *.arrow datasets from the following pathes: '{search_files}'"
+            f" but none of these are real files"
         )
         assert (
-            len(files) == 1
-        ), f"was expecting to find only one file, but found the following: {files}"
-
-        return files[0]
+            len(valid_search_files) == 1
+        ), "not sure which file to load: {valid_search_files}"
+        valid_search_file = valid_search_files[0]
+        print(f"Attempting to load from: {valid_search_file}")
+        return valid_search_file
 
     @staticmethod
-    def _locate_arrow_files(datadirs, textset_info, extractor, split=None):
+    def _locate_arrow_files(datadirs, textset_data_info, extractor, split=None):
         if split is None:
             split = ""
         image_set_splits = set()
         uniq_datasets = set()
+        if isinstance(datadirs, str):
+            datadirs = [datadirs]
         if split != "":
-            for ds_dict in textset_info[split]:
-                for dset, splits in ds_dict.items():
+            for dset in textset_data_info[split]:
+                for split in textset_data_info[split][dset]:
                     uniq_datasets.add(dset)
-                    for s in splits:
-                        image_set_splits.add(s)
+                    image_set_splits.add(split)
         else:
-            for split, ds_dict in textset_info.items():
+            for split, ds_dict in textset_data_info.items():
                 for dset, splits in ds_dict.items():
                     uniq_datasets.add(dset)
                     for s in splits:
@@ -130,7 +152,7 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
             for ud in uniq_datasets:
                 for split in image_set_splits:
                     search_files.append(
-                        os.path.join(dd, ud, extractor, "{split}.arrow")
+                        os.path.join(dd, ud, extractor, f"{split}.arrow")
                     )
         valid_search_files = list(filter(lambda x: os.path.isfile(x), search_files))
         assert any(valid_search_files), (
@@ -141,21 +163,23 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
         return valid_search_files
 
     @staticmethod
-    def _locate_raw_files(datadirs, textset_info, split=None):
+    def _locate_raw_files(datadirs, textset_data_info, split=None):
         raw_files = set()
         if split is None:
             split = ""
+        if isinstance(datadirs, str):
+            datadirs = [datadirs]
         known_suffixes = Textset._known_image_formats
         image_set_splits = set()
         uniq_datasets = set()
         if split != "":
-            for ds_dict in textset_info[split]:
-                for dset, splits in ds_dict.items():
+            for dset in textset_data_info[split]:
+                for split in textset_data_info[split][dset]:
                     uniq_datasets.add(dset)
-                    for s in splits:
-                        image_set_splits.add(s)
+                    image_set_splits.add(split)
+
         else:
-            for split, ds_dict in textset_info.items():
+            for split, ds_dict in textset_data_info.items():
                 for dset, splits in ds_dict.items():
                     uniq_datasets.add(dset)
                     for s in splits:
@@ -173,17 +197,28 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
         print(f"locating images in the following dirs: {valid_search_dirs}")
         for sdir in valid_search_dirs:
             for path in Path(sdir).glob("**/*"):
-                if path.sufix in known_suffixes:
+                if path.suffix[1:] in known_suffixes:
                     raw_files.add(str(path))
         return list(raw_files)
 
     @staticmethod
     def _locate_text_files(path_or_dir, textset_name, split):
-        if os.path.isfile(path_or_dir):
-            return [path_or_dir]
+        if (
+            isinstance(path_or_dir, list)
+            and len(path_or_dir) == 1
+            or isinstance(path_or_dir, str)
+        ):
+            if isinstance(path_or_dir, str):
+                path_or_dir = [path_or_dir]
+            if os.path.isfile(path_or_dir[0]):
+                return path_or_dir
+        if isinstance(path_or_dir, str):
+            path_or_dir = [path_or_dir]
+        valid_path_or_dir = list(filter(lambda x: os.path.exists(x), path_or_dir))
+        assert valid_path_or_dir, f"no path exists in {path_or_dir}"
         text_files = []
         suffixes = Textset._extensions
-        for datadir in path_or_dir:
+        for datadir in valid_path_or_dir:
             for suffix in suffixes:
                 for path in Path(datadir).glob(
                     f"**/*.{suffix}",
@@ -337,28 +372,6 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
             split_dict[split] = arrow_dset
         return split_dict
 
-    @staticmethod
-    def _label_handler(label):
-        single_label_score = [1]
-        if isinstance(label, str):
-            return [label], single_label_score
-        if isinstance(label, dict):
-            if len(label) == 0:
-                return [""], single_label_score
-            elif len(label) == 1:
-                label = next(iter(label))
-                assert isinstance(label, str), label
-                return [label], single_label_score
-            else:
-                labels = []
-                scores = []
-                for lab, score in label.items():
-                    assert isinstance(lab, str)
-                    score = float(score)
-                    labels.append(lab)
-                    scores.append(score)
-                return labels, scores
-
     @classmethod
     def from_config(cls, config, splits=None):
         if splits is None:
@@ -376,11 +389,9 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
 
         split_dict = {}
         for split in splits:
-            text_path = Textset._locate_text_files(
+            text_path = Textset._locate_text_set(
                 datadirs=datadirs, split=split, textset_name=cls.name
             )
-            assert len(text_path) == 1, f"not sure which to load: {text_path}"
-            text_path = text_path[0]
             mmap = pyarrow.memory_map(text_path)
             f = pyarrow.ipc.open_stream(mmap)
             pa_table = f.read_all()
@@ -428,25 +439,6 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
         )
         return arrow_dset
 
-    @property
-    def uniq_imgs(self):
-        return set(self._img_to_rows_map.keys())
-
-    @property
-    def img_to_rows_map(self):
-        return self._img_to_rows_map
-
-    @property
-    def answer_frequencies(self):
-        return self._answer_frequencies
-
-    @property
-    def raw_file_map(self):
-        return self._raw_map
-
-    def get_imageset_files(self):
-        return self._imageset_files
-
     def get_from_img(self, img_id, min_freq=14):
         small_dataset = self[self.img_to_rows_map[img_id]]
         img_ids = set(small_dataset.pop(Textset.img_key))
@@ -476,13 +468,39 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
     def get_freq(self, label):
         return self.answer_frequencies[label]
 
+    def _get_pathes(self, datadirs, split, extractor=None, feat_type="arrow"):
+        assert feat_type in ("arrow", "raw")
+        if feat_type == "arrow":
+            assert extractor is not None
+            files = Textset._locate_arrow_files(
+                datadirs, self.data_info, extractor, split=split
+            )
+        else:
+            files = Textset._locate_raw_files(datadirs, self.data_info, split=split)
+        return files
+
+    def get_imgid_to_raw_path(self, datadirs, split):
+        files = self._get_pathes(datadirs, split=split, feat_type="raw")
+        imgid2path = {clean_imgid_default(Path(p).stem): p for p in files}
+        return imgid2path
+
+    def get_arrow_split(self, datadirs, split, extractor):
+        files = self._get_pathes(
+            datadirs, split=split, extractor=extractor, feat_type="arrow"
+        )
+        assert (
+            len(files) == 1
+        ), f"was expecting to find only one file, but found the following: {files}"
+
+        return files[0]
+
     @property
     def split(self):
         return self._split
 
     @property
     @abstractmethod
-    def info(self) -> dict:
+    def data_info(self) -> dict:
         raise Exception("Do not call from abstract class")
 
     @abstractmethod
@@ -503,6 +521,22 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
     @property
     def num_labels(self):
         return len(self.labels)
+
+    @property
+    def uniq_imgs(self):
+        return set(self._img_to_rows_map.keys())
+
+    @property
+    def img_to_rows_map(self):
+        return self._img_to_rows_map
+
+    @property
+    def answer_frequencies(self):
+        return self._answer_frequencies
+
+    @property
+    def raw_file_map(self):
+        return self._raw_map
 
     @property
     @abstractmethod
