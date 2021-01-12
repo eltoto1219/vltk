@@ -5,7 +5,7 @@ import unittest
 import numpy as np
 from PIL import Image
 
-from mllib import SingleImageViz
+from vltk import SingleImageViz
 
 
 PATH = os.path.dirname(os.path.realpath(__file__))

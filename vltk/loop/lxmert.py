@@ -1,11 +1,10 @@
 from vltk import metrics
-from vltk.abc.experiment import Experiment
 from vltk.abc.loop import Loop
 from vltk.outputs import LoopOutputs
 
 
-class SampleLoop(Loop):
-    name: str = "sample"
+class Lxmert(Loop):
+    name: str = "lxmert"
     is_train: bool = True
 
     def loop(self, batch, model_outputs):
@@ -17,7 +16,7 @@ class SampleLoop(Loop):
                 "acc": f"{acc:.3f}%",
                 "lrs": [f"{l:.3e}" for l in self.get_lr()],
                 "loss": f"{model_outputs.loss:.3f}",
-                "bz": flatten_bz
+                "bz": flatten_bz,
             }
         )
 
@@ -35,8 +34,8 @@ class SampleLoop(Loop):
                     "obj_ids",
                     "obj_probs",
                     "preds_per_image",
-                    "sizes"
-                ]
+                    "sizes",
+                ],
             )
         self.toCuda(batch, device=self.config.gpu)
         batch["return_dict"] = True
@@ -50,29 +49,3 @@ class SampleLoop(Loop):
             labels=batch["labels"],
         )
         return model_outputs
-
-
-class SampleExperiment(Experiment):
-
-    # the name will be registered for use on the command line. IE: run exp sample gqa ....
-    name: str = "sample"
-    loops_to_models: dict = {
-        # we train lxmert. why in brackets?, you can actually train arbitrary models at once!
-        SampleLoop: ["lxmert"],
-        # SampleLoop will train lxmert, but what about eval?
-        # luckily, we have an eval factory in SampleLoop
-        # the only overhead is the name "eval_sample" which we must define for the new class!
-        SampleLoop.eval_instance("eval_sample"): ["lxmert"]
-    }
-
-    # extra_modules = {"myextra": torch.nn.Linear(1, 2)}
-    # "myextra" will be defined as an attribute in Sample(Loop) which will point to the nn.Module
-
-    def loginfo(self, **kwargs):
-        '''
-        kwargs will be  loop output from every run, with the run name being the key
-        '''
-        logstr = ''
-        for k, v in kwargs.items():
-            logstr += f'{k}: accuracy={v.accuracy} '
-        return logstr

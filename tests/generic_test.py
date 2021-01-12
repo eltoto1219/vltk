@@ -1,7 +1,7 @@
 import os
 import unittest
 
-from mllib import get_data
+from vltk import get_data
 
 TEST_PATH = os.path.dirname(os.path.realpath(__file__))
 

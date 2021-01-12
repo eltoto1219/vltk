@@ -1,7 +1,7 @@
-# mllib
+# vltk
 to install (add editable for personal custimization)
 ```
-git clone https://github.com/eltoto1219/mllib.git && cd mllib && pip install -e .
+git clone https://github.com/eltoto1219/vltk.git && cd vltk && pip install -e .
 ```
 once data ready, all one needs to do is provide experiment, and dataset names, ie.
 ```
@@ -38,7 +38,7 @@ There are two abtract classes for text-based datasets and image-based datasets
 To create an image-based dataset
 
 
-1. create an extractor class that inherits from the class `mllib.abc.imageset.Imageset` for a specific image-feature extracting model (frcnn) and implement the `forward` method to map the model outputs to the specified data schema
+1. create an extractor class that inherits from the class `vltk.abc.imageset.Imageset` for a specific image-feature extracting model (frcnn) and implement the `forward` method to map the model outputs to the specified data schema
 ```
 class FRCNNSet(Imageset):
     def forward(filepath, image_preprocessor, model, **kwargs):
@@ -70,7 +70,7 @@ coco2014 = FRCNNSet.from_file(arrow_path)
 To create an text-based dataset
 
 
-1. create a Textset class that inherits from the class `mllib.abc.textset.Textset` and implement a dataset-specific schema, the `forward` method which formats the text data to match the schema, and add both the dataset name aswell as the associated imageset
+1. create a Textset class that inherits from the class `vltk.abc.textset.Textset` and implement a dataset-specific schema, the `forward` method which formats the text data to match the schema, and add both the dataset name aswell as the associated imageset
 ```
 class VQAset(Textset):
     name = "vqa"
