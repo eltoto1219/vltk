@@ -16,6 +16,11 @@
 
 from vltk.decorators import get_duration
 from vltk.imageset.frcnn import FRCNNSet
+from vltk.maps.dirs import Imagesets, Loops
+import vltk.loop.data
+
+_is_sets = Loops()
+print(_is_sets.avail())
 
 
 @get_duration
@@ -23,7 +28,6 @@ def load_coco_test():
     return FRCNNSet.from_file("/playpen1/home/avmendoz/data/coco2014/frcnn/test.arrow")
 
 
-load_coco_test()
 
 
 # lxmert = models.get_model("lxmertforquestionanswering")

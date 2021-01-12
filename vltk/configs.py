@@ -78,10 +78,9 @@ class DataConfig(config.Config):
     eval_dataset = "gqa"
     eval_batch_size = 32
     train_batch_size = 64
-    dryrun: bool = True
     label_processor: str = "label_default"
     min_label_occurence = 9
-    from_extractor: str = "frcnn"
+    extractor: Union[None,str] = "frcnn"
     imgid_aliases: set = {"img", "image", "imgid", "img_id", "iid", "image_id"}
     text_aliases: set = {"text", "sent", "que", "question"}
     eval_aliases: set = {"testdev", "eval", "dev", "evaluation", "inference"}

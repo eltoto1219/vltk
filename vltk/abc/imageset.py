@@ -327,7 +327,6 @@ class Imageset(ds.Dataset, ABC):
         arrow_dset = cls(
             arrow_table=pa_table, split=split, img_to_row_map=img_to_row_map
         )
-        print("returning")
         return arrow_dset
 
     @staticmethod
@@ -374,7 +373,7 @@ class Imageset(ds.Dataset, ABC):
         raise Exception("child forward is not being called")
 
     @abstractmethod
-    def default_featues(self, *args, **kwargs):
+    def default_features(self, *args, **kwargs):
         return dict
 
     @property

@@ -149,17 +149,7 @@ class UniversalDataset(Dataset):
             assert str(img_id) == str(
                 arrow_data["img_id"]
             ), f"ids {img_id} != {arrow_data['img_id']}"
-            img_ids = arrow_data.pop("img_id")
-            for k in arrow_data:
-                # we discard the img_id here but maybe we can get it back later?
-                if isinstance(arrow_data[k], np.ndarray):
-                    arrow_data[k] = torch.from_numpy(arrow_data[k].copy())
-                elif isinstance(arrow_data[k], torch.Tensor):
-                    arrow_data[k] = arrow_data[k].clone()
-            arrow_data["img_ids"] = img_ids
-            roi_features = arrow_data.get("roi_features", None)
-            if roi_features is not None:
-                arrow_data["roi_features"] = roi_features[: self.max_objs]
+
         if self.config.use_raw_imgs:
             file = os.path.join(
                 self.path_dict[dset], img_id + f".{self.config.img_format}"

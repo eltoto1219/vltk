@@ -15,6 +15,7 @@ class Data(Experiment):
         for loop_name, loop in self:
             for x in loop:
                 entry = x
+                raise Exception(x)
                 for k, v in entry.items():
                     shape = None
                     if isinstance(v, torch.Tensor):

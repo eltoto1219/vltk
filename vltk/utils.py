@@ -72,6 +72,7 @@ def get_classes(path_or_dir_name, cls_defintion=None, pkg=None):
                 mod = inspect.getmembers(mod, inspect.isclass)
                 for t in mod:
                     if cls_defintion in inspect.getmro(t[-1]):
+                        #print(t[-1].__abstractmethods__)
                         if not inspect.isabstract(t[-1]):
                             try:
                                 classes[t[-1].name] = t[-1]
@@ -106,31 +107,6 @@ def set_metadata(tbl, tbl_meta={}):
     return tbl
 
 
-class CollatedSets:
-    def __init__(self, *args):
-        self.args = args
-        self.range2listpos = {}
-        start = 0
-        for i, a in enumerate(args):
-            self.range2listpos[range(start, len(a) + start)] = i
-            start += len(a)
-
-    def __getitem__(self, x):
-        if x >= len(self):
-            raise IndexError(f"index {x} is out of range 0 to {len(self)}")
-        for rng in self.range2listpos:
-            if x in rng:
-                listpos = self.range2listpos[rng]
-                listind = x - rng.start
-                return self.args[listpos][listind]
-
-    def __len__(self):
-        return sum(map(lambda x: len(x), self.args))
-
-    def __iter__(self):
-        return iter(map(lambda x: self[x], range(0, len(self))))
-
-
 def get_func_signature_v2(func):
     required = set()
     keyword = {}
@@ -143,40 +119,42 @@ def get_func_signature_v2(func):
     return required, keyword
 
 
-def collect_args_to_func(func, kwargs=None):
+def collect_args_to_func(func, kwargs=None, mandatory=False):
     func_input = {}
     if kwargs is None:
         kwargs = {}
     else:
         assert isinstance(kwargs, dict)
     req, keyw = get_func_signature_v2(func)
-    for r in req:
-        assert r in kwargs, (
-            "\n"
-            f"The required args of {func.__name__} are: {req}"
-            f" but '{r}' not found in kwargs: {list(kwargs.keys())}"
-        )
-        func_input[r] = kwargs[r]
+    if mandatory:
+        for r in req:
+            assert r in kwargs, (
+                "\n"
+                f"The required args of {func.__name__} are: {req}"
+                f" but '{r}' not found in kwargs: {list(kwargs.keys())}"
+            )
+            func_input[r] = kwargs[r]
     for k in keyw:
         if k in kwargs:
             func_input[k] = kwargs[k]
     return func_input
 
 
-def apply_args_to_func(func, kwargs=None):
+def apply_args_to_func(func, kwargs=None, mandatory=True):
     func_input = {}
     if kwargs is None:
         kwargs = {}
     else:
         assert isinstance(kwargs, dict)
     req, keyw = get_func_signature_v2(func)
-    for r in req:
-        assert r in kwargs, (
-            "\n"
-            f"The required args of {func.__name__} are: {req}"
-            f" but '{r}' not found in kwargs: {list(kwargs.keys())}"
-        )
-        func_input[r] = kwargs[r]
+    if mandatory:
+        for r in req:
+            assert r in kwargs, (
+                "\n"
+                f"The required args of {func.__name__} are: {req}"
+                f" but '{r}' not found in kwargs: {list(kwargs.keys())}"
+            )
+            func_input[r] = kwargs[r]
     for k in keyw:
         if k in kwargs:
             func_input[k] = kwargs[k]

@@ -15,6 +15,7 @@ __all__ = ["Experiment"]
 _loop = dirs.Loops()
 
 
+
 class Experiment(IdentifierClass, ABC):
     # for now lets just define dataset in loop
     def __init__(self, config, datasets):
@@ -130,7 +131,7 @@ class Experiment(IdentifierClass, ABC):
             ):
                 loop_dict[loop_name] = loop
                 loop_info[loop_name] = loop.is_train
-        print(f"LOOPS: {list(loop_dict.keys())}")
+        print(f"Loaded Loops: {list(loop_dict.keys())}")
 
         self._model_dict = model_dict
         self._loop_dict = loop_dict

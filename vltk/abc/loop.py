@@ -27,7 +27,6 @@ class Loop(utils.IdentifierClass, ABC):
         self.cur_step = 0
         self.scheduler = None
         self.half_precision = getattr(config.train, "half_precision", False)
-        self.dryrun = getattr(config, "dryrun", False)
         self.main_device = (
             f"cuda:{config.gpu}" if getattr(config, "gpu", -1) != -1 else "cpu"
         )
@@ -274,8 +273,6 @@ class Loop(utils.IdentifierClass, ABC):
                     assert losses is not None
                     self.step(losses)
                 self.cur_step += 1
-                if self.config.dryrun:
-                    break
             outputs = LoopOutputs(right=accuracy, total=len(self.loader), losses=losses)
             return outputs
 
@@ -294,7 +291,7 @@ class Loop(utils.IdentifierClass, ABC):
             split = "train"
             self.loader = UniversalLoader(
                 config=self.config.data,
-                split=split,
+                splits=split,
                 names=self.datasets,
                 imagesetdict=imagesetdict,
                 textsetdict=textsetdict,
@@ -308,7 +305,7 @@ class Loop(utils.IdentifierClass, ABC):
             assert eval_dataset in datasets, (eval_dataset, datasets)
             self.loader = UniversalLoader(
                 config=self.config.data,
-                split=split,
+                splits=split,
                 names=eval_dataset,
                 textsetdict=textsetdict,
                 imagesetdict=imagesetdict,
