@@ -39,11 +39,11 @@ def extract_data(
     Model = _models.get(extractor)
     if "features" in flags:
         features = flags.pop("features")
-    if splits is not None:
+    if splits is None:
         splits = flags.pop("splits", None)
     if "image_preprocessor" in flags:
         image_preprocessor = flags.get("image_preprocessor")
-    if img_format is not None:
+    if img_format is None:
         img_format = flags.get("img_format")
     else:
         img_format = "jpg"
@@ -55,6 +55,7 @@ def extract_data(
     else:
         model = None
 
+    gpu = config.gpu
     config = config.data
 
     Imageset.extract(
@@ -64,7 +65,7 @@ def extract_data(
         image_preprocessor=image_preprocessor,
         features=features,
         splits=splits,
-        device=config.gpu,
+        device=gpu,
         max_detections=config.max_detections,
         pos_dim=config.pos_dim,
         visual_dim=config.visual_dim,

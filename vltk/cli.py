@@ -84,7 +84,6 @@ class Main(object):
             extractor=extractor,
             dataset=dataset,
             config=self.config,
-            splits=splits,
             features=features,
             image_preprocessor=image_preprocessor,
             img_format=img_format,

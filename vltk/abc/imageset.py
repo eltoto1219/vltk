@@ -17,7 +17,7 @@ from vltk import IMAGEKEY
 from vltk.maps import files
 from vltk.processing import Label
 from vltk.processing.Image import img_to_tensor
-from vltk.utils import apply_args_to_func, set_metadata
+from vltk.utils import apply_args_to_func, set_metadata, collect_args_to_func
 from tqdm import tqdm
 
 __all__ = ["Imageset"]
@@ -162,7 +162,7 @@ class Imageset(ds.Dataset, ABC):
         cls._check_forward(image_preprocessor, model, cls.forward)
 
         # ensure features are in correct format
-        features = cls._check_features(features, presets)
+        features = cls._check_features(features, cls.default_features, presets)
 
         # setup tracking dicts
         split2buffer = OrderedDict()
@@ -341,14 +341,18 @@ class Imageset(ds.Dataset, ABC):
         )
 
     @staticmethod
-    def _check_features(features, presets=None):
+    def _check_features(features, default_features, presets=None):
+        if features is None:
+            features = default_features
         if presets is None:
             presets = {}
         # check and/or init features
         if features is not None and callable(features):
             features = apply_args_to_func(features, presets)
         if features is None:
-            feature_dict = apply_args_to_func(Imageset.default_features, presets)
+            feature_dict = collect_args_to_func(features, presets, mandatory=True)
+            feature_dict = default_features(feature_dict)
+            raise Exception
             feature_dict[IMAGEKEY] = Imageset._base_features[IMAGEKEY]
             features = ds.Features(feature_dict)
         if isinstance(features, str):

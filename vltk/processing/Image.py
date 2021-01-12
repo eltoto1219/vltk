@@ -36,7 +36,7 @@ def img_to_tensor(
     ).squeeze(0)
     img = torch.clamp(img, max=255)
     if mean is not None and sdev is not None:
-        img = (img - mean) / sdev
+        img = (img - torch.tensor(mean).unsqueeze(-1).unsqueeze(-1)) / torch.tensor(sdev).unsqueeze(-1).unsqueeze(-1)
     if pad_value is not None:
         size = img.shape[-2:]
         img = F.pad(

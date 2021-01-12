@@ -12,7 +12,9 @@ class FRCNNSet(Imageset):
     # name will be overwritten with the name of the dataset when loaded from file
     name = "frcnn"
 
-    def default_features(self, max_detections, pos_dim, visual_dim):
+
+    @staticmethod
+    def default_features(max_detections, pos_dim, visual_dim):
         return {
             "attr_ids": ds.Sequence(length=max_detections, feature=ds.Value("float32")),
             "attr_probs": ds.Sequence(
@@ -33,10 +35,11 @@ class FRCNNSet(Imageset):
 
         pad_value = kwargs.get("pad_value", 0.0)
         min_size = kwargs.get("min_size", 800)
-        max_size = kwargs.get("max_size", 800)
-        pxl_mean = kwargs.get("pxl_mean", None)
-        pxl_sdev = kwargs.get("pxl_sdev", None)
+        max_size = kwargs.get("max_size", 1333)
+        pxl_mean = kwargs.get("pxl_mean",[102.9801, 115.9465, 122.7717] )
+        pxl_sdev = kwargs.get("pxl_sdev",[1.0, 1.0, 1.0])
         device = kwargs.get("device", "cpu")
+
 
         image, sizes, scale_hw = image_preprocessor(
             filepath,

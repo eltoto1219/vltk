@@ -1,5 +1,5 @@
 import torch
-from vltk import Dataset
+from vltk import dataset
 from vltk.abc.experiment import Experiment
 
 
