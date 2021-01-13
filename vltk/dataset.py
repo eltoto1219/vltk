@@ -10,6 +10,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, Dataset
 from transformers import LxmertTokenizer
+import random
 
 # from vltk.dataset.gqa import load_temp_gqa
 from vltk.decorators import get_duration
@@ -213,17 +214,6 @@ class UniversalDataset(Dataset):
         else:
             return len(self.datasets)
 
-    def _init_tokenizer_args(self):
-        self._tokenizer_args = {
-            "return_token_type_ids": self.config.return_token_type_ids,
-            "return_attention_mask": self.config.return_attention_mask,
-            "add_special_tokens": self.config.add_special_tokens,
-            "return_tensors": self.config.return_tensors,
-        }
-
-    def tokenizer_args(self):
-        return self._tokenizer_args
-
     @property
     def special_tokens(self):
         return [
@@ -308,12 +298,49 @@ class UniversalDataset(Dataset):
         if isinstance(data_processors, str):
             data_processors = [data_processors]
         for proc in data_processors:
+            # if proc not in self.config.pretokenize_procs:
             proc_func = _data_procecessors.get(proc)
-            proc_dict = collect_args_to_func(proc_func, self.config.to_dict(), mandatory=False)
+            proc_dict = collect_args_to_func(
+                proc_func,
+                self.config.to_dict(),
+                mandatory=False
+            )
             proc_func(dataset_object=self, cur_entry=entry, **proc_dict)
 
+    def random_feat(self):
+        img_id = self.uniq_imgs[i]
+        rand_ind = random.randint(0, len(self.uniq_imgs)-1)
+        ts_name, ts_split = self.img2textset[img_id]
+        textset = self.textsetdict[ts_name][ts_split]
+        is_name, is_split = zip(*textset.data_info[ts_split].items())
+        imageset = self.imagesetdict[is_name[0]][is_split[0][0]]
+        img_text_dict = textset.get_from_img(img_id)
+        img_info = self.imgid2img[img_id]
+        if "roi_features" in img_info:
+            feat = img_info['roi_features'][random.randint(0, self.config.max_objects-1)]
+            return torch.tensor(feat)
+        else:
+            return None
 
+    def random_id(self):
+        (token, tid) = random.choice(list(dataset_object.tokenizer.get_vocab().items()))
+        return tid
 
+    def random_sent(self):
+        rand = {}
+        rand_ind = random.randint(0, len(self.datasets)-1)
+        text_info = self.datasets[rand_ind]
+        rand_sent = text_info[TEXTKEY]
+        encoded_text = self.tokenizer.encode(text)
+        type_ids = encoded_text.type_ids
+        attention_mask = encoded_text.attention_mask
+        token_ids = encoded_text.ids
+        rand["input_ids"] = token_ids
+        rand["type_ids"] = type_ids
+        rand["text_attention_mask"] = attention_mask
+        return rand
+
+    @torch.no_grad()
     def __getitem__(self, i):
         if self.config.img_first:
             img_id = self.uniq_imgs[i]
@@ -322,6 +349,7 @@ class UniversalDataset(Dataset):
             is_name, is_split = zip(*textset.data_info[ts_split].items())
             imageset = self.imagesetdict[is_name[0]][is_split[0][0]]
             img_text_dict = textset.get_from_img(img_id)
+            # self._preprocessors(img_text_entry)
             self._tokenize(img_text_dict)
             img_info_dict = imageset.get(img_id)
             if isinstance(img_info_dict, str):
@@ -332,6 +360,7 @@ class UniversalDataset(Dataset):
             return entry
         else:
             text_info = self.datasets[i]
+            # self._preprocessors(text_info)
             self._tokenize(text_info)
             img_id = text_info[IMAGEKEY]
             ts_name, ts_split = self.img2textset[img_id]

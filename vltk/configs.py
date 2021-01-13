@@ -75,6 +75,7 @@ class FinetuneConfig(config.Config):
 
 
 class DataConfig(config.Config):
+    pretokenize_procs: List[str] = ["matched_sentence_modeling"]
     processors : Union[None, List[str]] = None
     eval_dataset = "gqa"
     eval_batch_size = 32
