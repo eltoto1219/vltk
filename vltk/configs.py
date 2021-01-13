@@ -76,7 +76,7 @@ class FinetuneConfig(config.Config):
 
 class DataConfig(config.Config):
     pretokenize_procs: List[str] = ["matched_sentence_modeling"]
-    processors : Union[None, List[str]] = None
+    processors : Union[None, List[str]] = ["one_hot_label"]
     eval_dataset = "gqa"
     eval_batch_size = 32
     train_batch_size = 64
@@ -136,7 +136,6 @@ class DataConfig(config.Config):
 
 
 class Config(config.Config):
-
     data: DataConfig = None
     models: ModelsConfig = None
     eval: EvalConfig = None

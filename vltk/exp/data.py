@@ -14,13 +14,15 @@ class Data(Experiment):
         entry = None
         for loop_name, loop in self:
             for x in loop:
+                imgage = x.pop("image", None)
+                roi = x.pop("roi_features", None)
                 entry = x
-                raise Exception(x)
+                # raise Exception(x)
                 for k, v in entry.items():
                     shape = None
                     if isinstance(v, torch.Tensor):
                         shape = v.shape
-                    print(k, type(v), shape)
+                    # print(k, type(v), shape)
                 break
             break
 

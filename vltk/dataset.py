@@ -59,13 +59,19 @@ def collate(
     keys = deepcopy(list(columns[0].keys()))
     for k in keys:
         if k == RAWIMAGEKEY:
-            sizes = map(lambda x: x.get(RAWIMAGEKEY).shape[-2:], columns)
+            # raise Exception(columns[0].get(k).shape)
+            sizes = map(lambda x: x.get(k).shape[-2:], columns)
+            # prin(sizes)
+
             same_size = 1 if len(set(sizes)) == 1 else 0
+
             if same_size:
                 batch[k] = torch.stack([i.pop(k) for i in columns if i is not None])
             else:
-                max_h = max(sizes, key=lambda x: x[0])[0]
-                max_w = max(sizes, key=lambda x: x[1])[1]
+                sizes = map(lambda x: x.get(k).shape[-2:], columns)
+                max_h = max(list(sizes), key=lambda x: x[0])[0]
+                sizes = map(lambda x: x.get(k).shape[-2:], columns)
+                max_w = max(list(sizes), key=lambda x: x[1])[1]
                 batch[k] = []
                 for i in columns:
                     if i is None:
@@ -76,7 +82,10 @@ def collate(
                     batch[k].append(feats_i)
                 batch[k] = torch.stack(batch[k])
         else:
-            STACK_IGNORE = (LABELKEY, SCOREKEY, TEXTKEY, "type_ids", "input_ids", "text_attention_mask")
+            STACK_IGNORE = (
+                    LABELKEY, SCOREKEY, TEXTKEY,
+                    "type_ids", "input_ids", "text_attention_mask",
+                    "masked_labels")
             if isinstance(columns[0].get(k), torch.Tensor) and k not in STACK_IGNORE:
                 batch[k] = torch.stack([i.pop(k) for i in columns if i is not None])
             else:
@@ -194,19 +203,19 @@ class UniversalDataset(Dataset):
         self.img2textset = {}
         self.uniq_imgs = set()
         self.uniq_labels = set()
-        self.label_to_id = {}
-        self.uniq_labels = set()
+        self.label_to_id = OrderedDict()
+        nls = 0
         for ts_name, ts_splits in self.textsetdict.items():
             for split_name, ts in self.textsetdict[ts_name].items():
                 self.uniq_imgs = self.uniq_imgs.union(ts.uniq_imgs)
-                self.uniq_labels = self.uniq_labels.union(ts.labels)
+                for l in sorted(ts.labels):
+                    if l not in self.label_to_id:
+                        self.label_to_id[l] = nls
+                        nls +=1
                 for img in ts.uniq_imgs:
                     self.img2textset[img] = (ts_name, split_name)
 
-        self.uniq_imgs = list(self.img2textset.keys())
-        self.uniq_imgs = list(self.img2textset.keys())
-        for i, l in enumerate(self.uniq_labels):
-            self.label_to_id[l] = i
+        self.uniq_labels = set(self.label_to_id.keys())
 
     def __len__(self):
         if self.config.img_first:
@@ -269,7 +278,7 @@ class UniversalDataset(Dataset):
 
     def _handle_image(self, entry):
         if self.config.extractor is None:
-            filepath = entry[IMAGEKEY]
+            filepath = entry[RAWIMAGEKEY]
             image_preprocessor_name = self.config.image_preprocessor
             image_preprocessor = _image_preprocessors.get(image_preprocessor_name)
             config_dict = self.config.to_dict()
@@ -323,7 +332,7 @@ class UniversalDataset(Dataset):
             return None
 
     def random_id(self):
-        (token, tid) = random.choice(list(dataset_object.tokenizer.get_vocab().items()))
+        (token, tid) = random.choice(list(self.tokenizer.get_vocab().items()))
         return tid
 
     def random_sent(self):
@@ -331,7 +340,7 @@ class UniversalDataset(Dataset):
         rand_ind = random.randint(0, len(self.datasets)-1)
         text_info = self.datasets[rand_ind]
         rand_sent = text_info[TEXTKEY]
-        encoded_text = self.tokenizer.encode(text)
+        encoded_text = self.tokenizer.encode(rand_sent)
         type_ids = encoded_text.type_ids
         attention_mask = encoded_text.attention_mask
         token_ids = encoded_text.ids
@@ -349,18 +358,16 @@ class UniversalDataset(Dataset):
             is_name, is_split = zip(*textset.data_info[ts_split].items())
             imageset = self.imagesetdict[is_name[0]][is_split[0][0]]
             img_text_dict = textset.get_from_img(img_id)
-            # self._preprocessors(img_text_entry)
             self._tokenize(img_text_dict)
             img_info_dict = imageset.get(img_id)
             if isinstance(img_info_dict, str):
-                img_info_dict = {IMAGEKEY: img_info_dict}
+                img_info_dict = {RAWIMAGEKEY: img_info_dict}
             self._handle_image(img_info_dict)
             entry = {**img_text_dict, **img_info_dict}
             self._processors(entry)
             return entry
         else:
             text_info = self.datasets[i]
-            # self._preprocessors(text_info)
             self._tokenize(text_info)
             img_id = text_info[IMAGEKEY]
             ts_name, ts_split = self.img2textset[img_id]
@@ -369,7 +376,7 @@ class UniversalDataset(Dataset):
             imageset = self.imagesetdict[is_name[0]][is_split[0][0]]
             img_info_dict = imageset.get(img_id)
             if isinstance(img_info_dict, str):
-                img_info_dict = {IMAGEKEY: img_info_dict}
+                img_info_dict = {RAWIMAGEKEY: img_info_dict}
             self._handle_image(img_info_dict)
             entry = {**text_info, **img_info_dict}
             self._processors(entry)

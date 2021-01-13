@@ -4,6 +4,7 @@ import random
 from abc import ABC, abstractmethod
 from itertools import chain
 from typing import Dict, List, Union
+from collections import OrderedDict
 
 import torch
 from vltk import factory, outputs
@@ -96,8 +97,11 @@ class Experiment(IdentifierClass, ABC):
         }
         loop_dict = {}
         loop_info = {}
+        loop_labels = OrderedDict()
         first_loop_name = None
-        for loop_key, model_list in self.loops_to_models.items():
+        nls = 0
+        for loop_key in sorted(self.loops_to_models.keys()):
+            model_list = self.loops_to_models[loop_key]
             if isinstance(loop_key, str):
                 loop_cls = _loop.get(loop_key)
             else:
@@ -125,12 +129,22 @@ class Experiment(IdentifierClass, ABC):
                 imagesetdict=imagesetdict,
                 textsetdict=textsetdict,
             )
+            label_to_id = loop.loader.dataset.label_to_id
+            for l in sorted(label_to_id.keys()):
+                if l not in loop_labels:
+                    loop_labels[l] = nls
+                    nls += 1
 
             if (loop.is_train and not self.config.data.skip_train) or (
                 not loop.is_train and not self.config.data.skip_eval
             ):
                 loop_dict[loop_name] = loop
                 loop_info[loop_name] = loop.is_train
+            #make global labels
+            for name in sorted(set(loop_dict.keys())):
+                loop = loop_dict[name]
+                loop.loader.dataset.label_to_id = loop_labels
+                loop.loader.dataset.uniq_labels = set(loop_labels.keys())
         print(f"Loaded Loops: {list(loop_dict.keys())}")
 
         self._model_dict = model_dict

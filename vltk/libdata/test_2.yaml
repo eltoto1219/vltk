@@ -1,10 +1,16 @@
+seed: 4
 data:
   eval_dataset: vqa
   eval_split: val
   train_split: train
   img_first: False
-  eval_batch_size: 2
+  eval_batch_size: 3
   train_batch_size: 4
   extractor: null
-  processors: ["masked_language_modeling", "matched_sentence_modeling"]
+  processors: [
+    "masked_language_modeling",
+    "matched_sentence_modeling",
+    "masked_feature_modeling",
+    "one_hot_label"
+  ]
 

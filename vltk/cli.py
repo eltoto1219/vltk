@@ -1,6 +1,7 @@
 import atexit
 import sys
 from io import StringIO
+import random
 
 import torch
 from fire import Fire
@@ -48,6 +49,7 @@ class Main(object):
         kwargs = utils.load_yaml(kwargs)
         self.flags = kwargs
         self.config = configs.Config(**self.flags)
+        random.seed(self.config.seed)
 
     def exp(self, name, datasets):
         @atexit.register
