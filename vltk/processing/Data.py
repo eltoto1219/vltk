@@ -26,7 +26,7 @@ def one_hot_label(dataset_object, cur_entry):
                 choice = np.random.multinomial(1, prob).argmax()
                 new_labels[i] = l[choice]
     cur_entry.pop(SCOREKEY, None)
-    cur_entry[LABELKEY] = torch.Tensor(new_labels) if not take_first else new_labels[0]
+    cur_entry[LABELKEY] = torch.tensor(new_labels) if not take_first else new_labels[0]
 
 
 def multi_hot_label():
@@ -75,14 +75,14 @@ def matched_sentence_modeling(dataset_object, cur_entry):
         if random.random() <  mask_rate:
             is_matched = 0
             o_ids = seq.tolist()
-            while torch.all(seq.eq(torch.Tensor(o_ids))):
+            while torch.all(seq.eq(torch.tensor(o_ids))):
                 other_dict = dataset_object.random_sent()
                 o_ids = other_dict["input_ids"]
                 o_tids  = other_dict["type_ids"]
                 o_mask = other_dict["text_attention_mask"]
-            input_ids[i] = o_ids
-            type_ids[i] = o_tids
-            attention_mask[i] = o_mask
+            input_ids[i] = torch.tensor(o_ids)
+            type_ids[i] = torch.tensor(o_tids)
+            attention_mask[i] = torch.tensor(o_mask)
         if not is_matched:
             input_ids[i]  = dataset_object.config.ignore_id
             matched[i] = 0

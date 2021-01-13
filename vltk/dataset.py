@@ -85,8 +85,9 @@ def collate(
             STACK_IGNORE = (
                     LABELKEY, SCOREKEY, TEXTKEY,
                     "type_ids", "input_ids", "text_attention_mask",
-                    "masked_labels")
+                    "masked_labels", "is_matched")
             if isinstance(columns[0].get(k), torch.Tensor) and k not in STACK_IGNORE:
+                print(k)
                 batch[k] = torch.stack([i.pop(k) for i in columns if i is not None])
             else:
                 batch[k] = [i.pop(k) for i in columns if i is not None]
@@ -202,7 +203,6 @@ class UniversalDataset(Dataset):
         self.datasets = CollatedSets(*self.textsets)
         self.img2textset = {}
         self.uniq_imgs = set()
-        self.uniq_labels = set()
         self.label_to_id = OrderedDict()
         nls = 0
         for ts_name, ts_splits in self.textsetdict.items():
@@ -215,6 +215,7 @@ class UniversalDataset(Dataset):
                 for img in ts.uniq_imgs:
                     self.img2textset[img] = (ts_name, split_name)
 
+        self.uniq_imgs = list(self.uniq_imgs)
         self.uniq_labels = set(self.label_to_id.keys())
 
     def __len__(self):
