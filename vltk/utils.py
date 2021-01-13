@@ -312,10 +312,10 @@ def unflatten_dict(d):
     for k, v in d.items():
         k1, delim, k2 = k.partition(".")
         if delim:
-            ret[k1].update({k2: v})
+            ret[k1][k2] = v
         else:
             ret[k1] = v
-    return ret
+    return dict(ret)
 
 
 def load_yaml(flags: dict):
@@ -324,8 +324,16 @@ def load_yaml(flags: dict):
         yaml_path = flags.pop("yaml")
         yam = yaml.load(open(yaml_path), Loader=yaml.Loader)
         for y in yam:
-            if y not in flags:
-                flags[y] = yam[y]
+            if isinstance(yam[y], dict):
+                if y in flags:
+                    for nk, nv in yam[y].items():
+                        if nk not in flags[y]:
+                            flags[y][nk] =  nv
+                else:
+                    flags[y] = yam[y]
+            else:
+                if y not in flags:
+                    flags[y] = yam[y]
     return flags
 
 

@@ -22,6 +22,7 @@ from vltk.utils import collect_args_to_func
 VOCABPATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "libdata/bert-base-uncased-vocab.txt"))
 _textsets = dirs.Textsets()
 _imagesets = dirs.Imagesets()
+_data_procecessors = files.Data()
 _image_preprocessors = files.Image()
 
 class CollatedSets:
@@ -300,6 +301,18 @@ class UniversalDataset(Dataset):
             if "roi_features" in entry:
                 entry["roi_features"] = entry["roi_features"][: self.config.max_objects]
 
+    def _processors(self, entry):
+        data_processors = self.config.processors
+        if data_processors is None:
+            return
+        if isinstance(data_processors, str):
+            data_processors = [data_processors]
+        for proc in data_processors:
+            proc_func = _data_procecessors.get(proc)
+            proc_dict = collect_args_to_func(proc_func, self.config.to_dict(), mandatory=False)
+            proc_func(dataset_object=self, cur_entry=entry, **proc_dict)
+
+
 
     def __getitem__(self, i):
         if self.config.img_first:
@@ -311,12 +324,11 @@ class UniversalDataset(Dataset):
             img_text_dict = textset.get_from_img(img_id)
             self._tokenize(img_text_dict)
             img_info_dict = imageset.get(img_id)
-            self._handle_image(img_info_dict)
             if isinstance(img_info_dict, str):
-                entry = img_text_dict
-                entry[IMAGEKEY] = img_info_dict
-            else:
-                entry = {**img_text_dict, **img_info_dict}
+                img_info_dict = {IMAGEKEY: img_info_dict}
+            self._handle_image(img_info_dict)
+            entry = {**img_text_dict, **img_info_dict}
+            self._processors(entry)
             return entry
         else:
             text_info = self.datasets[i]
@@ -327,12 +339,11 @@ class UniversalDataset(Dataset):
             is_name, is_split =  zip(*textset.data_info[ts_split].items())
             imageset = self.imagesetdict[is_name[0]][is_split[0][0]]
             img_info_dict = imageset.get(img_id)
-            self._handle_image(img_info_dict)
             if isinstance(img_info_dict, str):
-                entry = text_info
-                entry[IMAGEKEY] = img_info_dict
-            else:
-                entry = {**text_info, **img_info_dict}
+                img_info_dict = {IMAGEKEY: img_info_dict}
+            self._handle_image(img_info_dict)
+            entry = {**text_info, **img_info_dict}
+            self._processors(entry)
             return entry
 
     @property

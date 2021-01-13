@@ -5,11 +5,28 @@ from vltk.utils import import_funcs_from_file
 
 BASEPATH = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 SCHEDPATH = os.path.join(BASEPATH, "processing/Sched.py")
+DATAPATH = os.path.join(BASEPATH, "processing/Data.py")
 LABELPROCPATH = os.path.join(BASEPATH, "processing/Label.py")
 IMAGEPROCPATH = os.path.join(BASEPATH, "processing/Image.py")
 OPTIMPATH = os.path.join(BASEPATH, "processing/Optim.py")
 FEATUREPATH = os.path.join(BASEPATH, "features.py")
 # dictionaries
+
+class Data:
+    def __init__(self):
+        if "DATADICT" not in globals():
+            global DATADICT
+            DATADICT = import_funcs_from_file(DATAPATH, pkg="vltk.processing")
+
+    def avail(self):
+        return list(DATADICT.keys())
+
+    def get(self, name):
+        return DATADICT[name]
+
+    def add(self, name, lab):
+        DATADICT[name] = lab
+
 
 
 class Optim:

@@ -44,8 +44,8 @@ class Main(object):
     def __init__(self, **kwargs):
         if not torch.cuda.is_available():
             kwargs["gpu"] = -1
+        kwargs = utils.unflatten_dict(kwargs)
         kwargs = utils.load_yaml(kwargs)
-        utils.unflatten_dict(kwargs)
         self.flags = kwargs
         self.config = configs.Config(**self.flags)
 
@@ -75,10 +75,6 @@ class Main(object):
         self,
         extractor,
         dataset,
-        splits=None,
-        features=None,
-        image_preprocessor=None,
-        img_format=None,
     ):
         extracted_data = main_functions.extract_data(
             extractor=extractor,

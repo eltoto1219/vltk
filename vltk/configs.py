@@ -75,6 +75,7 @@ class FinetuneConfig(config.Config):
 
 
 class DataConfig(config.Config):
+    processors : Union[None, List[str]] = None
     eval_dataset = "gqa"
     eval_batch_size = 32
     train_batch_size = 64
