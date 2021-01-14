@@ -1,16 +1,13 @@
 seed: 4
 data:
-  eval_datasets: vqa
-  eval_splits: val
-  train_splits: train
-  img_first: False
-  eval_batch_size: 32
+  img_first: True
+  eval_batch_size: 4
   train_batch_size: 4
   extractor: frcnn
+  label_processor: "one_hot_label"
   text_processors: [
     "masked_language_modeling",
     "matched_sentence_modeling",
-    "one_hot_label"
   ]
   image_processors: [
     "masked_feature_modeling",

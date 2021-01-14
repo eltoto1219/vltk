@@ -75,21 +75,20 @@ class FinetuneConfig(config.Config):
 
 
 class DataConfig(config.Config):
-    text_processors : Union[None, List[str]] = ["one_hot_label"]
-    image_processors : Union[None, List[str]] = []
-    eval_datasets = "gqa"
-    eval_batch_size = 32
-    train_batch_size = 64
-    label_processor: str = "label_default"
-    min_label_frequency = 9
-    extractor: Union[None,str] = "frcnn"
-    imgid_aliases: set = {"img", "image", "imgid", "img_id", "iid", "image_id"}
-    text_aliases: set = {"text", "sent", "que", "question"}
     eval_aliases: set = {"testdev", "eval", "dev", "evaluation", "inference"}
     train_aliases: set = {"train", "finetune", "pretrain"}
     test_aliases: set = {"test"}
     valid_aliases: set = {"val", "valid", "validation"}
-    label_aliases: set = {"label", "truth", "answer", "gold"}
+    text_processors : Union[None, List[str], str] = ["one_hot_label"]
+    image_processors : Union[None, List[str], str] = []
+    label_processor: Union[None, str] = "one_hot_label"
+    imgid_processor: str = "clean_imgid_default"
+    label_preprocessor: str = "label_default"
+    eval_datasets = ("gqa", "dev")
+    eval_batch_size = 32
+    train_batch_size = 64
+    min_label_frequency = 9
+    extractor: Union[None,str] = "frcnn"
     textfile_extensions: Union[List[str], str] = ["json", "jsonl"]
     datadirs: Union[List[str], str] = "/playpen1/home/avmendoz/data"
     img_first: bool = False
@@ -108,8 +107,6 @@ class DataConfig(config.Config):
     percent_data: int = 1.0
     skip_eval: bool = False
     skip_train: bool = False
-    train_splits: bool = "train"
-    eval_splits: bool = "eval"
     num_attrs: int = 400
     num_objects: int = 1600
     ignore_id: int = -100
@@ -129,8 +126,19 @@ class DataConfig(config.Config):
     visual_dim: int = 2048
     max_detections: str = 36
     vit_pretrained_dir = "vit/"
-    datasets: Union[List[str], str] = ""
     image_preprocessor = "img_to_tensor"
+
+
+
+    def __init__(self, finetune=True, **kwargs):
+        super().__init__(**kwargs)
+        self.eval_datasets = Config.handle_iterables(self.eval_datasets)
+        if isinstance(self.eval_datasets[1], str):
+            self.eval_datasets = [(self.eval_datasets[0], set([self.eval_datasets[1]]))]
+        self.text_processors = Config.handle_iterables(self.text_processors)
+        self.image_processors = Config.handle_iterables(self.image_processors)
+        self.datadirs = Config.handle_iterables(self.datadirs)
+        self.textfile_extensions = Config.handle_iterables(self.textfile_extensions)
 
 
 class Config(config.Config):

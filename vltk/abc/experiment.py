@@ -26,8 +26,6 @@ class Experiment(IdentifierClass, ABC):
         # maybe we can assume experiments are homegeneous within each loop
         # defualt stuff
         self.cur_epoch = 0
-        if isinstance(datasets, str):
-            datasets = [datasets]
         self.datasets = datasets
         self.config = config
         self.seed = self.config.seed
@@ -115,19 +113,30 @@ class Experiment(IdentifierClass, ABC):
         self.eval_textsetdict = defaultdict(dict)
         self.train_imagesetdict = defaultdict(dict)
         self.eval_imagesetdict = defaultdict(dict)
-        train_splits =  self.config.data.train_splits
-        self.train_splits = (lambda x: set([x]) if isinstance(x, str) else set(x))(train_splits)
-        eval_splits =  self.config.data.eval_splits
-        self.eval_splits = (lambda x: set([x]) if isinstance(x, str) else set(x))(eval_splits)
-        for dset in self.datasets:
-            if dset in self.config.data.eval_datasets:
-                self.dataset2splits[dset] = self.dataset2splits[dset].union(set(self.eval_splits))
-            self.dataset2splits[dset] = self.dataset2splits[dset].union(set(self.train_splits))
+        train_datasets = set()
+        eval_datasets = set()
+        train_splits = set()
+        eval_splits = set()
+
+        # loop through train datasets
+        for (dset, splits) in self.datasets:
+            train_datasets.add(dset)
+            train_splits = train_splits.union(splits)
+            self.dataset2splits[dset] = self.dataset2splits[dset].union(splits)
+        #then loop thorugh eval datasets
+        for (dset, splits) in self.config.data.eval_datasets:
+            assert dset in train_datasets, "eval datasets must also be present in train datasets"
+            eval_datasets.add(dset)
+            eval_splits = eval_splits.union(splits)
+            if not splits.intersection(self.dataset2splits[dset]):
+                self.dataset2splits[dset] = self.dataset2splits[dset].union(splits)
+
+
         label_id = 0
         for name in sorted(set(self.dataset2splits.keys())):
             for split in sorted(set(self.dataset2splits[name])):
                 if (
-                    name in self.config.data.eval_datasets
+                    name in eval_datasets
                     and split in eval_splits
                     and not self.config.data.skip_eval
                     and any_val
@@ -145,7 +154,7 @@ class Experiment(IdentifierClass, ABC):
                         label_id += 1
                 print(f"Added Textset {name}: {split}")
                 if (
-                    name in self.config.data.eval_datasets
+                    name in eval_datasets
                     and split in eval_splits
                     and not self.config.data.skip_eval
                     and any_val
@@ -170,7 +179,7 @@ class Experiment(IdentifierClass, ABC):
                 print(f"Added Imageset {is_name}: {is_split}")
 
                 if (
-                    name in self.config.data.eval_datasets
+                    name in eval_datasets
                     and split in eval_splits
                     and not self.config.data.skip_eval
                     and any_val

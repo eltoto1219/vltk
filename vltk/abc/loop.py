@@ -287,17 +287,11 @@ class Loop(utils.IdentifierClass, ABC):
         return self.loader.dataset.imagesetdict
 
     def _init_loader(self, textsetdict, imagesetdict, label_dict):
-        train_splits =  self.config.data.train_splits
-        train_splits = (lambda x: set([x]) if isinstance(x, str) else set(x))(train_splits)
-        eval_splits =  self.config.data.eval_splits
-        eval_splits = (lambda x: set([x]) if isinstance(x, str) else set(x))(eval_splits)
-        splits = train_splits if self.is_train else eval_splits
         datasets = self.datasets if self.is_train else self.config.data.eval_datasets
         self.loader = UniversalLoader(
             config=self.config.data,
             names=datasets,
             label_dict=label_dict,
-            splits=splits,
             imagesetdict=imagesetdict,
             textsetdict=textsetdict,
         )

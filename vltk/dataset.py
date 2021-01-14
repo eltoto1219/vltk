@@ -1,5 +1,6 @@
 # note if we do not immport a pacakage correctly in this class, no loops or exps will be present
 from collections import OrderedDict, defaultdict
+from operator import itemgetter
 import os
 from copy import deepcopy
 from typing import Dict, List
@@ -67,9 +68,13 @@ class CollatedSets:
 def collate(
     columns: List[Dict[str, torch.Tensor]], pad: bool = True, img_first=False
 ) -> Dict[str, torch.Tensor]:
-    batch = OrderedDict()
+    batch = {}
+    columns = sorted(columns, key=lambda x:len(x), reverse=True)
+    # handle different keys per batch
     keys = deepcopy(list(columns[0].keys()))
+
     for k in keys:
+        # if k not in
         if k == RAWIMAGEKEY:
             sizes = map(lambda x: x.get(k).shape[-2:], columns)
             # prin(sizes)
@@ -99,17 +104,20 @@ def collate(
                     "masked_labels", "is_matched")
             if isinstance(columns[0].get(k), torch.Tensor) and k not in STACK_IGNORE:
                 batch[k] = torch.stack([i.pop(k) for i in columns if i is not None])
+                # consider what to do with mixed datasets with diferent keys pointing
+                # to tensor values
             else:
-                batch[k] = [i.pop(k) for i in columns if i is not None]
+                batch[k] = [i.pop(k, '') for i in columns if i is not None]
+
     return batch
 
 
 class UniversalLoader(DataLoader):
-    def __init__(self, names, config, label_dict, splits=None, textsetdict=None, imagesetdict=None):
-        splits = config.split if splits is None else splits
-        if isinstance(splits, str):
-            splits = [splits]
-        if set(splits).intersection((config.eval_aliases.union(config.valid_aliases))):
+    def __init__(self, names, config, label_dict, textsetdict, imagesetdict):
+        splits = set()
+        for v in textsetdict.values():
+            splits = splits.union(set(v.keys()))
+        if splits.intersection((config.eval_aliases.union(config.valid_aliases))):
             num_workers = 0
         else:
             num_workers = config.num_workers
@@ -121,7 +129,6 @@ class UniversalLoader(DataLoader):
         dataset = UniversalDataset(
             names=names,
             config=config,
-            splits=splits,
             label_dict=label_dict,
             textsetdict=textsetdict,
             imagesetdict=imagesetdict,
@@ -160,13 +167,16 @@ class UniversalLoader(DataLoader):
 
 
 class UniversalDataset(Dataset):
-    def __init__(self, names, config, label_dict, textsetdict, imagesetdict, splits=None):
+    def __init__(self, names, config, label_dict, textsetdict, imagesetdict):
         self.config = config
         self.names = names
         self.tokenizer = BertWordPieceTokenizer(VOCABPATH, lowercase=True)
         self.tokenizer.add_special_tokens(self.special_tokens)
         self.tokenizer.enable_truncation(max_length=config.sent_length)
         self.tokenizer.enable_padding(length=config.sent_length)
+        splits = set()
+        for v in textsetdict.values():
+            splits = splits.union(set(v.keys()))
         self.splits = splits
         self.textsets = []
         self.textsetdict = textsetdict
@@ -236,8 +246,6 @@ class UniversalDataset(Dataset):
                 x[LABELKEY] = lids
 
         # now we do other text processors
-
-
         if text_processors is not None:
             for proc in text_processors:
                 if proc == "matched_sentence_modeling":
@@ -245,13 +253,16 @@ class UniversalDataset(Dataset):
                 proc_func = _data_procecessors.get(proc)
                 proc_func(x, **proc_args)
 
+        # now we do label proccesor
+        if config.label_processor is not None:
+            proc_func = _data_procecessors.get(config.label_processor)
+            proc_func(x, **proc_args)
 
         for k, v in x.items():
-            if isinstance(v, list):
+            if isinstance(v, list) and not isinstance(v[0], str):
                 TORCHCOLS.add(k)
         if LABELKEY in x:
             TORCHCOLS.add(LABELKEY)
-
 
         return x
 

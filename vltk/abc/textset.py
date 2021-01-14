@@ -241,7 +241,7 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
         supervised=True,
         savedir=None,
         min_label_frequency=None,
-        label_processor="label_default",
+        label_preprocessor="label_default",
         **kwargs,
     ):
         test_features = None
@@ -250,12 +250,12 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
                 assert config is not None
                 min_label_frequency = config.min_label_frequency
             kwargs["min_label_frequency"] = min_label_frequency
-            if label_processor is None:
+            if label_preprocessor is None:
                 assert config is not None
-                label_processor = config.label_processor
-            if not callable(label_processor):
-                assert isinstance(label_processor, str), type(label_processor)
-                label_processor = _labelproc.get(label_processor)
+                label_preprocessor = config.label_preprocessor
+            if not callable(label_preprocessor):
+                assert isinstance(label_preprocessor, str), type(label_preprocessor)
+                label_preprocessor = _labelproc.get(label_preprocessor)
 
         if splits is None:
             assert config is not None
@@ -288,6 +288,18 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
             text_files = cls._locate_text_files(
                 path_or_dir=path_or_dir, textset_name=cls.name, split=split
             )
+            if hasattr(cls, 'filters'):
+                assert isinstance(cls.filters, list), (
+                f"filters must be in a list, not type {type(self.filters)}"
+            )
+                temp = []
+                for i, t in enumerate(text_files):
+                    stem = Path(t).stem
+                    for f in cls.filters:
+                        if f not in stem and t not in temp:
+                            temp.append(t)
+
+                text_files = temp
 
             features = Textset._check_features(cls.default_features)
             if not supervised:
@@ -304,7 +316,6 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
                 writer = ArrowWriter(features=test_features, stream=stream)
             else:
                 writer = ArrowWriter(features=features, stream=stream)
-
             # load data
             text_data = []
             print(f"loading json files from: {text_files}")
@@ -315,7 +326,7 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
             # custom forward from user
             print("begin extraction")
             batch_entries = cls.forward(
-                text_data, label_processor=label_processor, **kwargs
+                text_data, split, label_preprocessor=label_preprocessor, **kwargs
             )
 
             # pre-checks
@@ -522,7 +533,7 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
 
     @abstractmethod
     def forward(
-        self, text_data: List[dict], label_processor=None, **kwargs
+            self, text_data: List[dict], split: str ,label_preprocessor=None,  **kwargs
     ) -> List[dict]:
         pass
 
@@ -554,6 +565,15 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
     @property
     def raw_file_map(self):
         return self._raw_map
+
+    def ignore_filters(self):
+        if hasattr(self, filters):
+            assert isinstance(filters, list), (
+                f"filters must be in a list, not type {type(self.filters)}"
+            )
+            return self.filters
+        else:
+            return []
 
     @property
     @abstractmethod

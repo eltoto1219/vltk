@@ -78,6 +78,7 @@ class Main(object):
         extractor,
         dataset,
     ):
+
         extracted_data = main_functions.extract_data(
             extractor=extractor,
             dataset=dataset,
@@ -87,6 +88,8 @@ class Main(object):
         print(extracted_data)
 
     def data(self, datasets, method=""):
+
+        datasets = configs.Config.handle_iterables(datasets)
         expr = _experiments.get("data")(config=self.config, datasets=datasets)
         if method == "":
             call = expr

@@ -1,138 +1,102 @@
-'''
-import json
-from collections import defaultdict
+from collections import Counter
 
-import jsonlines
-import numpy as np
-import torch
-from vltk.decorators import get_duration
-from vltk.processing.Label import process_answer_default
-from vltk.utils import clip_img_ids, get_subfiles_from_path, load_arrow
+import datasets as ds
+from vltk.abc.textset import Textset
+from vltk.metrics import soft_score
+from tqdm import tqdm
 
 
-@get_duration
-def load_temp_gqa(config, split):
-    # get batch_size
-    if split in config.train_aliases:
-        bz = config.train.batch_size
-    else:
-        bz = config.evaluate.batch_size
-    # labels
-    labels = json.load(open(config.pathes.gqa_labels))
-    # imgs
-    arrow_fp = (
-        config.pathes.vg_train_arrow
-        if split in config.train_aliases
-        else config.pathes.vg_test_arrow
-    )
-    raw_fp = (
-        config.pathes.vg_train
-        if split in config.train_aliases
-        else config.pathes.vg_test
-    )
-    arrow = load_arrow({"gqa": arrow_fp}, config.data.arrow_fields)
-    if config.data.use_raw_imgs:
-        path_dict = {"gqa": raw_fp}
-    else:
-        path_dict = None
 
-    # text
-    text_fp = config.pathes.gqa_train
-    if split in config.valid_aliases:
-        text_fp = config.pathes.gqa_valid
-    elif split in config.test_aliases:
-        text_fp = config.pathes.gqa_test
-    elif split in config.eval_aliases:
-        text_fp = config.pathes.gqa_testdev
+# user must only define forward in this function, and dataset features
 
-    text_files = get_subfiles_from_path(text_fp)
-    print(f"spits to be loaded: {text_files}")
-    ignored_labels = set()
-    num_ignored = 0
-    stop_int = 0
-    streams = []
-    for text in text_files:
-        try:
-            data_split = json.load(open(text))
-        except json.decoder.JSONDecodeError:
-            data_split = jsonlines.open(text)
-        stop_int += len(data_split)
-        streams.append(data_split)
 
-    if config.dryrun and not config.data.img_first:
-        stop_int = config.train.batch_size
-    elif not config.dryrun and not config.data.img_first:
-        stop_int = max(1, int(np.ceil(stop_int * config.data.percent_data)))
-
-    print("attempt load ", stop_int, " data samples")
-    text_data = []
-    imgid_to_text = defaultdict(list)
-    text_img_ids = set()
-    data_stop = 0
-    for stream in streams:
-        for idx, data in enumerate(stream):
-            # get base entry
-            img_id = str(data["img_id"].split("_")[-1])
-            # process label
-            label = data["label"]
-            assert isinstance(label, dict)
-            if len(label) == 0:
-                continue
-            assert len(label) == 1
-            label = next(iter(label.keys()))
-            label = process_answer_default(label)
-            if label not in labels:
-                num_ignored += 1
-                ignored_labels.add(label)
-                continue
-            else:
-                entry = {
-                    "img_id": img_id,
-                    "text": data["sent"],
-                    "dset": "gqa",
-                    "label": torch.tensor(labels[label]),
-                }
-                if config.data.img_first:
-                    if (
-                        config.dryrun
-                        and len(imgid_to_text) == bz
-                        and img_id not in imgid_to_text
-                    ):
-                        pass
-                    else:
-                        imgid_to_text[img_id].append(entry)
-                else:
-                    text_img_ids.add(img_id)
-                text_data.append(entry)
-            data_stop += 1
-
-            if config.data.img_first and config.dryrun:
-                if all(list(map(lambda l: len(l) >= 2, imgid_to_text.values()))):
-                    break
-            if stop_int == data_stop:
-                break
-
-    if config.data.img_first:
-        img_ids = list(imgid_to_text.keys())
-        if not config.dryrun:
-            img_ids = clip_img_ids(img_ids, config.data.percent_data)
-        else:
-            assert len(img_ids) == bz, (len(img_ids), bz)
-            check = list(map(lambda l: len(l) >= 2, imgid_to_text.values()))
-            if data_stop != stop_int:
-                assert all(check), (imgid_to_text, check)
-    else:
-        img_ids = text_img_ids
-
-    assert len(text_data) > 0
-    assert len(img_ids) > 0
-    print(f"num ignored: {num_ignored} ignored: {ignored_labels}")
-    return {
-        "text": text_data,
-        "pathes": path_dict,
-        "arrow": arrow,
-        "labels": labels,
-        "img_ids": img_ids,
-        "imgid_to_text": imgid_to_text,
+class GQAset(Textset):
+    name = "gqa"
+    data_info = {
+        "dev": {"coco2014": ["test"]},
+        "train": {"vg": ["train"]},
+        "val": {"vg": ["train"]},
+        "test": {"coco2014": ["test"]},
     }
-'''
+    default_features = {
+            "qid": ds.Value("string"),
+            "structure": ds.Value("string"),
+            "super_class": ds.Value("string"),
+            "operations": ds.Sequence(length=-1, feature=ds.Value("string")),
+            }
+    filters = ["all"]
+
+    def forward(text_data, split, label_preprocessor=None, **kwargs):
+        skipped = 0
+        min_label_frequency = kwargs.get("min_label_frequency")
+        label_frequencies = Counter()
+        batch_entries = []
+        if label_preprocessor is None:
+            def label_preprocessor(x):
+                return x
+        for t in text_data:
+            for i, (k, v) in tqdm(enumerate(t.items())):
+                if "answer" in v:
+                    answer = label_preprocessor(v["answer"])
+                    label_frequencies.update([answer])
+
+            for i, (k, v) in enumerate(t.items()):
+                if split == "test":
+                    answer = None
+                    full_answer = None
+                    operations = ['']
+                    super_class = ''
+                    structure = ''
+                elif label_frequencies[v["answer"]] < min_label_frequency:
+                    skipped += 1
+                    continue
+                else:
+                    answer = label_preprocessor(v["answer"])
+                    full_answer = v["fullAnswer"]
+                    operations = [sv["operation"] for sv in v["semantic"]]
+                    super_class = v["groups"]["global"]
+                    structure = v["types"]["structural"]
+                    if super_class is None:
+                        super_class = ''
+
+                text = v["question"]
+                img_id = v["imageId"].lstrip("n")
+                qid = k
+                entry = {
+                    "qid": qid,
+                    "structure": structure,
+                    "super_class": super_class,
+                    "operations": operations,
+                    Textset.text_key: text,
+                    Textset.img_key: img_id,
+                    Textset.label_key: [answer],
+                    Textset.score_key: [1.]
+                }
+
+                batch_entries.append(entry)
+
+        print(f"SKIPPEd {skipped} entries")
+        return batch_entries
+
+
+if __name__ == "__main__":
+
+    from vltk.configs import Config
+
+    config = Config().data
+    GQAset.extract(
+        config=config,
+        splits=["dev", "test", "val", "train"],
+    )
+    train= GQAset.from_config(config, splits="train")["train"]
+    # get min frequency of answers when loading, so we know the lenngth right away
+
+    # get path to arrow file
+    # val.get_arrow_split(datadirs=config.datadirs, extractor="frcnn", split="val")
+    # get path to raw img ids
+    print(len(train.labels))
+
+    # print("entry at row 1:", val.get_row(1))
+    # print("entries with img id 262148:", val.get_from_img("262148"))
+    # print("freq of answer table:", val.get_freq("table"))
+    # print("num_labels", val.num_labels)

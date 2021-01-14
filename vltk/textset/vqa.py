@@ -22,15 +22,15 @@ class VQAset(Textset):
         "qid": ds.Value("string"),
     }
 
-    def forward(text_data, label_processor=None, **kwargs):
+    def forward(text_data, split, label_preprocessor=None, **kwargs):
         min_label_frequency = kwargs.get("min_label_frequency")
         batch_entries = []
         all_questions = []
         qid2answers = {}
         label_frequencies = Counter()
-        if label_processor is None:
+        if label_preprocessor is None:
 
-            def label_processor(x):
+            def label_preprocessor(x):
                 return x
 
         for x in tqdm(text_data):
@@ -39,20 +39,20 @@ class VQAset(Textset):
             else:
                 annotations = x["annotations"]
                 accepted_answers = {
-                    label_processor(anno["multiple_choice_answer"])
+                    label_preprocessor(anno["multiple_choice_answer"])
                     for anno in annotations
                 }
                 for anno in tqdm(annotations):
                     qid = str(anno["question_id"])
                     answers = anno["answers"]
-                    label_frequencies.update([label_processor(anno["multiple_choice_answer"])])
+                    label_frequencies.update([label_preprocessor(anno["multiple_choice_answer"])])
                     answer_counter = Counter()
                     for ans_dict in answers:
                         ans = ans_dict["answer"]
                         if ans not in accepted_answers:
                             pass
                         else:
-                            ans = label_processor(ans)
+                            ans = label_preprocessor(ans)
                             # make  sure to clean label before updating frequncies
                             # label_frequencies.update([ans])
                             answer_counter.update([ans])
