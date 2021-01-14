@@ -121,11 +121,15 @@ def do_nms(boxes, scores, image_shape, score_thresh, nms_thresh, mind, maxd):
     keep = nms(max_boxes, max_scores, nms_thresh)
     keep = keep[:maxd]
     if keep.shape[-1] >= mind and keep.shape[-1] <= maxd:
+        stop = True
         max_boxes, max_scores = max_boxes[keep], max_scores[keep]
         classes = max_classes[keep]
-        return max_boxes, max_scores, classes, keep
+        return stop, max_boxes, max_scores, classes, keep
     else:
-        return None
+        stop = False
+        max_boxes, max_scores = max_boxes[keep], max_scores[keep]
+        classes = max_classes[keep]
+        return stop, max_boxes, max_scores, classes, keep
 
 
 # Helper Functions
@@ -1253,14 +1257,13 @@ class ROIOutputs(object):
         attr_probs_all, attrs_all = self._predict_attrs(attr_logits, preds_per_image)
         features = features.split(preds_per_image, dim=0)
 
-        # fun for each image too, also I can expirement and do multiple images
         final_results = []
         zipped = zip(boxes_all, obj_scores_all, attr_probs_all, attrs_all, sizes)
         for i, (boxes, obj_scores, attr_probs, attrs, size) in enumerate(zipped):
             for nms_t in self.nms_thresh:
                 outputs = do_nms(boxes, obj_scores, size, self.score_thresh, nms_t, self.min_detections, self.max_detections)
-                if outputs is not None:
-                    max_boxes, max_scores, classes, ids = outputs
+                stop, max_boxes, max_scores, classes, ids = outputs
+                if stop:
                     break
 
             if scales is not None:

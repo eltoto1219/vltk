@@ -1,134 +1,121 @@
 import random
 import torch
-from vltk import LABELKEY, SCOREKEY
+from vltk import LABELKEY, SCOREKEY, TEXTKEY
 from copy import deepcopy
 import numpy as np
 
-def one_hot_label(dataset_object, cur_entry):
+def one_hot_label(cur_entry, **kwargs):
+    tokenizer = kwargs.get("tokenizer")
+    random_sents = kwargs.get("random_sents")
+    config = kwargs.get("config")
+
     label = cur_entry.get(LABELKEY, None)
     score = cur_entry.get(SCOREKEY, None)
-    take_first = False
-    if not isinstance(label, list):
-        take_first = True
-        label = [label]
-        score = [score]
-
-    new_labels = [0] * len(label)
-    for i, (l, s) in enumerate(zip(label, score)):
-        if l is None:
-            new_labels[i] = dataset_object.config.ignore_id
+    if label is None:
+        label = config.ignore_id
+    elif label == config.ignore_id:
+        cur_entry.pop(SCOREKEY, None)
+        return
+    else:
+        assert isinstance(label, list)
+        if len(label) == 1:
+            label = label[0]
         else:
-            if len(l) == 1:
-                new_labels[i] = l
-            else:
-                score_sum = sum(s)
-                prob = [ss / score_sum for ss in s]
-                choice = np.random.multinomial(1, prob).argmax()
-                new_labels[i] = l[choice]
+            score_sum = sum(score)
+            prob = [ss / score_sum for ss in score]
+            choice = np.random.multinomial(1, prob).argmax()
+            label = label[choice]
     cur_entry.pop(SCOREKEY, None)
-    cur_entry[LABELKEY] = torch.tensor(new_labels) if not take_first else new_labels[0]
+    cur_entry[LABELKEY] = label
 
 
 def multi_hot_label():
     pass
 
 
-def masked_feature_modeling(dataset_object, cur_entry):
+def masked_feature_modeling(cur_entry, **kwargs):
     if "roi_features" not in cur_entry:
         return
-    mask_rate = dataset_object.config.feature_mask_rate
-    if dataset_object.config.img_first:
+    random_feat = kwargs.get("random_feat_func")
+    config = kwargs.get("config")
+    mask_rate = config.feature_mask_rate
+    if config.img_first:
         mask_rate /= 4
     roi_features = cur_entry["roi_features"]
-    feat_mask = np.zeros(len(roi_features), dtype=np.float32)
+    feat_mask = [0.] * len(roi_features)
+    feat_dim =  len(roi_features[0])
     for i in range(len(roi_features)):
         prob = random.random()
         if prob < mask_rate:
-            prob /= args.obj_mask_rate
+            prob /= mask_rate
             # 80% randomly change token to zero feat
             if prob < 0.8:
-                roi_features[i, :] = 0.
+                roi_features[i] = torch.zeros(feat_dim)
 
             # 10% randomly change token to random feat
             elif prob < 0.9:
-                roi_features[i, :] = dataset_object.random_feat()
+                roi_features[i] = torch.tensor(random_feat())
             # Need to predict this feat
             feat_mask[i] = 1.
     cur_entry["roi_features"] = roi_features
     cur_entry["feat_mask"] = torch.tensor(feat_mask)
 
 
-def matched_sentence_modeling(dataset_object, cur_entry):
-    mask_rate = dataset_object.config.sentence_match_rate
-    input_ids = cur_entry["input_ids"]
-    attention_mask = cur_entry["text_attention_mask"]
-    type_ids = cur_entry["type_ids"]
-    take_first = False
-    if not isinstance(input_ids, list):
-        take_first = True
-        input_ids = [input_ids]
-        attention_mask = [attention_mask]
-        type_ids = [type_ids]
-    matched = [1] * len(input_ids)
-    for i, (seq, mask, id_t) in enumerate(zip(input_ids, attention_mask, type_ids)):
-        is_matched = 1
-        if random.random() <  mask_rate:
-            is_matched = 0
-            o_ids = seq.tolist()
-            while torch.all(seq.eq(torch.tensor(o_ids))):
-                other_dict = dataset_object.random_sent()
-                o_ids = other_dict["input_ids"]
-                o_tids  = other_dict["type_ids"]
-                o_mask = other_dict["text_attention_mask"]
-            input_ids[i] = torch.tensor(o_ids)
-            type_ids[i] = torch.tensor(o_tids)
-            attention_mask[i] = torch.tensor(o_mask)
-        if not is_matched:
-            input_ids[i]  = dataset_object.config.ignore_id
-            matched[i] = 0
+def matched_sentence_modeling(cur_entry, **kwargs):
+    tokenizer = kwargs.get("tokenizer")
+    random_sents = kwargs.get("random_sents")
+    random_sent = lambda: random.choice(random_sents)
+    config = kwargs.get("config")
+    is_matched = 1
+    text = cur_entry[TEXTKEY]
+    rand_text = text
+    if random.random() < config.sentence_match_rate:
+        if LABELKEY in cur_entry:
+            cur_entry[LABELKEY] = config.ignore_id
+            cur_entry[SCOREKEY] = 0
+        is_matched = 0
+        while rand_text == text:
+            rand_text = random_sent()
 
-    matched = torch.tensor(matched)
-    cur_entry["is_matched"] = matched if not take_first else matched[0]
-    cur_entry["input_ids"] = input_ids if not take_first else input_ids[0]
-    cur_entry["text_attention_mask"] = attention_mask if not take_first else attention_mask[0]
-    cur_entry["type_ids"] = type_ids if not take_first else type_ids[0]
+    cur_entry["is_matched"] = is_matched
+    cur_entry[TEXTKEY] = rand_text
+    return cur_entry
 
-def masked_language_modeling(dataset_object, cur_entry):
+def masked_language_modeling(cur_entry, **kwargs):
+    tokenizer = kwargs.get("tokenizer")
+    random_sents = kwargs.get("random_sents")
+    config = kwargs.get("config")
+    special_ids = kwargs.get("special_ids")
+    n_ids = kwargs.get("n_ids")
+    all_ids = kwargs.get("all_ids")
+    random_id = lambda: all_ids[random.randint(0, n_ids-1)]
+    # special_ids = set([tokenizer.token_to_id(t) for t in kwargs.get("special_tokens")])
+    # random_id = lambda: random.choice(list(tokenizer.get_vocab().items()))[1]
+
     input_ids = cur_entry["input_ids"]
     attention_mask= cur_entry["text_attention_mask"]
-    ignore_id = dataset_object.config.ignore_id
-    mask_token = "[mask]"
-    mask_id = dataset_object.tokenizer.token_to_id(mask_token)
-    take_first = False
-    if input_ids.dim() == 1:
-        take_first = True
-        input_ids = [input_ids]
-        attention_mask = [attention_mask]
-    masked_seqs = []
-    masked_id_seqs = []
-    for i, (ids, mask) in enumerate(zip(input_ids, attention_mask)):
-        special_ids = set([dataset_object.tokenizer.token_to_id(j) for j in dataset_object.special_tokens])
-        masked_inds = [ignore_id] * len(ids)
-        masked_seq = deepcopy(ids.tolist())
-        for j, (id_idx, mask_idx) in enumerate(zip(ids[1:], mask[1:]), start=1):
-            if int(mask_idx) == 0:
-                break
-            tid = dataset_object.random_id()
-            while tid in special_ids:
-                tid = dataset_object.random_id()
-            mask_rate = dataset_object.config.word_mask_rate
-            prob = random.random()
-            if prob < mask_rate:
-                old_id = masked_seq[j]
-                prob /= mask_rate
-                if prob < 0.8:
-                    masked_seq[j] = mask_id
-                    pass
-                elif prob < 0.9:
-                    masked_seq[j] = tid
-                    pass
-                masked_inds[j] = old_id
-        masked_id_seqs.append(torch.tensor(masked_inds))
-        masked_seqs.append(torch.tensor(masked_seq))
-    cur_entry["input_ids"] = masked_seqs if not take_first else masked_seqs[0]
-    cur_entry["masked_labels"] =  masked_id_seqs if not take_first else masked_id_seqs[0]
+    ignore_id = config.ignore_id
+    mask_id = tokenizer.token_to_id("[mask]")
+    sep_id = tokenizer.token_to_id("[sep]")
+    masked_labels = [ignore_id] * len(input_ids)
+    masked_ids = input_ids
+    for j, (iid, mid) in enumerate(zip(input_ids[1:], attention_mask[1:]), start=1):
+        if int(mid) == 0 or iid == sep_id:
+            break
+        tid = random_id()
+        while tid in special_ids:
+            tid = random_id()
+        mask_rate = config.word_mask_rate
+        prob = random.random()
+        if prob < mask_rate:
+            old_id = masked_ids[j]
+            prob /= mask_rate
+            if prob < 0.8:
+                masked_ids[j] = mask_id
+                pass
+            elif prob < 0.9:
+                masked_ids[j] = tid
+                pass
+            masked_labels[j] = old_id
+    cur_entry["input_ids"] = masked_ids
+    cur_entry["masked_labels"] =  masked_labels

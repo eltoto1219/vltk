@@ -52,7 +52,6 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
             arrow_table=arrow_table,
             split=split,
             info=info,
-            fingerprint="",
             **kwargs,
         )
         self._answer_frequencies = answer_frequencies

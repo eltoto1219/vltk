@@ -27,7 +27,7 @@ _imageproc = files.Image()
 
 
 class Imageset(ds.Dataset, ABC):
-    _batch_size = 32
+    _batch_size = 10
     _base_features = {
         IMAGEKEY: ds.Value("string"),
     }

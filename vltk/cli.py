@@ -82,9 +82,6 @@ class Main(object):
             extractor=extractor,
             dataset=dataset,
             config=self.config,
-            features=features,
-            image_preprocessor=image_preprocessor,
-            img_format=img_format,
             flags=self.flags,
         )
         print(extracted_data)

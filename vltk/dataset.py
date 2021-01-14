@@ -21,8 +21,10 @@ from vltk.utils import collect_args_to_func
 
 
 VOCABPATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "libdata/bert-base-uncased-vocab.txt"))
-_textsets = dirs.Textsets()
-_imagesets = dirs.Imagesets()
+TOKENIZEDKEY = "encoded"
+global TORCHCOLS
+TORCHCOLS = set()
+
 _data_procecessors = files.Data()
 _image_preprocessors = files.Image()
 
@@ -34,6 +36,16 @@ class CollatedSets:
         for i, a in enumerate(args):
             self.range2listpos[range(start, len(a) + start)] = i
             start += len(a)
+
+    def get_textset_and_ind(self, x):
+        if x >= len(self):
+            raise IndexError(f"index {x} is out of range 0 to {len(self)}")
+        for rng in self.range2listpos:
+            if x in rng:
+                listpos = self.range2listpos[rng]
+                listind = x - rng.start
+                return self.args[listpos], listind
+
 
     def __getitem__(self, x):
         if x >= len(self):
@@ -59,7 +71,6 @@ def collate(
     keys = deepcopy(list(columns[0].keys()))
     for k in keys:
         if k == RAWIMAGEKEY:
-            # raise Exception(columns[0].get(k).shape)
             sizes = map(lambda x: x.get(k).shape[-2:], columns)
             # prin(sizes)
 
@@ -87,7 +98,6 @@ def collate(
                     "type_ids", "input_ids", "text_attention_mask",
                     "masked_labels", "is_matched")
             if isinstance(columns[0].get(k), torch.Tensor) and k not in STACK_IGNORE:
-                print(k)
                 batch[k] = torch.stack([i.pop(k) for i in columns if i is not None])
             else:
                 batch[k] = [i.pop(k) for i in columns if i is not None]
@@ -95,7 +105,7 @@ def collate(
 
 
 class UniversalLoader(DataLoader):
-    def __init__(self, names, config, splits=None, textsetdict=None, imagesetdict=None):
+    def __init__(self, names, config, label_dict, splits=None, textsetdict=None, imagesetdict=None):
         splits = config.split if splits is None else splits
         if isinstance(splits, str):
             splits = [splits]
@@ -112,6 +122,7 @@ class UniversalLoader(DataLoader):
             names=names,
             config=config,
             splits=splits,
+            label_dict=label_dict,
             textsetdict=textsetdict,
             imagesetdict=imagesetdict,
         )
@@ -149,74 +160,100 @@ class UniversalLoader(DataLoader):
 
 
 class UniversalDataset(Dataset):
-    def __init__(self, names, config, splits=None, textsetdict=None, imagesetdict=None):
+    def __init__(self, names, config, label_dict, textsetdict, imagesetdict, splits=None):
         self.config = config
         self.names = names
         self.tokenizer = BertWordPieceTokenizer(VOCABPATH, lowercase=True)
         self.tokenizer.add_special_tokens(self.special_tokens)
         self.tokenizer.enable_truncation(max_length=config.sent_length)
         self.tokenizer.enable_padding(length=config.sent_length)
-        self.ts_splits = set()
-        self.is_splits = set()
+        self.splits = splits
         self.textsets = []
-        self.textsetdict = defaultdict(dict)
-        self.imagesetdict = defaultdict(dict)
-
-
-        if textsetdict is None:
-            textsetdict = {}
-        if imagesetdict is None:
-            imagesetdict = {}
-        if isinstance(names, str):
-            names = [names]
-        for name in names:
-            for split in splits:
-                if split in textsetdict and  split in textsetdict[textset]:
-                    textset = textsetdict[name][split]
-                else:
-                    textset = _textsets.get(name).from_config(config, splits=split)[split]
-                self.ts_splits.add(split)
-                self.textsets.append(textset)
-                print(f"Added Textset {name}: {split}")
-                self.textsetdict[name][split] = textset
-                is_name, is_split =  zip(*textset.data_info[split].items())
-                # select only first entry because multiple image datasets and multiple
-                # split per image dataset mapping to one split of a text dataset is not
-                # yet supported
-                is_name = is_name[0]
-                is_split = is_split[0][0]
-                if is_name in imagesetdict and is_split in  imagesetdict[is_name]:
-                    imageset = imagesetdict[is_name][is_split]
-                elif config.extractor is not None:
-                    is_path = textset.get_arrow_split(
-                        config.datadirs,
-                        is_split,
-                        config.extractor
-                    )
-                    imageset = _imagesets.get(config.extractor).from_file(is_path)
-                else:
-                    imageset = textset.get_imgid_to_raw_path(config.datadirs, is_split)
-
-                print(f"Added Imageset {is_name}: {is_split}")
-                self.imagesetdict[is_name][is_split] = imageset
-
-        self.datasets = CollatedSets(*self.textsets)
+        self.textsetdict = textsetdict
+        self.imagesetdict = imagesetdict
+        self.label_to_id = label_dict
+        self.uniq_labels = set(label_dict.keys())
+        textsets = []
+        # map special function and create list of textsets
+        for dset in self.textsetdict:
+            for split in self.textsetdict[dset]:
+                textset = self.textsetdict[dset][split]
+                textsets.append(textset)
+                self.textsetdict[dset][split] = textset
+        self.datasets = CollatedSets(*textsets)
         self.img2textset = {}
         self.uniq_imgs = set()
-        self.label_to_id = OrderedDict()
-        nls = 0
         for ts_name, ts_splits in self.textsetdict.items():
             for split_name, ts in self.textsetdict[ts_name].items():
                 self.uniq_imgs = self.uniq_imgs.union(ts.uniq_imgs)
-                for l in sorted(ts.labels):
-                    if l not in self.label_to_id:
-                        self.label_to_id[l] = nls
-                        nls +=1
                 for img in ts.uniq_imgs:
                     self.img2textset[img] = (ts_name, split_name)
-
         self.uniq_imgs = list(self.uniq_imgs)
-        self.uniq_labels = set(self.label_to_id.keys())
+        special_ids = set([self.tokenizer.token_to_id(t) for t in self.special_tokens])
+        self.special_ids = deepcopy(special_ids)
+        all_ids = [i[1] for i in self.tokenizer.get_vocab().items()]
+        self.all_ids = deepcopy(all_ids)
+
+
+    def processor_args(self):
+        max_rand_sents = 1 if not self.config.img_first else 32
+        return {
+            "tokenizer": self.tokenizer,
+            "config": self.config,
+            "random_sents": [self.random_sent() for i in range(max_rand_sents)],
+            "special_ids":  self.special_ids,
+            "label_to_id": self.label_to_id,
+            "all_ids": self.all_ids,
+            "n_ids": len(self.all_ids)
+        }
+
+    @staticmethod
+    def text_map_function(x, proc_args):
+        config  = proc_args.get("config")
+        tokenizer = proc_args.get("tokenizer")
+        label_to_id= proc_args.get("label_to_id")
+        text_processors = config.text_processors
+        if text_processors is not None:
+            if "matched_sentence_modeling" in text_processors:
+                proc_func = _data_procecessors.get("matched_sentence_modeling")
+                x = proc_func(x, **proc_args)
+                TORCHCOLS.add("is_matched")
+
+        encoded = tokenizer.encode(x.pop(TEXTKEY))
+        x.pop("img_id", None)
+        x["text_attention_mask"] = encoded.attention_mask
+        x["input_ids"] = encoded.ids
+        x["type_ids"] = encoded.type_ids
+
+
+        if LABELKEY in x:
+            label = x.pop(LABELKEY)
+            if label != config.ignore_id:
+                lids = []
+                for l in label:
+                    lid = label_to_id[l]
+                    lids.append(lid)
+                x[LABELKEY] = lids
+
+        # now we do other text processors
+
+
+        if text_processors is not None:
+            for proc in text_processors:
+                if proc == "matched_sentence_modeling":
+                    continue
+                proc_func = _data_procecessors.get(proc)
+                proc_func(x, **proc_args)
+
+
+        for k, v in x.items():
+            if isinstance(v, list):
+                TORCHCOLS.add(k)
+        if LABELKEY in x:
+            TORCHCOLS.add(LABELKEY)
+
+
+        return x
 
     def __len__(self):
         if self.config.img_first:
@@ -234,50 +271,8 @@ class UniversalDataset(Dataset):
             "[mask]",
             ]
 
-    def _tokenize(self, entry):
-        # for text
-        text = entry.pop(TEXTKEY)
-        if isinstance(text, str):
-            encoded_text = self.tokenizer.encode(text)
-            type_ids = encoded_text.type_ids
-            attention_mask = encoded_text.attention_mask
-            token_ids = encoded_text.ids
-        else:
-            encoded_text = self.tokenizer.encode_batch(text)
-            token_ids = []
-            type_ids = []
-            attention_mask = []
-            for enc_text in encoded_text:
-                token_ids.append(enc_text.ids)
-                type_ids.append(enc_text.type_ids)
-                attention_mask.append(enc_text.attention_mask)
-        attention_mask = torch.tensor(attention_mask)
-        type_ids = torch.tensor(type_ids)
-        token_ids = torch.tensor(token_ids)
-        entry["input_ids"] = token_ids
-        entry["type_ids"] = type_ids
-        entry["text_attention_mask"] = attention_mask
-        if SCOREKEY in entry:
-            score = entry[SCOREKEY]
-            if isinstance(score[0], float):
-                entry[SCOREKEY] = torch.tensor([deepcopy(s) for s in score])
-            else:
-                scores = [torch.tensor(deepcopy(s)) for s in score]
-                entry[SCOREKEY] = scores
-        if LABELKEY in entry:
-            label = entry[LABELKEY]
-            if isinstance(label[0], str):
-                entry[LABELKEY] = torch.tensor([self.label_to_id[l] for l in label])
-            else:
-                labels = []
-                for example in label:
-                    sub_labels = []
-                    for l in example:
-                        sub_labels.append(self.label_to_id[l])
-                    labels.append(sub_labels)
-                entry[LABELKEY] = [torch.tensor(l) for l in labels]
-
     def _handle_image(self, entry):
+        proc_args = {"config": self.config}
         if self.config.extractor is None:
             filepath = entry[RAWIMAGEKEY]
             image_preprocessor_name = self.config.image_preprocessor
@@ -293,47 +288,37 @@ class UniversalDataset(Dataset):
             for k, v in entry.items():
                 if isinstance(v, Iterable):
                     if isinstance(v, numpy.ndarray):
-                        entry[k] = torch.from_numpy(v.copy())
+                        entry[k] = torch.from_numpy(v)
                     elif isinstance(v, list):
-                        entry[k] = torch.tensor(deepcopy(v))
+                        entry[k] = torch.tensor(v)
                 elif isinstance(v, int) or isinstance(v, float):
-                        entry[k] = torch.tensor(deepcopy(v))
+                        entry[k] = torch.tensor(v)
             if "roi_features" in entry:
+                proc_args["random_feat_func"] = self.random_feat
                 entry["roi_features"] = entry["roi_features"][: self.config.max_objects]
 
-    def _processors(self, entry):
-        data_processors = self.config.processors
-        if data_processors is None:
-            return
-        if isinstance(data_processors, str):
-            data_processors = [data_processors]
-        for proc in data_processors:
-            # if proc not in self.config.pretokenize_procs:
-            proc_func = _data_procecessors.get(proc)
-            proc_dict = collect_args_to_func(
-                proc_func,
-                self.config.to_dict(),
-                mandatory=False
-            )
-            proc_func(dataset_object=self, cur_entry=entry, **proc_dict)
+        # now we do other image processors
+        if self.config.image_processors is not None:
+            for proc in self.config.image_processors:
+                proc_func = _data_procecessors.get(proc)
+                proc_func(entry, **proc_args)
+
 
     def random_feat(self):
-        img_id = self.uniq_imgs[i]
         rand_ind = random.randint(0, len(self.uniq_imgs)-1)
+        img_id = self.uniq_imgs[rand_ind]
         ts_name, ts_split = self.img2textset[img_id]
         textset = self.textsetdict[ts_name][ts_split]
         is_name, is_split = zip(*textset.data_info[ts_split].items())
         imageset = self.imagesetdict[is_name[0]][is_split[0][0]]
-        img_text_dict = textset.get_from_img(img_id)
-        img_info = self.imgid2img[img_id]
+        img_info = imageset.get(img_id)
         if "roi_features" in img_info:
-            feat = img_info['roi_features'][random.randint(0, self.config.max_objects-1)]
-            return torch.tensor(feat)
+            feat = random.choice(img_info['roi_features'])
+            return feat
         else:
             return None
 
     def random_id(self):
-        (token, tid) = random.choice(list(self.tokenizer.get_vocab().items()))
         return tid
 
     def random_sent(self):
@@ -341,14 +326,15 @@ class UniversalDataset(Dataset):
         rand_ind = random.randint(0, len(self.datasets)-1)
         text_info = self.datasets[rand_ind]
         rand_sent = text_info[TEXTKEY]
-        encoded_text = self.tokenizer.encode(rand_sent)
-        type_ids = encoded_text.type_ids
-        attention_mask = encoded_text.attention_mask
-        token_ids = encoded_text.ids
-        rand["input_ids"] = token_ids
-        rand["type_ids"] = type_ids
-        rand["text_attention_mask"] = attention_mask
-        return rand
+        return rand_sent
+
+
+    def _map(self, small_textset):
+        proc_args = self.processor_args()
+        return small_textset.map(
+                lambda x: UniversalDataset.text_map_function(x, proc_args=proc_args)
+        )
+
 
     @torch.no_grad()
     def __getitem__(self, i):
@@ -356,23 +342,34 @@ class UniversalDataset(Dataset):
             img_id = self.uniq_imgs[i]
             ts_name, ts_split = self.img2textset[img_id]
             textset = self.textsetdict[ts_name][ts_split]
+            idxs = textset.img_to_rows_map[img_id]
+            small_textset = textset.select(idxs)
+            img_text_dict= self._map(small_textset)
+
+            img_text_dict.set_format(
+                type='torch',
+                output_all_columns=True,
+                columns=list(TORCHCOLS)
+            )
+            # so what we have to turn into tensors ar
+            img_text_dict = img_text_dict[:]
+            img_text_dict[IMAGEKEY] = img_id
             is_name, is_split = zip(*textset.data_info[ts_split].items())
             imageset = self.imagesetdict[is_name[0]][is_split[0][0]]
-            img_text_dict = textset.get_from_img(img_id)
-            self._tokenize(img_text_dict)
             img_info_dict = imageset.get(img_id)
             if isinstance(img_info_dict, str):
                 img_info_dict = {RAWIMAGEKEY: img_info_dict}
             self._handle_image(img_info_dict)
             entry = {**img_text_dict, **img_info_dict}
-            self._processors(entry)
             return entry
         else:
-            text_info = self.datasets[i]
-            self._tokenize(text_info)
-            img_id = text_info[IMAGEKEY]
+            textset, ind = self.datasets.get_textset_and_ind(i)
+            small_textset = textset[ind]
+            img_id = small_textset["img_id"]
+            proc_args = self.processor_args()
+            text_info = self.text_map_function(small_textset, proc_args)
+            text_info = dict(map(lambda x: (x[0], torch.tensor(x[1]) if not isinstance(x[1], str) else x[1]), text_info.items()))
             ts_name, ts_split = self.img2textset[img_id]
-            textset = self.textsetdict[ts_name][ts_split]
             is_name, is_split =  zip(*textset.data_info[ts_split].items())
             imageset = self.imagesetdict[is_name[0]][is_split[0][0]]
             img_info_dict = imageset.get(img_id)
@@ -380,12 +377,11 @@ class UniversalDataset(Dataset):
                 img_info_dict = {RAWIMAGEKEY: img_info_dict}
             self._handle_image(img_info_dict)
             entry = {**text_info, **img_info_dict}
-            self._processors(entry)
             return entry
 
     @property
     def batch_size(self):
-        if len(set(self.ts_splits).intersection(self.config.train_aliases)) == 0:
+        if len(set(self.splits).intersection(self.config.train_aliases)) == 0:
             return self.config.eval_batch_size
         else:
             return self.config.train_batch_size

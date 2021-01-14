@@ -15,11 +15,13 @@ class Loop(utils.IdentifierClass, ABC):
         self,
         config: object,
         datasets: str,
+        label_dict: dict,
+        imagesetdict: dict,
+        textsetdict: dict,
         model_dict: Union[dict, None],
         extra_modules: Union[dict, None] = None,
-        imagesetdict=None,
-        textsetdict=None,
     ):
+        self.label_dict = label_dict
         self.model_dict = model_dict
         self.extra_modules = extra_modules
         self.config = config
@@ -34,14 +36,12 @@ class Loop(utils.IdentifierClass, ABC):
             f"cuda:{config.aux_gpu}" if getattr(config, "aux_gpu", -1) != -1 else "cpu"
         )
         self.scaler = None if not self.half_precision else torch.cuda.amp.GradScaler()
-        self._init_loader(imagesetdict=imagesetdict, textsetdict=textsetdict)
-        assert hasattr(
-            self, "loader"
-        ), "property 'loader' must be set in 'self._init_loader()'"
-        assert isinstance(self.loader, torch.utils.data.DataLoader)
-        self._dataset = self.loader.dataset
+
+        self._init_loader(textsetdict, imagesetdict, label_dict)
         self._init_models_and_extras(model_dict, extra_modules)
         self._init_optim()
+
+        self._dataset = self.loader.dataset
 
     def __key(self):
         name = self.is_name + "_"
@@ -286,31 +286,21 @@ class Loop(utils.IdentifierClass, ABC):
     def get_imageset(self):
         return self.loader.dataset.imagesetdict
 
-    def _init_loader(self, textsetdict=None, imagesetdict=None):
-        if self.is_train:
-            split = "train"
-            self.loader = UniversalLoader(
-                config=self.config.data,
-                splits=split,
-                names=self.datasets,
-                imagesetdict=imagesetdict,
-                textsetdict=textsetdict,
-            )
-        else:
-            split = self.config.data.eval_split
-            eval_dataset = self.config.data.eval_dataset
-            datasets = self.datasets
-            if isinstance(datasets, str):
-                datasets = [datasets]
-            assert eval_dataset in datasets, (eval_dataset, datasets)
-            self.loader = UniversalLoader(
-                config=self.config.data,
-                splits=split,
-                names=eval_dataset,
-                textsetdict=textsetdict,
-                imagesetdict=imagesetdict,
-            )
-        self._split = split
+    def _init_loader(self, textsetdict, imagesetdict, label_dict):
+        train_splits =  self.config.data.train_splits
+        train_splits = (lambda x: set([x]) if isinstance(x, str) else set(x))(train_splits)
+        eval_splits =  self.config.data.eval_splits
+        eval_splits = (lambda x: set([x]) if isinstance(x, str) else set(x))(eval_splits)
+        splits = train_splits if self.is_train else eval_splits
+        datasets = self.datasets if self.is_train else self.config.data.eval_datasets
+        self.loader = UniversalLoader(
+            config=self.config.data,
+            names=datasets,
+            label_dict=label_dict,
+            splits=splits,
+            imagesetdict=imagesetdict,
+            textsetdict=textsetdict,
+        )
 
     @classmethod
     def eval_instance(cls, eval_name):

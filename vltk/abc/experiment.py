@@ -4,7 +4,7 @@ import random
 from abc import ABC, abstractmethod
 from itertools import chain
 from typing import Dict, List, Union
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 
 import torch
 from vltk import factory, outputs
@@ -14,6 +14,8 @@ from vltk.utils import IdentifierClass
 __all__ = ["Experiment"]
 
 _loop = dirs.Loops()
+_textsets = dirs.Textsets()
+_imagesets = dirs.Imagesets()
 
 
 
@@ -24,6 +26,8 @@ class Experiment(IdentifierClass, ABC):
         # maybe we can assume experiments are homegeneous within each loop
         # defualt stuff
         self.cur_epoch = 0
+        if isinstance(datasets, str):
+            datasets = [datasets]
         self.datasets = datasets
         self.config = config
         self.seed = self.config.seed
@@ -37,6 +41,7 @@ class Experiment(IdentifierClass, ABC):
         if self.logdir is not None and self.config.logging:
             os.makedirs(self.logdir, exist_ok=True)
 
+        self._init_datasets()
         self._init_loops()
         self.set_model_gradient_tracking()
         exp_info = self.get_exp_info()
@@ -88,8 +93,94 @@ class Experiment(IdentifierClass, ABC):
                 else:
                     pass
 
+    def _init_datasets(self):
+        # first check to see if any train or any val
+        any_train = False
+        any_val = False
+        for loop_key in self.loops_to_models:
+            model_list = self.loops_to_models[loop_key]
+            if isinstance(loop_key, str):
+                loop_cls = _loop.get(loop_key)
+            else:
+                loop_cls = loop_key
+            loop_name = loop_cls.name
+            if loop_cls.is_train:
+                any_train = True
+            else:
+                any_val = True
+
+        self.label_to_id = {}
+        self.dataset2splits = defaultdict(set)
+        self.train_textsetdict = defaultdict(dict)
+        self.eval_textsetdict = defaultdict(dict)
+        self.train_imagesetdict = defaultdict(dict)
+        self.eval_imagesetdict = defaultdict(dict)
+        train_splits =  self.config.data.train_splits
+        self.train_splits = (lambda x: set([x]) if isinstance(x, str) else set(x))(train_splits)
+        eval_splits =  self.config.data.eval_splits
+        self.eval_splits = (lambda x: set([x]) if isinstance(x, str) else set(x))(eval_splits)
+        for dset in self.datasets:
+            if dset in self.config.data.eval_datasets:
+                self.dataset2splits[dset] = self.dataset2splits[dset].union(set(self.eval_splits))
+            self.dataset2splits[dset] = self.dataset2splits[dset].union(set(self.train_splits))
+        label_id = 0
+        for name in sorted(set(self.dataset2splits.keys())):
+            for split in sorted(set(self.dataset2splits[name])):
+                if (
+                    name in self.config.data.eval_datasets
+                    and split in eval_splits
+                    and not self.config.data.skip_eval
+                    and any_val
+                ) or (
+                    split in train_splits
+                    and not self.config.data.skip_train
+                    and any_train
+                ):
+                    textset = _textsets.get(name).from_config(self.config.data, splits=split)[split]
+                else:
+                    continue
+                for l in sorted(textset.labels):
+                    if l not in self.label_to_id:
+                        self.label_to_id[l] = label_id
+                        label_id += 1
+                print(f"Added Textset {name}: {split}")
+                if (
+                    name in self.config.data.eval_datasets
+                    and split in eval_splits
+                    and not self.config.data.skip_eval
+                    and any_val
+                ):
+                    self.eval_textsetdict[name][split] = textset
+                if split in train_splits and not self.config.data.skip_train and any_train:
+                    self.train_textsetdict[name][split] = textset
+                is_name, is_split =  zip(*textset.data_info[split].items())
+                is_name = is_name[0]
+                is_split = is_split[0][0]
+                # raise Exception(self.config.data.extractor)
+                if self.config.data.extractor is not None:
+                    is_path = textset.get_arrow_split(
+                        self.config.data.datadirs,
+                        is_split,
+                        self.config.data.extractor
+                    )
+                    imageset = _imagesets.get(self.config.data.extractor).from_file(is_path)
+                else:
+                    imageset = textset.get_imgid_to_raw_path(self.config.data.datadirs, is_split)
+
+                print(f"Added Imageset {is_name}: {is_split}")
+
+                if (
+                    name in self.config.data.eval_datasets
+                    and split in eval_splits
+                    and not self.config.data.skip_eval
+                    and any_val
+                ):
+                    self.eval_imagesetdict[is_name][is_split] = imageset
+                if split in train_splits and not self.config.data.skip_train and any_train:
+                    self.train_imagesetdict[is_name][is_split] = imageset
+
+
     def _init_loops(self):
-        # move to auto detect models in the future
         model_dict = {
             model: factory.model_name_to_instance(model_name=model, config=self.config)
             for model in set(chain(*list(self.loops_to_models.values())))
@@ -97,10 +188,7 @@ class Experiment(IdentifierClass, ABC):
         }
         loop_dict = {}
         loop_info = {}
-        loop_labels = OrderedDict()
-        first_loop_name = None
-        nls = 0
-        for loop_key in sorted(self.loops_to_models.keys()):
+        for loop_key in self.loops_to_models:
             model_list = self.loops_to_models[loop_key]
             if isinstance(loop_key, str):
                 loop_cls = _loop.get(loop_key)
@@ -108,15 +196,13 @@ class Experiment(IdentifierClass, ABC):
                 loop_cls = loop_key
 
             loop_name = loop_cls.name
-
-            if first_loop_name is not None:
-                first_loop = loop_dict[first_loop_name]
-                imagesetdict = first_loop.get_imageset()
-                textsetdict = first_loop.get_textsetdict()
+            is_train = loop_cls.is_train
+            if is_train:
+                textsetdict = self.train_textsetdict
+                imagesetdict = self.train_imagesetdict
             else:
-                first_loop_name = loop_name
-                imagesetdict = None
-                textsetdict = None
+                textsetdict = self.eval_textsetdict
+                imagesetdict = self.eval_imagesetdict
             loop = loop_cls(
                 config=self.config,
                 model_dict={
@@ -128,23 +214,15 @@ class Experiment(IdentifierClass, ABC):
                 datasets=self.datasets,
                 imagesetdict=imagesetdict,
                 textsetdict=textsetdict,
+                label_dict=self.label_to_id
             )
-            label_to_id = loop.loader.dataset.label_to_id
-            for l in sorted(label_to_id.keys()):
-                if l not in loop_labels:
-                    loop_labels[l] = nls
-                    nls += 1
 
             if (loop.is_train and not self.config.data.skip_train) or (
                 not loop.is_train and not self.config.data.skip_eval
             ):
                 loop_dict[loop_name] = loop
                 loop_info[loop_name] = loop.is_train
-            #make global labels
-            for name in sorted(set(loop_dict.keys())):
-                loop = loop_dict[name]
-                loop.loader.dataset.label_to_id = loop_labels
-                loop.loader.dataset.uniq_labels = set(loop_labels.keys())
+
         print(f"Loaded Loops: {list(loop_dict.keys())}")
 
         self._model_dict = model_dict

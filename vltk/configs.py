@@ -75,9 +75,9 @@ class FinetuneConfig(config.Config):
 
 
 class DataConfig(config.Config):
-    pretokenize_procs: List[str] = ["matched_sentence_modeling"]
-    processors : Union[None, List[str]] = ["one_hot_label"]
-    eval_dataset = "gqa"
+    text_processors : Union[None, List[str]] = ["one_hot_label"]
+    image_processors : Union[None, List[str]] = []
+    eval_datasets = "gqa"
     eval_batch_size = 32
     train_batch_size = 64
     label_processor: str = "label_default"
@@ -108,9 +108,8 @@ class DataConfig(config.Config):
     percent_data: int = 1.0
     skip_eval: bool = False
     skip_train: bool = False
-    train_split: bool = "trainval"
-    eval_split: bool = "eval"
-    valid_split: bool = "valid"
+    train_splits: bool = "train"
+    eval_splits: bool = "eval"
     num_attrs: int = 400
     num_objects: int = 1600
     ignore_id: int = -100
