@@ -45,6 +45,7 @@ class VQAset(Textset):
                 for anno in tqdm(annotations):
                     qid = str(anno["question_id"])
                     answers = anno["answers"]
+                    label_frequencies.update([label_processor(anno["multiple_choice_answer"])])
                     answer_counter = Counter()
                     for ans_dict in answers:
                         ans = ans_dict["answer"]
@@ -53,7 +54,7 @@ class VQAset(Textset):
                         else:
                             ans = label_processor(ans)
                             # make  sure to clean label before updating frequncies
-                            label_frequencies.update([ans])
+                            # label_frequencies.update([ans])
                             answer_counter.update([ans])
                     qid2answers[qid] = {
                         k: soft_score(v) for k, v in answer_counter.items()
@@ -64,19 +65,23 @@ class VQAset(Textset):
             entry[Textset.img_key] = str(entry.pop("image_id"))
             entry[Textset.text_key] = entry.pop("question")
             entry["qid"] = str(entry.pop("question_id"))
-            entry[Textset.label_key] = qid2answers[entry["qid"]]
-            labels = {
-                l: s
-                for l, s in entry[Textset.label_key].items()
-                if label_frequencies[l] > min_label_frequency
-            }
-            if not labels:
-                skipped += 1
-                continue
+            try:
+                entry[Textset.label_key] = qid2answers[entry["qid"]]
+                labels = {
+                    l: s
+                    for l, s in entry[Textset.label_key].items()
+                    if label_frequencies[l] > min_label_frequency
+                }
+                if not labels:
+                    skipped += 1
+                    continue
 
-            labels, scores = Textset._label_handler(labels)
-            entry[Textset.score_key] = scores
-            entry[Textset.label_key] = labels
+                labels, scores = Textset._label_handler(labels)
+                entry[Textset.score_key] = scores
+                entry[Textset.label_key] = labels
+            except KeyError:
+                pass
+
             batch_entries.append(entry)
 
         print(f"SKIPPEd {skipped} entries")
@@ -88,18 +93,18 @@ if __name__ == "__main__":
     from vltk.configs import Config
 
     config = Config().data
-
-    # VQAset.extract(
-    #     config=config,
-    #     splits=["train", "val"],
-    # )
+    config.min_label_frequency = 9
+    VQAset.extract(
+        config=config,
+        splits=["train", "val", "test"],
+    )
     val = VQAset.from_config(config, splits="val")["val"]
     # get min frequency of answers when loading, so we know the lenngth right away
 
     # get path to arrow file
-    val.get_arrow_split(datadirs=config.datadirs, extractor="frcnn", split="val")
+    # val.get_arrow_split(datadirs=config.datadirs, extractor="frcnn", split="val")
     # get path to raw img ids
-    print(val.get_imgid_to_raw_path(datadirs=config.datadirs, split="val"))
+    print(len(val.labels))
 
     # print("entry at row 1:", val.get_row(1))
     # print("entries with img id 262148:", val.get_from_img("262148"))

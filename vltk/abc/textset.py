@@ -6,6 +6,7 @@ from abc import ABCMeta, abstractmethod
 from collections import Counter, defaultdict
 from pathlib import Path
 from typing import List
+from copy import deepcopy
 
 import datasets
 import datasets as ds
@@ -243,6 +244,7 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
         label_processor="label_default",
         **kwargs,
     ):
+        test_features = None
         if supervised:
             if min_label_frequency is None:
                 assert config is not None
@@ -284,7 +286,7 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
             imgid2rows = defaultdict(list)
 
             text_files = cls._locate_text_files(
-                datadirs=path_or_dir, textset_name=cls.name, slit=split
+                path_or_dir=path_or_dir, textset_name=cls.name, split=split
             )
 
             features = Textset._check_features(cls.default_features)
@@ -294,7 +296,14 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
             # setup arrow writer
             buffer = pyarrow.BufferOutputStream()
             stream = pyarrow.output_stream(buffer)
-            writer = ArrowWriter(features=features, stream=stream)
+            if split == "test" or not supervised:
+                if test_features is None:
+                    test_features = deepcopy(features)
+                    test_features.pop(LABELKEY, None)
+                    test_features.pop(SCOREKEY, None)
+                writer = ArrowWriter(features=test_features, stream=stream)
+            else:
+                writer = ArrowWriter(features=features, stream=stream)
 
             # load data
             text_data = []
@@ -314,7 +323,7 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
             for sub_batch_entries in utils.batcher(batch_entries, n=64):
                 flat_entry = None
                 for b in sub_batch_entries:
-                    if not supervised:
+                    if not supervised or split == "test":
                         b.pop(SCOREKEY, None)
                         b.pop(LABELKEY, None)
                     else:
@@ -330,8 +339,18 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
                         for k in flat_entry:
                             flat_entry[k].extend(b[k])
 
-                batch = cls.features.encode_batch(flat_entry)
-                writer.write_batch(batch)
+                if split == "test" or not supervised:
+                    if test_features is None:
+                        test_features = deepcopy(features)
+                        test_features.pop(LABELKEY, None)
+                        test_features.pop(SCOREKEY, None)
+                    batch = test_features.encode_batch(flat_entry)
+                    writer.write_batch(batch)
+                else:
+                    batch = features.encode_batch(flat_entry)
+                    writer.write_batch(batch)
+
+
 
             dset = datasets.Dataset.from_buffer(buffer.getvalue())
             Textset._custom_finalize(writer, cls)
@@ -361,7 +380,6 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
 
             # return class
             arrow_dset = cls(
-                raw_files=None,
                 arrow_table=table,
                 img_to_rows_map=imgid2rows,
                 info=dset.info,

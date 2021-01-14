@@ -81,7 +81,7 @@ class DataConfig(config.Config):
     eval_batch_size = 32
     train_batch_size = 64
     label_processor: str = "label_default"
-    min_label_occurence = 9
+    min_label_frequency = 9
     extractor: Union[None,str] = "frcnn"
     imgid_aliases: set = {"img", "image", "imgid", "img_id", "iid", "image_id"}
     text_aliases: set = {"text", "sent", "que", "question"}
@@ -129,7 +129,6 @@ class DataConfig(config.Config):
     visual_dim: int = 2048
     max_detections: str = 36
     vit_pretrained_dir = "vit/"
-    min_label_frequency: int = 14
     datasets: Union[List[str], str] = ""
     image_preprocessor = "img_to_tensor"
 
