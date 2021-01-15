@@ -6,7 +6,7 @@ import random
 import torch
 from fire import Fire
 
-from vltk import configs, main_functions, utils
+from vltk import configs, commands, utils
 from vltk.abc.experiment import Experiment
 from vltk.maps import dirs
 
@@ -65,7 +65,7 @@ class Main(object):
                 if name in _experiments.avail():
                     print(f"WARNING: {name} is already a predefined experiment")
                     _experiments.add(name, clss)
-        main_functions.run_experiment(
+        commands.run_experiment(
             config, flags=self.flags, name=name, datasets=datasets
         )
         atexit.unregister(inner_crash_save)
@@ -79,7 +79,7 @@ class Main(object):
         dataset,
     ):
 
-        extracted_data = main_functions.extract_data(
+        extracted_data = commands.extract_data(
             extractor=extractor,
             dataset=dataset,
             config=self.config,

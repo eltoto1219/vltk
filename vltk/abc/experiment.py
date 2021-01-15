@@ -7,7 +7,6 @@ from typing import Dict, List, Union
 from collections import OrderedDict, defaultdict
 
 import torch
-from vltk import factory, outputs
 from vltk.maps import dirs
 from vltk.utils import IdentifierClass
 
@@ -43,7 +42,10 @@ class Experiment(IdentifierClass, ABC):
         self._init_loops()
         self.set_model_gradient_tracking()
         exp_info = self.get_exp_info()
+        '''
+        TODO: FIX
         self.experiment_outputs = outputs.ExperimentOutputs(**exp_info)
+        '''
 
     @property
     def model_dict(self):
@@ -190,11 +192,14 @@ class Experiment(IdentifierClass, ABC):
 
 
     def _init_loops(self):
+        '''
+        TODO: fix
         model_dict = {
             model: factory.model_name_to_instance(model_name=model, config=self.config)
             for model in set(chain(*list(self.loops_to_models.values())))
             if model is not None
         }
+        '''
         loop_dict = {}
         loop_info = {}
         for loop_key in self.loops_to_models:
@@ -273,7 +278,10 @@ class Experiment(IdentifierClass, ABC):
                 optim_dict[loop_name] = loop.optim.state_dict()
         torch.save(optim_dict, save_name)
         save_name = os.path.join(self.config.logdir, "exp_outputs.pkl")
+        '''
+        TODO: FIX
         self.experiment_outputs.dump(save_name)
+        '''
         save_name = os.path.join(self.config.logdir, "config.yaml")
         self.config.dump_yaml(save_name)
 
@@ -318,7 +326,10 @@ class Experiment(IdentifierClass, ABC):
                     break
 
             exp_info = self.get_exp_info()
+            '''
+            TODO: fix
             self.experiment_outputs.add(epoch, epoch_output, **exp_info)
+            '''
             self.write(self.loginfo(**epoch_output))
             if self.config.test_save or (self.config.save_after_epoch and any_train):
                 self.save()

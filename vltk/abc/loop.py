@@ -1,11 +1,11 @@
 import sys
 from abc import ABC, abstractmethod
 from typing import Union
+from collections import defaultdict
 
 import torch
 from vltk import utils
 from vltk.dataset import UniversalLoader
-from vltk.outputs import LoopOutputs
 from tqdm import tqdm
 from transformers import AdamW, get_linear_schedule_with_warmup
 
@@ -248,9 +248,8 @@ class Loop(utils.IdentifierClass, ABC):
         for x in self.loader:
             yield x
 
-    def __call__(self) -> LoopOutputs:
-        accuracy = 0.0
-        losses = None
+    def __call__(self) -> dict:
+        loop_outputs = defaultdict(list)
         if self.is_train:
             self.toTrain()
         else:
@@ -263,18 +262,17 @@ class Loop(utils.IdentifierClass, ABC):
                 with self.forward_context():
                     model_outputs = self.forward(batch)
                 outputs = self.loop(batch, model_outputs)
-                if outputs is not None:
-                    if hasattr(outputs, "losses"):
-                        losses = outputs.losses
-                    if hasattr(outputs, "accuracy"):
-                        accuracy += float(outputs.accuracy)
                 if self.is_train:
                     losses = getattr(outputs, "losses", None)
                     assert losses is not None
                     self.step(losses)
                 self.cur_step += 1
-            outputs = LoopOutputs(right=accuracy, total=len(self.loader), losses=losses)
-            return outputs
+                if outputs is not None and loop_outputs is not None:
+                    for k, v in outputs.items():
+                        loop_outputs[k].append(v)
+                else:
+                    loop_outputs = None
+            return loop_outputs
 
     @property
     def split(self):
@@ -303,7 +301,7 @@ class Loop(utils.IdentifierClass, ABC):
         return eval_cls
 
     @abstractmethod
-    def loop(self, batch, model_outputs) -> LoopOutputs:
+    def loop(self, batch, model_outputs) -> dict:
         return None
 
     @abstractmethod

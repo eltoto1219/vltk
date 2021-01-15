@@ -56,6 +56,7 @@ setup(
         "vltk/textset",
         "vltk/imageset",
         "vltk/maps"
+        "vltk/modeling/configs"
     ],
     install_requires=dependencies(),
 )
