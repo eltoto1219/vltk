@@ -50,6 +50,7 @@ setup(
         "vltk/modeling",
         "vltk/legacy",
         "vltk/processing",
+        "vltk/visualizations",
         "vltk/exp",
         "vltk/loop",
         "vltk/abc",
