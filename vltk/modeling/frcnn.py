@@ -33,6 +33,8 @@ from torch.nn.modules.batchnorm import BatchNorm2d
 from torchvision.ops import RoIPool
 from torchvision.ops.boxes import batched_nms, nms
 
+__all__ = ["FRCNN"]
+
 
 # other:
 def norm_box(boxes, raw_sizes):

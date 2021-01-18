@@ -5,15 +5,6 @@ from vltk.abc import config
 from vltk.utils import get_most_free_gpu, get_nvidia_gpu_memory
 
 
-class LxmertConfig(config.Config):
-    from_transformers: bool = True
-    ckp_name_or_path = "unc-nlp/lxmert-base-uncased"
-    known_labels: int = 1842
-    r_layers: int = 5
-    l_layers: int = 9
-    x_layers: int = 5
-
-
 class ViTConfig(config.Config):
     from_transformers: bool = False
     vit_variant: Union[str, None] = "ViT-B_16"
@@ -21,21 +12,22 @@ class ViTConfig(config.Config):
 
 
 class ModelsConfig(config.Config):
-    names = ("lxmert", "vit")
     main_model: str = "lxmert"
-    aux_models: tuple = ("frcnn", "vit")
-    name_to_config = {"lxmert": LxmertConfig, "vit": ViTConfig}
+
+    def add(self, model_name, model_config):
+        model_base = model_name.split("_")[0]
+        attr_dict = {}
+        if hasattr(self, model_base):
+            for attr, attr_val in getattr(self, model_base).items():
+                attr_dict[attr] = attr_val
+            setattr(self, model_base, model_config(**attr_dict))
+        else:
+            setattr(self, model_base, model_config())
 
     def __init__(self, **kwargs):
-        new_conf = kwargs.get("name_to_config", False)
-        if not new_conf:
-            new_conf = kwargs.get("models", {}).get("name_to_config", False)
-        if new_conf:
-            self.name_to_config = new_conf
-        for m in self.names:
-            setattr(self, m, self.name_to_config[m]())
-        super().__init__(**kwargs)
-        self.update(kwargs.get("models", {}))
+        for f, v in kwargs.items():
+            setattr(self, f, v)
+            self._overwritten[f] = v
 
 
 class PretrainConfig(config.Config):
@@ -79,16 +71,17 @@ class DataConfig(config.Config):
     train_aliases: set = {"train", "finetune", "pretrain"}
     test_aliases: set = {"test"}
     valid_aliases: set = {"val", "valid", "validation"}
-    text_processors : Union[None, List[str], str] = ["one_hot_label"]
-    image_processors : Union[None, List[str], str] = []
+    text_processors: Union[None, List[str], str] = ["one_hot_label"]
+    image_processors: Union[None, List[str], str] = []
     label_processor: Union[None, str] = "one_hot_label"
     imgid_processor: str = "clean_imgid_default"
     label_preprocessor: str = "label_default"
     eval_datasets = ("gqa", "dev")
+    train_datasets = [("gqa", ("train", "val"))]
     eval_batch_size = 32
     train_batch_size = 64
     min_label_frequency = 9
-    extractor: Union[None,str] = "frcnn"
+    extractor: Union[None, str] = "frcnn"
     textfile_extensions: Union[List[str], str] = ["json", "jsonl"]
     datadirs: Union[List[str], str] = "/playpen1/home/avmendoz/data"
     img_first: bool = False
@@ -128,8 +121,6 @@ class DataConfig(config.Config):
     vit_pretrained_dir = "vit/"
     image_preprocessor = "img_to_tensor"
 
-
-
     def __init__(self, finetune=True, **kwargs):
         super().__init__(**kwargs)
         self.eval_datasets = Config.handle_iterables(self.eval_datasets)
@@ -162,6 +153,7 @@ class Config(config.Config):
     save_after_epoch = False
     email = None
     private_file = None
+    test_run: bool = True
 
     def __init__(self, finetune=True, **kwargs):
         super().__init__(**kwargs)

@@ -1,6 +1,6 @@
+import torch
 from vltk import metrics
 from vltk.abc.loop import Loop
-from vltk.outputs import LoopOutputs
 
 
 class Lxmert(Loop):
@@ -8,8 +8,8 @@ class Lxmert(Loop):
     is_train: bool = True
 
     def loop(self, batch, model_outputs):
-        acc = metrics.accuracy(model_outputs.question_answering_score, batch["labels"])
-        loop_outputs = LoopOutputs(accuracy=acc, losses=model_outputs.loss)
+        acc = metrics.accuracy(model_outputs.question_answering_score, batch["label"])
+        loop_outputs = {"accuracy": acc, "losses": model_outputs.loss}
         flatten_bz = len(batch["input_ids"])
         self.tqdm_update(
             {
@@ -37,15 +37,20 @@ class Lxmert(Loop):
                     "sizes",
                 ],
             )
+
+        batch["input_ids"] = torch.stack(batch["input_ids"])
+        batch["type_ids"] = torch.stack(batch["type_ids"])
+        batch["text_attention_mask"] = torch.stack(batch["text_attention_mask"])
+        batch["label"] = torch.stack(batch["label"])
         self.toCuda(batch, device=self.config.gpu)
-        batch["return_dict"] = True
-        model_outputs = self.lxmert(
+
+        model_outputs = self.lxmert_qa(
             input_ids=batch["input_ids"],
             visual_feats=batch["roi_features"],
             visual_pos=batch["boxes"],
-            attention_mask=batch["attention_mask"],
-            token_type_ids=batch["token_type_ids"],
-            return_dict=batch["return_dict"],
-            labels=batch["labels"],
+            attention_mask=batch["text_attention_mask"],
+            token_type_ids=batch["type_ids"],
+            return_dict=True,
+            labels=batch["label"],
         )
         return model_outputs

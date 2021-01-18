@@ -2,20 +2,21 @@ import datetime
 import os
 import random
 from abc import ABC, abstractmethod
+from collections import defaultdict
 from itertools import chain
 from typing import Dict, List, Union
-from collections import OrderedDict, defaultdict
 
 import torch
 from vltk.maps import dirs
-from vltk.utils import IdentifierClass
+from vltk.modeling import Get as Mget
+from vltk.modeling.configs import Get
+from vltk.utils import IdentifierClass, collect_args_to_func
 
 __all__ = ["Experiment"]
 
 _loop = dirs.Loops()
 _textsets = dirs.Textsets()
 _imagesets = dirs.Imagesets()
-
 
 
 class Experiment(IdentifierClass, ABC):
@@ -39,13 +40,14 @@ class Experiment(IdentifierClass, ABC):
             os.makedirs(self.logdir, exist_ok=True)
 
         self._init_datasets()
+        self._init_models()
         self._init_loops()
         self.set_model_gradient_tracking()
-        exp_info = self.get_exp_info()
-        '''
-        TODO: FIX
-        self.experiment_outputs = outputs.ExperimentOutputs(**exp_info)
-        '''
+        self._experiment_outputs = {}
+
+    @property
+    def experiment_outputs(self):
+        return self._experiment_outputs
 
     @property
     def model_dict(self):
@@ -73,7 +75,7 @@ class Experiment(IdentifierClass, ABC):
     def set_model_devices(self):
         if self.model_dict:
             for name, model in self.model_dict.items():
-                if name in self.config.models.aux_models:
+                if name not in self.config.models.main_model:
                     model = model.to(self.aux_model_device)
                 else:
                     model = model.to(self.main_device)
@@ -97,13 +99,12 @@ class Experiment(IdentifierClass, ABC):
         # first check to see if any train or any val
         any_train = False
         any_val = False
+        # check for train and eval loops
         for loop_key in self.loops_to_models:
-            model_list = self.loops_to_models[loop_key]
             if isinstance(loop_key, str):
                 loop_cls = _loop.get(loop_key)
             else:
                 loop_cls = loop_key
-            loop_name = loop_cls.name
             if loop_cls.is_train:
                 any_train = True
             else:
@@ -125,14 +126,15 @@ class Experiment(IdentifierClass, ABC):
             train_datasets.add(dset)
             train_splits = train_splits.union(splits)
             self.dataset2splits[dset] = self.dataset2splits[dset].union(splits)
-        #then loop thorugh eval datasets
+        # then loop thorugh eval datasets
         for (dset, splits) in self.config.data.eval_datasets:
-            assert dset in train_datasets, "eval datasets must also be present in train datasets"
+            assert (
+                dset in train_datasets
+            ), "eval datasets must also be present in train datasets"
             eval_datasets.add(dset)
             eval_splits = eval_splits.union(splits)
             if not splits.intersection(self.dataset2splits[dset]):
                 self.dataset2splits[dset] = self.dataset2splits[dset].union(splits)
-
 
         label_id = 0
         for name in sorted(set(self.dataset2splits.keys())):
@@ -147,7 +149,9 @@ class Experiment(IdentifierClass, ABC):
                     and not self.config.data.skip_train
                     and any_train
                 ):
-                    textset = _textsets.get(name).from_config(self.config.data, splits=split)[split]
+                    textset = _textsets.get(name).from_config(
+                        self.config.data, splits=split
+                    )[split]
                 else:
                     continue
                 for l in sorted(textset.labels):
@@ -162,21 +166,26 @@ class Experiment(IdentifierClass, ABC):
                     and any_val
                 ):
                     self.eval_textsetdict[name][split] = textset
-                if split in train_splits and not self.config.data.skip_train and any_train:
+                if (
+                    split in train_splits
+                    and not self.config.data.skip_train
+                    and any_train
+                ):
                     self.train_textsetdict[name][split] = textset
-                is_name, is_split =  zip(*textset.data_info[split].items())
+                is_name, is_split = zip(*textset.data_info[split].items())
                 is_name = is_name[0]
                 is_split = is_split[0][0]
-                # raise Exception(self.config.data.extractor)
                 if self.config.data.extractor is not None:
                     is_path = textset.get_arrow_split(
-                        self.config.data.datadirs,
-                        is_split,
-                        self.config.data.extractor
+                        self.config.data.datadirs, is_split, self.config.data.extractor
                     )
-                    imageset = _imagesets.get(self.config.data.extractor).from_file(is_path)
+                    imageset = _imagesets.get(self.config.data.extractor).from_file(
+                        is_path
+                    )
                 else:
-                    imageset = textset.get_imgid_to_raw_path(self.config.data.datadirs, is_split)
+                    imageset = textset.get_imgid_to_raw_path(
+                        self.config.data.datadirs, is_split
+                    )
 
                 print(f"Added Imageset {is_name}: {is_split}")
 
@@ -187,23 +196,61 @@ class Experiment(IdentifierClass, ABC):
                     and any_val
                 ):
                     self.eval_imagesetdict[is_name][is_split] = imageset
-                if split in train_splits and not self.config.data.skip_train and any_train:
+                if (
+                    split in train_splits
+                    and not self.config.data.skip_train
+                    and any_train
+                ):
                     self.train_imagesetdict[is_name][is_split] = imageset
 
+    def _init_models(self):
+        model_dict = {}
+        models = set(chain(*list(self.loops_to_models.values())))
+        for model in models:
+            if not isinstance(model, str):
+                raise Exception
+            # get model class
+            mclass = Mget[model]
+            # get modl config
+            mconfig = Get[model.split("_")[0]]
+            # add model config to the vltk config object
+            self.config.models.add(model.split("_")[0], mconfig)
+            # get pointer to model config in vltk config
+            config = getattr(self.config.models, model.split("_")[0])
+            # instantiate model
+            if getattr(config, "checkpoint", None) is not None and hasattr(
+                mclass, "from_pretrained"
+            ):
+                model_instance = mclass.from_pretrained(
+                    config.checkpoint, config=config
+                )
+            elif getattr(config, "checkpoint", None) is not None and not hasattr(
+                mclass, "from_pretrained"
+            ):
+                # mandatory = false: ignore all required args. however we need to instead
+                # get something as to where we get as many required args as are in the dict as possible
+                arg_dict = collect_args_to_func(
+                    mclass.__init__, config.to_dict(), mandatory=False
+                )
+                arg_dict["config"] = config
+                model_instance = mclass(**arg_dict)
+                model_instance.load_state_dict(
+                    torch.load(config.checkpoint), strict=False, map_location="cpu"
+                )
+            else:
+                model_instance = mclass(config, **config.to_dict())
+            # will need to make common api to figure out if  model is for qa
+            if True or hasattr(model_instance, "resize_num_qa_labels"):
+                print(f"NUM LABELS: {len(self.label_to_id)}")
+                model_instance.resize_num_qa_labels(len(self.label_to_id))
+            model_dict[model] = model_instance
+        self._model_dict = model_dict
 
     def _init_loops(self):
-        '''
-        TODO: fix
-        model_dict = {
-            model: factory.model_name_to_instance(model_name=model, config=self.config)
-            for model in set(chain(*list(self.loops_to_models.values())))
-            if model is not None
-        }
-        '''
+
         loop_dict = {}
         loop_info = {}
         for loop_key in self.loops_to_models:
-            model_list = self.loops_to_models[loop_key]
             if isinstance(loop_key, str):
                 loop_cls = _loop.get(loop_key)
             else:
@@ -212,23 +259,28 @@ class Experiment(IdentifierClass, ABC):
             loop_name = loop_cls.name
             is_train = loop_cls.is_train
             if is_train:
+                if self.config.data.skip_train:
+                    continue
                 textsetdict = self.train_textsetdict
                 imagesetdict = self.train_imagesetdict
             else:
                 textsetdict = self.eval_textsetdict
                 imagesetdict = self.eval_imagesetdict
+                if self.config.data.skip_eval or len(textsetdict) == 0:
+                    continue
+
             loop = loop_cls(
                 config=self.config,
                 model_dict={
                     k: v
-                    for k, v in model_dict.items()
+                    for k, v in self.model_dict.items()
                     if k in self.loops_to_models.get(loop_key)
                 },
                 extra_modules=self.extra_modules,
                 datasets=self.datasets,
                 imagesetdict=imagesetdict,
                 textsetdict=textsetdict,
-                label_dict=self.label_to_id
+                label_dict=self.label_to_id,
             )
 
             if (loop.is_train and not self.config.data.skip_train) or (
@@ -239,7 +291,6 @@ class Experiment(IdentifierClass, ABC):
 
         print(f"Loaded Loops: {list(loop_dict.keys())}")
 
-        self._model_dict = model_dict
         self._loop_dict = loop_dict
         self._loop_info = loop_info
         order = sorted(
@@ -247,7 +298,8 @@ class Experiment(IdentifierClass, ABC):
         )
         self._order = order
 
-    def write(self, info: str = None):
+    def write(self, epoch_output: dict = None):
+        info = self.loginfo(epoch_output)
         if self.config.logging and info is not None and info:
             logfile = os.path.join(self.config.logdir, "log.txt")
             assert logfile is not None
@@ -278,10 +330,10 @@ class Experiment(IdentifierClass, ABC):
                 optim_dict[loop_name] = loop.optim.state_dict()
         torch.save(optim_dict, save_name)
         save_name = os.path.join(self.config.logdir, "exp_outputs.pkl")
-        '''
+        """
         TODO: FIX
         self.experiment_outputs.dump(save_name)
-        '''
+        """
         save_name = os.path.join(self.config.logdir, "config.yaml")
         self.config.dump_yaml(save_name)
 
@@ -325,19 +377,16 @@ class Experiment(IdentifierClass, ABC):
                 if len(self.loop_order) - 1 == i:
                     break
 
-            exp_info = self.get_exp_info()
-            '''
-            TODO: fix
-            self.experiment_outputs.add(epoch, epoch_output, **exp_info)
-            '''
-            self.write(self.loginfo(**epoch_output))
+            self.experiment_outputs[f"epoch_{epoch}"] = epoch_output
+            self.write(loop_output)
             if self.config.test_save or (self.config.save_after_epoch and any_train):
                 self.save()
-        if not self.config.save_after_epoch and (
-            (any_train and self.config.save_after_exp) or self.config.test_save
+        if (
+            not self.config.save_after_epoch
+            and not self.config.test_run
+            and ((any_train and self.config.save_after_exp) or self.config.test_save)
         ):
             self.save()
-            print("or here")
 
     @property
     @abstractmethod

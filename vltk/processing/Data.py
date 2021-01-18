@@ -1,12 +1,11 @@
 import random
+
+import numpy as np
 import torch
 from vltk import LABELKEY, SCOREKEY, TEXTKEY
-from copy import deepcopy
-import numpy as np
+
 
 def one_hot_label(cur_entry, **kwargs):
-    tokenizer = kwargs.get("tokenizer")
-    random_sents = kwargs.get("random_sents")
     config = kwargs.get("config")
 
     label = cur_entry.get(LABELKEY, None)
@@ -17,8 +16,9 @@ def one_hot_label(cur_entry, **kwargs):
         cur_entry.pop(SCOREKEY, None)
         return
     else:
-        assert isinstance(label, list)
-        if len(label) == 1:
+        if isinstance(label, int):
+            pass
+        elif len(label) == 1:
             label = label[0]
         else:
             score_sum = sum(score)
@@ -42,8 +42,8 @@ def masked_feature_modeling(cur_entry, **kwargs):
     if config.img_first:
         mask_rate /= 4
     roi_features = cur_entry["roi_features"]
-    feat_mask = [0.] * len(roi_features)
-    feat_dim =  len(roi_features[0])
+    feat_mask = [0.0] * len(roi_features)
+    feat_dim = len(roi_features[0])
     for i in range(len(roi_features)):
         prob = random.random()
         if prob < mask_rate:
@@ -56,13 +56,12 @@ def masked_feature_modeling(cur_entry, **kwargs):
             elif prob < 0.9:
                 roi_features[i] = torch.tensor(random_feat())
             # Need to predict this feat
-            feat_mask[i] = 1.
+            feat_mask[i] = 1.0
     cur_entry["roi_features"] = roi_features
     cur_entry["feat_mask"] = torch.tensor(feat_mask)
 
 
 def matched_sentence_modeling(cur_entry, **kwargs):
-    tokenizer = kwargs.get("tokenizer")
     random_sents = kwargs.get("random_sents")
     random_sent = lambda: random.choice(random_sents)
     config = kwargs.get("config")
@@ -81,19 +80,19 @@ def matched_sentence_modeling(cur_entry, **kwargs):
     cur_entry[TEXTKEY] = rand_text
     return cur_entry
 
+
 def masked_language_modeling(cur_entry, **kwargs):
     tokenizer = kwargs.get("tokenizer")
-    random_sents = kwargs.get("random_sents")
     config = kwargs.get("config")
     special_ids = kwargs.get("special_ids")
     n_ids = kwargs.get("n_ids")
     all_ids = kwargs.get("all_ids")
-    random_id = lambda: all_ids[random.randint(0, n_ids-1)]
+    random_id = lambda: all_ids[random.randint(0, n_ids - 1)]
     # special_ids = set([tokenizer.token_to_id(t) for t in kwargs.get("special_tokens")])
     # random_id = lambda: random.choice(list(tokenizer.get_vocab().items()))[1]
 
     input_ids = cur_entry["input_ids"]
-    attention_mask= cur_entry["text_attention_mask"]
+    attention_mask = cur_entry["text_attention_mask"]
     ignore_id = config.ignore_id
     mask_id = tokenizer.token_to_id("[mask]")
     sep_id = tokenizer.token_to_id("[sep]")
@@ -118,4 +117,4 @@ def masked_language_modeling(cur_entry, **kwargs):
                 pass
             masked_labels[j] = old_id
     cur_entry["input_ids"] = masked_ids
-    cur_entry["masked_labels"] =  masked_labels
+    cur_entry["masked_labels"] = masked_labels

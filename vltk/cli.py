@@ -1,12 +1,12 @@
 import atexit
+import random
 import sys
 from io import StringIO
-import random
 
 import torch
 from fire import Fire
 
-from vltk import configs, commands, utils
+from vltk import commands, configs, utils
 from vltk.abc.experiment import Experiment
 from vltk.maps import dirs
 
@@ -51,7 +51,7 @@ class Main(object):
         self.config = configs.Config(**self.flags)
         random.seed(self.config.seed)
 
-    def exp(self, name, datasets):
+    def exp(self, name):
         @atexit.register
         def inner_crash_save():
             return crash_save()
@@ -59,14 +59,19 @@ class Main(object):
         global config
         config = self.config
         priv = self.config.private_file
-        cls_dict = utils.get_classes(priv, Experiment, pkg=None)
-        if priv is not None and priv:
-            for name, clss in cls_dict.items():
-                if name in _experiments.avail():
-                    print(f"WARNING: {name} is already a predefined experiment")
-                    _experiments.add(name, clss)
+        if priv is not None:
+            cls_dict = utils.get_classes(priv, Experiment, pkg=None)
+            if priv is not None and priv:
+                for name, clss in cls_dict.items():
+                    if name in _experiments.avail():
+                        print(f"WARNING: {name} is already a predefined experiment")
+                        _experiments.add(name, clss)
+
         commands.run_experiment(
-            config, flags=self.flags, name=name, datasets=datasets
+            config,
+            flags=self.flags,
+            name_or_exp=name,
+            datasets=self.config.data.train_datasets,
         )
         atexit.unregister(inner_crash_save)
 

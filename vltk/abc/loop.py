@@ -1,13 +1,13 @@
 import sys
 from abc import ABC, abstractmethod
-from typing import Union
 from collections import defaultdict
+from typing import Union
 
 import torch
-from vltk import utils
-from vltk.dataset import UniversalLoader
 from tqdm import tqdm
 from transformers import AdamW, get_linear_schedule_with_warmup
+from vltk import utils
+from vltk.dataset import UniversalLoader
 
 
 class Loop(utils.IdentifierClass, ABC):
@@ -263,7 +263,7 @@ class Loop(utils.IdentifierClass, ABC):
                     model_outputs = self.forward(batch)
                 outputs = self.loop(batch, model_outputs)
                 if self.is_train:
-                    losses = getattr(outputs, "losses", None)
+                    losses = outputs.get("losses", None)
                     assert losses is not None
                     self.step(losses)
                 self.cur_step += 1
@@ -272,6 +272,8 @@ class Loop(utils.IdentifierClass, ABC):
                         loop_outputs[k].append(v)
                 else:
                     loop_outputs = None
+                if self.config.test_run:
+                    break
             return loop_outputs
 
     @property

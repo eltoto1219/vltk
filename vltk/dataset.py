@@ -1,33 +1,31 @@
 # note if we do not immport a pacakage correctly in this class, no loops or exps will be present
-from collections import OrderedDict, defaultdict
-from operator import itemgetter
 import os
+import random
+from collections.abc import Iterable
 from copy import deepcopy
 from typing import Dict, List
-from collections.abc import Iterable
+
 import numpy
-from tokenizers import BertWordPieceTokenizer
 import torch
 import torch.nn.functional as F
+from tokenizers import BertWordPieceTokenizer
 from torch.utils.data import DataLoader, Dataset
-from transformers import LxmertTokenizer
-import random
 
+from vltk import IMAGEKEY, LABELKEY, RAWIMAGEKEY, SCOREKEY, TEXTKEY
 # from vltk.dataset.gqa import load_temp_gqa
-from vltk.decorators import get_duration
-from vltk.maps import dirs, files
-from vltk.processing import Image
-from vltk import IMAGEKEY, RAWIMAGEKEY, TEXTKEY, LABELKEY, SCOREKEY
+from vltk.maps import files
 from vltk.utils import collect_args_to_func
 
-
-VOCABPATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "libdata/bert-base-uncased-vocab.txt"))
+VOCABPATH = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "libdata/bert-base-uncased-vocab.txt")
+)
 TOKENIZEDKEY = "encoded"
 global TORCHCOLS
 TORCHCOLS = set()
 
 _data_procecessors = files.Data()
 _image_preprocessors = files.Image()
+
 
 class CollatedSets:
     def __init__(self, *args):
@@ -47,7 +45,6 @@ class CollatedSets:
                 listind = x - rng.start
                 return self.args[listpos], listind
 
-
     def __getitem__(self, x):
         if x >= len(self):
             raise IndexError(f"index {x} is out of range 0 to {len(self)}")
@@ -64,12 +61,11 @@ class CollatedSets:
         return iter(map(lambda x: self[x], range(0, len(self))))
 
 
-
 def collate(
     columns: List[Dict[str, torch.Tensor]], pad: bool = True, img_first=False
 ) -> Dict[str, torch.Tensor]:
     batch = {}
-    columns = sorted(columns, key=lambda x:len(x), reverse=True)
+    columns = sorted(columns, key=lambda x: len(x), reverse=True)
     # handle different keys per batch
     keys = deepcopy(list(columns[0].keys()))
 
@@ -99,15 +95,21 @@ def collate(
                 batch[k] = torch.stack(batch[k])
         else:
             STACK_IGNORE = (
-                    LABELKEY, SCOREKEY, TEXTKEY,
-                    "type_ids", "input_ids", "text_attention_mask",
-                    "masked_labels", "is_matched")
+                LABELKEY,
+                SCOREKEY,
+                TEXTKEY,
+                "type_ids",
+                "input_ids",
+                "text_attention_mask",
+                "masked_labels",
+                "is_matched",
+            )
             if isinstance(columns[0].get(k), torch.Tensor) and k not in STACK_IGNORE:
                 batch[k] = torch.stack([i.pop(k) for i in columns if i is not None])
                 # consider what to do with mixed datasets with diferent keys pointing
                 # to tensor values
             else:
-                batch[k] = [i.pop(k, '') for i in columns if i is not None]
+                batch[k] = [i.pop(k, "") for i in columns if i is not None]
 
     return batch
 
@@ -204,24 +206,23 @@ class UniversalDataset(Dataset):
         all_ids = [i[1] for i in self.tokenizer.get_vocab().items()]
         self.all_ids = deepcopy(all_ids)
 
-
     def processor_args(self):
         max_rand_sents = 1 if not self.config.img_first else 32
         return {
             "tokenizer": self.tokenizer,
             "config": self.config,
             "random_sents": [self.random_sent() for i in range(max_rand_sents)],
-            "special_ids":  self.special_ids,
+            "special_ids": self.special_ids,
             "label_to_id": self.label_to_id,
             "all_ids": self.all_ids,
-            "n_ids": len(self.all_ids)
+            "n_ids": len(self.all_ids),
         }
 
     @staticmethod
     def text_map_function(x, proc_args):
-        config  = proc_args.get("config")
+        config = proc_args.get("config")
         tokenizer = proc_args.get("tokenizer")
-        label_to_id= proc_args.get("label_to_id")
+        label_to_id = proc_args.get("label_to_id")
         text_processors = config.text_processors
         if text_processors is not None:
             if "matched_sentence_modeling" in text_processors:
@@ -234,7 +235,6 @@ class UniversalDataset(Dataset):
         x["text_attention_mask"] = encoded.attention_mask
         x["input_ids"] = encoded.ids
         x["type_ids"] = encoded.type_ids
-
 
         if LABELKEY in x:
             label = x.pop(LABELKEY)
@@ -280,7 +280,7 @@ class UniversalDataset(Dataset):
             "[pad]",
             "[cls]",
             "[mask]",
-            ]
+        ]
 
     def _handle_image(self, entry):
         proc_args = {"config": self.config}
@@ -303,7 +303,7 @@ class UniversalDataset(Dataset):
                     elif isinstance(v, list):
                         entry[k] = torch.tensor(v)
                 elif isinstance(v, int) or isinstance(v, float):
-                        entry[k] = torch.tensor(v)
+                    entry[k] = torch.tensor(v)
             if "roi_features" in entry:
                 proc_args["random_feat_func"] = self.random_feat
                 entry["roi_features"] = entry["roi_features"][: self.config.max_objects]
@@ -314,9 +314,8 @@ class UniversalDataset(Dataset):
                 proc_func = _data_procecessors.get(proc)
                 proc_func(entry, **proc_args)
 
-
     def random_feat(self):
-        rand_ind = random.randint(0, len(self.uniq_imgs)-1)
+        rand_ind = random.randint(0, len(self.uniq_imgs) - 1)
         img_id = self.uniq_imgs[rand_ind]
         ts_name, ts_split = self.img2textset[img_id]
         textset = self.textsetdict[ts_name][ts_split]
@@ -324,28 +323,22 @@ class UniversalDataset(Dataset):
         imageset = self.imagesetdict[is_name[0]][is_split[0][0]]
         img_info = imageset.get(img_id)
         if "roi_features" in img_info:
-            feat = random.choice(img_info['roi_features'])
+            feat = random.choice(img_info["roi_features"])
             return feat
         else:
             return None
 
-    def random_id(self):
-        return tid
-
     def random_sent(self):
-        rand = {}
-        rand_ind = random.randint(0, len(self.datasets)-1)
+        rand_ind = random.randint(0, len(self.datasets) - 1)
         text_info = self.datasets[rand_ind]
         rand_sent = text_info[TEXTKEY]
         return rand_sent
 
-
     def _map(self, small_textset):
         proc_args = self.processor_args()
         return small_textset.map(
-                lambda x: UniversalDataset.text_map_function(x, proc_args=proc_args)
+            lambda x: UniversalDataset.text_map_function(x, proc_args=proc_args)
         )
-
 
     @torch.no_grad()
     def __getitem__(self, i):
@@ -355,12 +348,10 @@ class UniversalDataset(Dataset):
             textset = self.textsetdict[ts_name][ts_split]
             idxs = textset.img_to_rows_map[img_id]
             small_textset = textset.select(idxs)
-            img_text_dict= self._map(small_textset)
+            img_text_dict = self._map(small_textset)
 
             img_text_dict.set_format(
-                type='torch',
-                output_all_columns=True,
-                columns=list(TORCHCOLS)
+                type="torch", output_all_columns=True, columns=list(TORCHCOLS)
             )
             # so what we have to turn into tensors ar
             img_text_dict = img_text_dict[:]
@@ -379,9 +370,17 @@ class UniversalDataset(Dataset):
             img_id = small_textset["img_id"]
             proc_args = self.processor_args()
             text_info = self.text_map_function(small_textset, proc_args)
-            text_info = dict(map(lambda x: (x[0], torch.tensor(x[1]) if not isinstance(x[1], str) else x[1]), text_info.items()))
+            text_info = dict(
+                map(
+                    lambda x: (
+                        x[0],
+                        torch.tensor(x[1]) if x[0] in TORCHCOLS else x[1],
+                    ),
+                    text_info.items(),
+                )
+            )
             ts_name, ts_split = self.img2textset[img_id]
-            is_name, is_split =  zip(*textset.data_info[ts_split].items())
+            is_name, is_split = zip(*textset.data_info[ts_split].items())
             imageset = self.imagesetdict[is_name[0]][is_split[0][0]]
             img_info_dict = imageset.get(img_id)
             if isinstance(img_info_dict, str):

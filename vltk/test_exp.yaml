@@ -1,0 +1,13 @@
+models:
+  main_model: "lxmert_qa"
+  lxmert:
+    checkpoint: "unc-nlp/lxmert-base-uncased"
+  vit:
+    checkpoint: '/playpen1/home/avmendoz/data/vit/pytorch_model.bin'
+    variant: "ViT-B_16"
+data:
+  eval_datasets:
+    [gqa, dev]
+  train_datasets:
+    [[gqa, [val]]]
+  skip_eval: true

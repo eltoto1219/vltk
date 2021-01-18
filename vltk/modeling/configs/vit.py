@@ -1,11 +1,18 @@
-pxls = config.data.img_max_size
-patch = config.data.patch_size
-vit_pretrained_dir = config.pathes.vit_pretrained_dir
-vitfp = os.path.join(vit_pretrained_dir, "pytorch_model.bin")
-vittorch = VisionTransformer(image_size=(pxls, pxls), patch_size=(patch, patch))
-vittorch.load_state_dict(torch.load(vitfp))
-for n, p in vittorch.named_parameters():
-    if "embed" not in n:
-        p.requires_grad = False
+from typing import Union, List
+
+from vltk.abc.config import Config
+
+__all__ = ["ViTConfig"]
 
 
+class ViTConfig(Config):
+    img_size: int = 800
+    patches: int = 16
+    pretrained_path: Union[
+        None, str
+    ] = "/playpen1/home/avmendoz/data/vit/pytorch_model.bin"
+    freeze_embeddings: bool = False
+    # should match number of layers present in the model
+    freeze_layers: List[bool] = [1] * 12
+    freeze_heads: bool = True
+    dropout: float = 0.1

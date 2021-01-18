@@ -4,9 +4,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 from vltk import decorators
 
+__all__ = ["VisionTransformer"]
+
 
 class PositionEmbs(nn.Module):
-    def __init__(self, num_patches, emb_dim, dropout_rate=0.1):
+    def __init__(self, num_patches, emb_dim):
         super(PositionEmbs, self).__init__()
         self.pos_embedding = nn.Parameter(torch.randn(1, num_patches + 1, emb_dim))
         if dropout_rate > 0:
