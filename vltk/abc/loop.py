@@ -1,3 +1,4 @@
+import os
 import sys
 from abc import ABC, abstractmethod
 from collections import defaultdict
@@ -6,11 +7,32 @@ from typing import Union
 import torch
 from tqdm import tqdm
 from transformers import AdamW, get_linear_schedule_with_warmup
-from vltk import utils
+from vltk import LOOPPATH, utils
 from vltk.dataset import UniversalLoader
+from vltk.utils import get_classes
 
 
-class Loop(utils.IdentifierClass, ABC):
+class Loops:
+    def __init__(self):
+        if "LOOPDICT" not in globals():
+            global LOOPDICT
+            LOOPDICT = get_classes(LOOPPATH, LoopIdentifier, pkg="vltk.loop")
+
+    def avail(self):
+        return list(LOOPDICT.keys())
+
+    def get(self, name):
+        return LOOPDICT[name]
+
+    def add(self, name, dset):
+        LOOPDICT[name] = dset
+
+
+class LoopIdentifier:
+    pass
+
+
+class Loop(LoopIdentifier, ABC):
     def __init__(
         self,
         config: object,
@@ -272,8 +294,6 @@ class Loop(utils.IdentifierClass, ABC):
                         loop_outputs[k].append(v)
                 else:
                     loop_outputs = None
-                if self.config.test_run:
-                    break
             return loop_outputs
 
     @property

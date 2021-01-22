@@ -1,11 +1,8 @@
 from collections import Counter
 
 import datasets as ds
-from vltk.abc.textset import Textset
-from vltk.metrics import soft_score
 from tqdm import tqdm
-
-
+from vltk.abc.textset import Textset
 
 # user must only define forward in this function, and dataset features
 
@@ -19,11 +16,11 @@ class GQAset(Textset):
         "test": {"coco2014": ["test"]},
     }
     default_features = {
-            "qid": ds.Value("string"),
-            "structure": ds.Value("string"),
-            "super_class": ds.Value("string"),
-            "operations": ds.Sequence(length=-1, feature=ds.Value("string")),
-            }
+        "qid": ds.Value("string"),
+        "structure": ds.Value("string"),
+        "super_class": ds.Value("string"),
+        "operations": ds.Sequence(length=-1, feature=ds.Value("string")),
+    }
     filters = ["all"]
 
     def forward(text_data, split, label_preprocessor=None, **kwargs):
@@ -32,8 +29,10 @@ class GQAset(Textset):
         label_frequencies = Counter()
         batch_entries = []
         if label_preprocessor is None:
+
             def label_preprocessor(x):
                 return x
+
         for t in text_data:
             for i, (k, v) in tqdm(enumerate(t.items())):
                 if "answer" in v:
@@ -43,21 +42,19 @@ class GQAset(Textset):
             for i, (k, v) in enumerate(t.items()):
                 if split == "test":
                     answer = None
-                    full_answer = None
-                    operations = ['']
-                    super_class = ''
-                    structure = ''
+                    operations = [""]
+                    super_class = ""
+                    structure = ""
                 elif label_frequencies[v["answer"]] < min_label_frequency:
                     skipped += 1
                     continue
                 else:
                     answer = label_preprocessor(v["answer"])
-                    full_answer = v["fullAnswer"]
                     operations = [sv["operation"] for sv in v["semantic"]]
                     super_class = v["groups"]["global"]
                     structure = v["types"]["structural"]
                     if super_class is None:
-                        super_class = ''
+                        super_class = ""
 
                 text = v["question"]
                 img_id = v["imageId"].lstrip("n")
@@ -70,7 +67,7 @@ class GQAset(Textset):
                     Textset.text_key: text,
                     Textset.img_key: img_id,
                     Textset.label_key: [answer],
-                    Textset.score_key: [1.]
+                    Textset.score_key: [1.0],
                 }
 
                 batch_entries.append(entry)
@@ -88,7 +85,8 @@ if __name__ == "__main__":
         config=config,
         splits=["dev", "test", "val", "train"],
     )
-    train= GQAset.from_config(config, splits="train")["train"]
+    config.min_label_frequency = 1
+    train = GQAset.from_config(config, splits="train")["train"]
     # get min frequency of answers when loading, so we know the lenngth right away
 
     # get path to arrow file

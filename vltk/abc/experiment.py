@@ -7,19 +7,42 @@ from itertools import chain
 from typing import Dict, List, Union
 
 import torch
-from vltk.maps import dirs
+from vltk import EXPPATH
+from vltk.abc.imageset import Imagesets
+from vltk.abc.loop import Loops
+from vltk.abc.textset import Textsets
 from vltk.modeling import Get as Mget
 from vltk.modeling.configs import Get
-from vltk.utils import IdentifierClass, collect_args_to_func
+from vltk.utils import collect_args_to_func, get_classes
 
-__all__ = ["Experiment"]
+__all__ = ["Experiment", "ExpIdentifier", "Experiments"]
 
-_loop = dirs.Loops()
-_textsets = dirs.Textsets()
-_imagesets = dirs.Imagesets()
+_loop = Loops()
+_textsets = Textsets()
+_imagesets = Imagesets()
 
 
-class Experiment(IdentifierClass, ABC):
+class Experiments:
+    def __init__(self):
+        if "EXPDICT" not in globals():
+            global EXPDICT
+            EXPDICT = get_classes(EXPPATH, ExpIdentifier, pkg="vltk.exp")
+
+    def avail(self):
+        return list(EXPDICT.keys())
+
+    def get(self, name):
+        return EXPDICT[name]
+
+    def add(self, name, dset):
+        EXPDICT[name] = dset
+
+
+class ExpIdentifier:
+    pass
+
+
+class Experiment(ExpIdentifier, ABC):
     # for now lets just define dataset in loop
     def __init__(self, config, datasets):
 
@@ -42,7 +65,7 @@ class Experiment(IdentifierClass, ABC):
         self._init_datasets()
         self._init_models()
         self._init_loops()
-        self.set_model_gradient_tracking()
+        self._init_gradient_tracking()
         self._experiment_outputs = {}
 
     @property
@@ -84,16 +107,18 @@ class Experiment(IdentifierClass, ABC):
             for name, nn in self.extra_modules.items():
                 nn = nn.to(self.main_device)
 
-    def set_model_gradient_tracking(self):
+    def _init_gradient_tracking(self):
         # hardcoded now for time
         if self.model_dict:
             for name, model in self.model_dict.items():
-                if name == "vit":
+                name = name.split("_")[0]
+                conf = getattr(self.config.models, name)
+                if hasattr(conf, "freeze_layers"):
+                    layers_to_freeze = conf.freeze_layers
                     for n, p in model.named_parameters():
-                        if "embed" not in n:
-                            p.requires_grad = False
-                else:
-                    pass
+                        if "layer" in n.lower():
+                            if layers_to_freeze.pop(0):
+                                p.requires_grad = False
 
     def _init_datasets(self):
         # first check to see if any train or any val
@@ -213,6 +238,7 @@ class Experiment(IdentifierClass, ABC):
             mclass = Mget[model]
             # get modl config
             mconfig = Get[model.split("_")[0]]
+
             # add model config to the vltk config object
             self.config.models.add(model.split("_")[0], mconfig)
             # get pointer to model config in vltk config
@@ -224,9 +250,7 @@ class Experiment(IdentifierClass, ABC):
                 model_instance = mclass.from_pretrained(
                     config.checkpoint, config=config
                 )
-            elif getattr(config, "checkpoint", None) is not None and not hasattr(
-                mclass, "from_pretrained"
-            ):
+            elif not hasattr(mclass, "from_pretrained"):
                 # mandatory = false: ignore all required args. however we need to instead
                 # get something as to where we get as many required args as are in the dict as possible
                 arg_dict = collect_args_to_func(
@@ -234,13 +258,12 @@ class Experiment(IdentifierClass, ABC):
                 )
                 arg_dict["config"] = config
                 model_instance = mclass(**arg_dict)
-                model_instance.load_state_dict(
-                    torch.load(config.checkpoint), strict=False, map_location="cpu"
-                )
-            else:
-                model_instance = mclass(config, **config.to_dict())
+                if getattr(config, "checkpoint", None) is not None:
+                    model_instance.load_state_dict(
+                        torch.load(config.checkpoint), strict=False
+                    )
             # will need to make common api to figure out if  model is for qa
-            if True or hasattr(model_instance, "resize_num_qa_labels"):
+            if hasattr(model_instance, "resize_num_qa_labels"):
                 print(f"NUM LABELS: {len(self.label_to_id)}")
                 model_instance.resize_num_qa_labels(len(self.label_to_id))
             model_dict[model] = model_instance

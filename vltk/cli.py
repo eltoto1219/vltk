@@ -7,10 +7,9 @@ import torch
 from fire import Fire
 
 from vltk import commands, configs, utils
-from vltk.abc.experiment import Experiment
-from vltk.maps import dirs
+from vltk.abc.experiment import Experiment, Experiments
 
-_experiments = dirs.Exps()
+_experiments = Experiments()
 STDERR = sys.stderr = StringIO()
 
 

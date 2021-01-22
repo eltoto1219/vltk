@@ -1,8 +1,9 @@
 from vltk import compat, utils
+from vltk.abc.experiment import Experiments
+from vltk.abc.imageset import Imagesets
 from vltk.configs import Config
-from vltk.maps import dirs
 
-_experiments = dirs.Exps()
+_experiments = Experiments()
 
 
 def run_experiment(config, flags, name_or_exp, datasets):
@@ -33,10 +34,11 @@ def extract_data(
         config = Config(**flags)
     if flags is None:
         flags = {}
-    _imagesets = dirs.Imagesets()
-    _models = dirs.Models()
+    _imagesets = Imagesets()
+    # _models = dirs.Models()
+    # will need to fix
     Imageset = _imagesets.get(extractor)
-    Model = _models.get(extractor)
+    # Model = _models.get(extractor)
     if "features" in flags:
         features = flags.pop("features")
     if splits is None:
@@ -51,7 +53,7 @@ def extract_data(
     if extractor == "frcnn":
         frcnnconfig = compat.Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
         frcnnconfig.model.device = config.gpu
-        model = Model.from_pretrained("unc-nlp/frcnn-vg-finetuned", config=frcnnconfig)
+        # model = Model.from_pretrained("unc-nlp/frcnn-vg-finetuned", config=frcnnconfig)
     else:
         model = None
 

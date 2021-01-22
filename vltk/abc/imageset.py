@@ -13,17 +13,34 @@ import datasets
 import datasets as ds
 import pyarrow
 from datasets import ArrowWriter, Split
-from vltk import IMAGEKEY
+from tqdm import tqdm
+from vltk import IMAGEKEY, IMAGESETPATH
 from vltk.maps import files
 from vltk.processing import Label
 from vltk.processing.Image import img_to_tensor
-from vltk.utils import apply_args_to_func, set_metadata, collect_args_to_func
-from tqdm import tqdm
+from vltk.utils import (apply_args_to_func, collect_args_to_func, get_classes,
+                        set_metadata)
 
-__all__ = ["Imageset"]
+__all__ = ["Imageset", "Imagesets"]
 
 _featureproc = files.Feature()
 _imageproc = files.Image()
+
+
+class Imagesets:
+    def __init__(self):
+        if "IMAGESETDICT" not in globals():
+            global IMAGESETDICT
+            IMAGESETDICT = get_classes(IMAGESETPATH, ds.Dataset, pkg="vltk.imageset")
+
+    def avail(self):
+        return list(IMAGESETDICT.keys())
+
+    def get(self, name):
+        return IMAGESETDICT[name]
+
+    def add(self, name, dset):
+        IMAGESETDICT[name] = dset
 
 
 class Imageset(ds.Dataset, ABC):

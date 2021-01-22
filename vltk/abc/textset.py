@@ -4,23 +4,39 @@ import os
 import pickle
 from abc import ABCMeta, abstractmethod
 from collections import Counter, defaultdict
+from copy import deepcopy
 from pathlib import Path
 from typing import List
-from copy import deepcopy
 
 import datasets
 import datasets as ds
 import pyarrow
 from datasets import ArrowWriter
-from vltk import IMAGEKEY, LABELKEY, SCOREKEY, TEXTKEY, utils
+from tqdm import tqdm
+from vltk import IMAGEKEY, LABELKEY, SCOREKEY, TEXTKEY, TEXTSETPATH, utils
 from vltk.maps import files
 from vltk.processing.Label import clean_imgid_default
-from vltk.utils import set_metadata
-from tqdm import tqdm
+from vltk.utils import get_classes, set_metadata
 
-__all__ = ["Textset"]
+__all__ = ["Textset", "Textsets"]
 
 _labelproc = files.Label()
+
+
+class Textsets:
+    def __init__(self):
+        if "TEXTSETDICT" not in globals():
+            global TEXTSETDICT
+            TEXTSETDICT = get_classes(TEXTSETPATH, ds.Dataset, pkg="vltk.textset")
+
+    def avail(self):
+        return list(TEXTSETDICT.keys())
+
+    def get(self, name):
+        return TEXTSETDICT[name]
+
+    def add(self, name, dset):
+        TEXTSETDICT[name] = dset
 
 
 class Textset(ds.Dataset, metaclass=ABCMeta):
@@ -288,10 +304,10 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
             text_files = cls._locate_text_files(
                 path_or_dir=path_or_dir, textset_name=cls.name, split=split
             )
-            if hasattr(cls, 'filters'):
-                assert isinstance(cls.filters, list), (
-                f"filters must be in a list, not type {type(self.filters)}"
-            )
+            if hasattr(cls, "filters"):
+                assert isinstance(
+                    cls.filters, list
+                ), f"filters must be in a list, not type {type(cls.filters)}"
                 temp = []
                 for i, t in enumerate(text_files):
                     stem = Path(t).stem
@@ -360,8 +376,6 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
                 else:
                     batch = features.encode_batch(flat_entry)
                     writer.write_batch(batch)
-
-
 
             dset = datasets.Dataset.from_buffer(buffer.getvalue())
             Textset._custom_finalize(writer, cls)
@@ -533,7 +547,7 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
 
     @abstractmethod
     def forward(
-            self, text_data: List[dict], split: str ,label_preprocessor=None,  **kwargs
+        self, text_data: List[dict], split: str, label_preprocessor=None, **kwargs
     ) -> List[dict]:
         pass
 
@@ -565,15 +579,6 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
     @property
     def raw_file_map(self):
         return self._raw_map
-
-    def ignore_filters(self):
-        if hasattr(self, filters):
-            assert isinstance(filters, list), (
-                f"filters must be in a list, not type {type(self.filters)}"
-            )
-            return self.filters
-        else:
-            return []
 
     @property
     @abstractmethod

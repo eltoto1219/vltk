@@ -11,3 +11,4 @@ data:
   train_datasets:
     [[gqa, [val]]]
   skip_eval: true
+  img_first: true

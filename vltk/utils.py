@@ -25,10 +25,6 @@ PATH = os.path.join(
 )
 
 
-class IdentifierClass:
-    pass
-
-
 def update_config_with_logdir(config, flags, name, datasets):
     if "base_logdir" not in flags:
         baselogdir = config.base_logdir
@@ -72,7 +68,7 @@ def get_classes(path_or_dir_name, cls_defintion=None, pkg=None):
                 mod = inspect.getmembers(mod, inspect.isclass)
                 for t in mod:
                     if cls_defintion in inspect.getmro(t[-1]):
-                        #print(t[-1].__abstractmethods__)
+                        # print(t[-1].__abstractmethods__)
                         if not inspect.isabstract(t[-1]):
                             try:
                                 classes[t[-1].name] = t[-1]
@@ -328,7 +324,7 @@ def load_yaml(flags: dict):
                 if y in flags:
                     for nk, nv in yam[y].items():
                         if nk not in flags[y]:
-                            flags[y][nk] =  nv
+                            flags[y][nk] = nv
                 else:
                     flags[y] = yam[y]
             else:

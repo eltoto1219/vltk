@@ -6,6 +6,7 @@ from copy import deepcopy
 from typing import Dict, List
 
 import numpy
+import PIL.Image as Image
 import torch
 import torch.nn.functional as F
 from tokenizers import BertWordPieceTokenizer
@@ -289,11 +290,17 @@ class UniversalDataset(Dataset):
             image_preprocessor_name = self.config.image_preprocessor
             image_preprocessor = _image_preprocessors.get(image_preprocessor_name)
             config_dict = self.config.to_dict()
-            func_dict = collect_args_to_func(
-                image_preprocessor,
-                config_dict,
-            )
-            img, (h, w), scales_hw = image_preprocessor(filepath, **func_dict)
+            im = Image.open(filepath)
+            img = im.resize((self.config.min_size, self.config.min_size), Image.BICUBIC)
+            img = torch.Tensor(numpy.array(img))
+            try:
+                img = img.permute((2, 0, 1))
+            except Exception:
+                img = img.unsqueeze(-1).repeat(1, 1, 3).permute((2, 0, 1))
+
+            # func_dict = collect_args_to_func(
+            # image_preprocessor, config_dict,
+            # img, (h, w), scales_hw = image_preprocessor(filepath, **func_dict)
             entry[RAWIMAGEKEY] = img
         else:
             for k, v in entry.items():

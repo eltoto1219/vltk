@@ -1,0 +1,28 @@
+models:
+  main_model: "lxmert_qa"
+  lxmert:
+    checkpoint: "unc-nlp/lxmert-base-uncased"
+      # visual_feat_dim: 576
+  deit:
+    checkpoint: '/playpen1/home/avmendoz/data/deit/pytorch_model.bin'
+    distillation_type: "soft"
+    embed_dim: 576
+    patch_size: 28
+    img_size: 784
+    mlp_ratio: 4.0
+    num_heads: 12
+    freeze_layers: [1,1,1,1,1,1,1,1,1,1,1,1]
+    qkv_bias: true
+
+data:
+  eval_datasets:
+    [gqa, dev]
+  train_datasets:
+    [[gqa, [train, val]]]
+  skip_eval: false
+  img_first: true
+  extractor: null
+  train_batch_size: 3
+  eval_batch_size: 2
+  min_size: 784
+  max_size: 784

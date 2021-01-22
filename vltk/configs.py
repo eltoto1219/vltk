@@ -18,11 +18,16 @@ class ModelsConfig(config.Config):
         model_base = model_name.split("_")[0]
         attr_dict = {}
         if hasattr(self, model_base):
+            print("hi", getattr(self, model_base))
             for attr, attr_val in getattr(self, model_base).items():
                 attr_dict[attr] = attr_val
-            setattr(self, model_base, model_config(**attr_dict))
+            mconf = model_config(**attr_dict)
+
+            print("conf", mconf)
+            setattr(self, model_base, mconf)
         else:
-            setattr(self, model_base, model_config())
+            print(model_name, model_config)
+            raise Exception
 
     def __init__(self, **kwargs):
         for f, v in kwargs.items():
@@ -92,8 +97,6 @@ class DataConfig(config.Config):
     pin_memory: bool = True
     sent_length: int = 20
     max_objects: int = 36
-    img_max_size: int = 388
-    patch_size: int = 16
     attribute_file: str = ""
     object_file: str = ""
     img_format: str = "jpg"
@@ -120,6 +123,8 @@ class DataConfig(config.Config):
     max_detections: str = 36
     vit_pretrained_dir = "vit/"
     image_preprocessor = "img_to_tensor"
+    min_size: int = 576
+    max_size: int = 576
 
     def __init__(self, finetune=True, **kwargs):
         super().__init__(**kwargs)
