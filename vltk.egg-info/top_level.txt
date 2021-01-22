@@ -5,7 +5,8 @@ vltk/exp
 vltk/imageset
 vltk/legacy
 vltk/loop
-vltk/maps
 vltk/modeling
+vltk/modeling/configs
 vltk/processing
 vltk/textset
+vltk/visualizations

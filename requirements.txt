@@ -29,6 +29,7 @@ requests==2.25.1
 sacremoses==0.0.43
 six==1.15.0
 termcolor==1.1.0
+timm==0.3.4
 tokenizers==0.9.4
 torch==1.7.1
 torchvision==0.8.2
