@@ -259,8 +259,6 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                                 p.requires_grad = False
                             layer += 1
 
-            raise Exception
-
     def _save_outputs(self, save_outputs):
         save_name = os.path.join(
             self.config.logdir, f"save_outputs_epoch_{self.cur_epoch}.pt"

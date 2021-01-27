@@ -213,10 +213,7 @@ class Config(config.Config):
                     set_aux = True
                     break
             if not set_aux:
-                if self.gpu != -1:
-                    print("WARNING: all models using aux gpu will be on cpu")
-                    print()
-                self.aux_gpu = -1
+                self.aux_gpu = self.gpu
         if self.gpu == -1:
             self.gpu = "cpu"
         if self.aux_gpu == -1:

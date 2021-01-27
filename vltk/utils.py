@@ -295,15 +295,17 @@ def send_email(address, message, failure=True):
     s.quit()
 
 
-def unflatten_dict(d):
-    ret = defaultdict(dict)
-    for k, v in d.items():
-        k1, delim, k2 = k.partition(".")
-        if delim:
-            ret[k1][k2] = v
-        else:
-            ret[k1] = v
-    return dict(ret)
+def unflatten_dict(dictionary):
+    resultDict = dict()
+    for key, value in dictionary.items():
+        parts = key.split(".")
+        d = resultDict
+        for part in parts[:-1]:
+            if part not in d:
+                d[part] = dict()
+            d = d[part]
+        d[parts[-1]] = value
+    return resultDict
 
 
 def load_yaml(flags: dict):
