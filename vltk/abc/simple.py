@@ -238,15 +238,28 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                 conf = getattr(self.config.models, name, None)
                 if conf is None:
                     continue
-                layer = 1
+                prev_layer = None
+                layer = 0
                 if hasattr(conf, "freeze_layers"):
                     layers_to_freeze = conf.freeze_layers
                     for n, p in model.named_parameters():
-                        if "layer" in n.lower():
+                        if (
+                            "blocks" in n.lower()
+                            and prev_layer is not None
+                            and str(prev_layer) in n
+                        ):
+
+                            print(f"{name}: freezing {n}")
+
+                            p.requires_grad = False
+                        elif "blocks" in n.lower() and str(layer) in n:
+                            prev_layer = layer
                             if layers_to_freeze.pop(0):
-                                print(f"{name}: freezeing layer {layer}")
+                                print(f"{name}: freezing {n}")
                                 p.requires_grad = False
-                        layer += 1
+                            layer += 1
+
+            raise Exception
 
     def _save_outputs(self, save_outputs):
         save_name = os.path.join(
