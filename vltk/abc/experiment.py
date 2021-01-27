@@ -56,8 +56,6 @@ class Experiment(ExpIdentifier, ABC):
         torch.manual_seed(self.seed)
         assert self.datasets is not None, "must specify 'datasets' when firing command"
         self.epochs = self.config.train.epochs
-        self.main_device = f"cuda:{config.gpu}" if config.gpu != -1 else "cpu"
-        self.aux_model_device = f"cuda:{config.aux_gpu}" if config.gpu != -1 else "cpu"
         self.logdir = getattr(self.config, "logdir", None)
         if self.logdir is not None and self.config.logging:
             os.makedirs(self.logdir, exist_ok=True)
@@ -99,13 +97,13 @@ class Experiment(ExpIdentifier, ABC):
         if self.model_dict:
             for name, model in self.model_dict.items():
                 if name not in self.config.models.main_model:
-                    model = model.to(self.aux_model_device)
+                    model = model.to(torch.device(self.config.aux_gpu))
                 else:
-                    model = model.to(self.main_device)
+                    model = model.to(torch.device(self.config.gpu))
         # set all extra torch.nn.Modules to main gpu for now
         if self.extra_modules is not None:
             for name, nn in self.extra_modules.items():
-                nn = nn.to(self.main_device)
+                nn = nn.to(torch.device(self.config.gpu))
 
     def _init_gradient_tracking(self):
         # hardcoded now for time
@@ -262,10 +260,7 @@ class Experiment(ExpIdentifier, ABC):
                     model_instance.load_state_dict(
                         torch.load(config.checkpoint), strict=False
                     )
-            # will need to make common api to figure out if  model is for qa
-            if hasattr(model_instance, "resize_num_qa_labels"):
-                print(f"NUM LABELS: {len(self.label_to_id)}")
-                model_instance.resize_num_qa_labels(len(self.label_to_id))
+
             model_dict[model] = model_instance
         self._model_dict = model_dict
 
@@ -325,6 +320,28 @@ class Experiment(ExpIdentifier, ABC):
         info = self.loginfo(epoch_output)
         if self.config.logging and info is not None and info:
             logfile = os.path.join(self.config.logdir, "log.txt")
+            assert logfile is not None
+            with open(logfile, "a") as f:
+                date = datetime.datetime.now()
+                f.write(f"Time: {date} \n {info} \n")
+                f.flush()
+            return True
+        return False
+
+    def write_iter(self, info: dict = None):
+        if info is not None:
+            clean_info = {}
+            for k, v in info.items():
+                if v is None or (not isinstance(v, bool) and not v):
+                    continue
+                else:
+                    clean_info[k] = v
+        logstr = ""
+        for k, v in info.items():
+            logstr += f"{k}={v}; "
+
+        if self.config.logging and info is not None and info:
+            logfile = os.path.join(self.config.logdir, "cur_epoch.txt")
             assert logfile is not None
             with open(logfile, "a") as f:
                 date = datetime.datetime.now()

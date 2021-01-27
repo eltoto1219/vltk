@@ -228,9 +228,9 @@ class Config:
                 raise EnvironmentError(msg)
 
         if resolved_config_file == config_file:
-            print("loading configuration file from path")
+            pass
         else:
-            print("loading configuration file cache")
+            pass
 
         return Config.load_yaml(resolved_config_file), kwargs
 

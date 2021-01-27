@@ -38,10 +38,6 @@ class Lxmert(Loop):
                 ],
             )
 
-        batch["input_ids"] = torch.stack(batch["input_ids"])
-        batch["type_ids"] = torch.stack(batch["type_ids"])
-        batch["text_attention_mask"] = torch.stack(batch["text_attention_mask"])
-        batch["label"] = torch.stack(batch["label"])
         self.toCuda(batch, device=self.config.gpu)
 
         model_outputs = self.lxmert_qa(

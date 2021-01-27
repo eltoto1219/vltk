@@ -31,9 +31,14 @@ def update_config_with_logdir(config, flags, name, datasets):
     else:
         baselogdir = flags.pop("base_logdir")
     if "rel_logdir" not in flags:
-        rellogdir = gen_relative_logdir(f"{name}_{datasets}")
+        specifications = ["year", "month", "day", "hour"]
+        date = datetime.now()
+        date = ":".join([str(getattr(date, s)) for s in specifications])
+        rellogdir = f"{name}_" + date
     else:
         rellogdir = flags.pop("rel_logdir")
+    if rellogdir == baselogdir:
+        rellogdir = ""
 
     config.update(
         {
@@ -67,6 +72,7 @@ def get_classes(path_or_dir_name, cls_defintion=None, pkg=None):
                 mod = importlib.import_module(npkg)
                 mod = inspect.getmembers(mod, inspect.isclass)
                 for t in mod:
+
                     if cls_defintion in inspect.getmro(t[-1]):
                         # print(t[-1].__abstractmethods__)
                         if not inspect.isabstract(t[-1]):
@@ -157,11 +163,6 @@ def apply_args_to_func(func, kwargs=None, mandatory=True):
     return func(**func_input)
 
 
-def myfunc(x, y, z, a=1, b=2, c=3):
-    print(x, y, z, a, b, c)
-    return "success"
-
-
 def batcher(iterable, n=64):
     l = len(iterable)
     for ndx in range(0, l, n):
@@ -246,8 +247,6 @@ def import_funcs_from_file(clspath, pkg):
 def get_func_signature(func):
     sig = inspect.signature(func).parameters
     return sig
-    # print(help(sig))
-    # sig_parsed = [arg.split("=")[0] for arg in sig]
 
 
 def clean_imgid(img_id):
@@ -294,13 +293,6 @@ def send_email(address, message, failure=True):
     s = smtplib.SMTP("localhost")
     s.send_message(msg)
     s.quit()
-
-
-def gen_relative_logdir(base):
-    specifications = ["year", "month", "day", "hour"]
-    date = datetime.now()
-    date = ":".join([str(getattr(date, s)) for s in specifications])
-    return base + "_" + date
 
 
 def unflatten_dict(d):

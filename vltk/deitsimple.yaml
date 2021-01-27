@@ -1,5 +1,4 @@
 models:
-  main_model: "lxmert_qa"
   lxmert:
     checkpoint: "unc-nlp/lxmert-base-uncased"
       # visual_feat_dim: 576
@@ -16,14 +15,18 @@ models:
 
 data:
   eval_datasets:
-    [gqa, dev]
+    [[gqa, [dev]]]
   train_datasets:
-    [[gqa, [train, val]]]
-  skip_eval: false
+    [[gqa, [dev]]]
+  skip_eval: true
   img_first: true
+  overwrite_cache_batch: true
   extractor: null
-  train_batch_size: 3
-  eval_batch_size: 2
   min_size: 784
   max_size: 784
-logging: true
+  train_batch_size: 2
+  eval_batch_size: 2
+test_run: true
+break_loop_on_test: false
+gpu: -1
+aux_gpu: -1

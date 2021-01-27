@@ -8,7 +8,9 @@ from fire import Fire
 
 from vltk import commands, configs, utils
 from vltk.abc.experiment import Experiment, Experiments
+from vltk.abc.simple import SimpleExperiment, SimpleExperiments
 
+_simple_experiments = SimpleExperiments()
 _experiments = Experiments()
 STDERR = sys.stderr = StringIO()
 
@@ -49,6 +51,30 @@ class Main(object):
         self.flags = kwargs
         self.config = configs.Config(**self.flags)
         random.seed(self.config.seed)
+
+    def simple(self, name):
+        @atexit.register
+        def inner_crash_save():
+            return crash_save()
+
+        global config
+        config = self.config
+        priv = self.config.private_file
+        if priv is not None:
+            cls_dict = utils.get_classes(priv, SimpleExperiment, pkg=None)
+            if priv is not None and priv:
+                for name, clss in cls_dict.items():
+                    if name in _simple_experiments.avail():
+                        print(f"WARNING: {name} is already a predefined experiment")
+                        _simple_experiments.add(name, clss)
+
+        commands.run_simple_experiment(
+            config,
+            flags=self.flags,
+            name_or_exp=name,
+            datasets=self.config.data.train_datasets,
+        )
+        atexit.unregister(inner_crash_save)
 
     def exp(self, name):
         @atexit.register

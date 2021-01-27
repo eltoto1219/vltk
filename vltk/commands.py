@@ -1,9 +1,11 @@
 from vltk import compat, utils
 from vltk.abc.experiment import Experiments
 from vltk.abc.imageset import Imagesets
+from vltk.abc.simple import SimpleExperiments
 from vltk.configs import Config
 
 _experiments = Experiments()
+_simple_experiments = SimpleExperiments()
 
 
 def run_experiment(config, flags, name_or_exp, datasets):
@@ -12,6 +14,22 @@ def run_experiment(config, flags, name_or_exp, datasets):
     if isinstance(name_or_exp, str):
         utils.update_config_with_logdir(config, flags, name_or_exp, datasets)
         exp_from_str = _experiments.get(name_or_exp)(config=config, datasets=datasets)
+        exp_from_str()
+    else:
+        utils.update_config_with_logdir(config, flags, name_or_exp.name, datasets)
+        global experiment
+        experiment = name_or_exp(config=config, datasets=datasets)
+        experiment()
+
+
+def run_simple_experiment(config, flags, name_or_exp, datasets):
+    if config.print_config:
+        print(config)
+    if isinstance(name_or_exp, str):
+        utils.update_config_with_logdir(config, flags, name_or_exp, datasets)
+        exp_from_str = _simple_experiments.get(name_or_exp)(
+            config=config, datasets=datasets
+        )
         exp_from_str()
     else:
         utils.update_config_with_logdir(config, flags, name_or_exp.name, datasets)

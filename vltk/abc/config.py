@@ -109,11 +109,17 @@ class Config:
     def update(self, updates: dict):
         for k, orig_v in self:
             if k in updates:
-                v = updates.pop(k)
+                v = updates.get(k)
+                # I hardcode logdir and testrun as needed in all subconfigs
+                if (k == "logdir" or k == "test_run") and hasattr(orig_v, "_identify"):
+                    try:
+                        setattr(orig_v, k, v)
+                    except Exception:
+                        raise Exception(orig_v, k, v)
                 if isinstance(v, dict) and hasattr(orig_v, "_identify"):
                     orig_v.update(v)
                 else:
-                    if isinstance(orig_v, Iterable):
+                    if not isinstance(orig_v, str) and isinstance(orig_v, Iterable):
                         if isinstance(v, Iterable):
                             setattr(self, k, orig_v + v)
                         else:

@@ -2,11 +2,11 @@ import os
 import sys
 from abc import ABC, abstractmethod
 from collections import defaultdict
+from datetime import datetime
 from typing import Union
 
 import torch
 from tqdm import tqdm
-from transformers import AdamW, get_linear_schedule_with_warmup
 from vltk import LOOPPATH, utils
 from vltk.dataset import UniversalLoader
 from vltk.utils import get_classes
@@ -64,6 +64,10 @@ class Loop(LoopIdentifier, ABC):
         self._init_optim()
 
         self._dataset = self.loader.dataset
+
+        self.logdir = getattr(self.config, "logdir", None)
+        if self.logdir is not None and self.config.logging:
+            os.makedirs(self.logdir, exist_ok=True)
 
     def __key(self):
         name = self.is_name + "_"
@@ -132,51 +136,6 @@ class Loop(LoopIdentifier, ABC):
                 v = v.to(self.main_device)
                 setattr(self, k, v)
 
-    def _init_optim(self):
-        if self.is_train:
-            parameters = []
-            for k, v in self.model_dict.items():
-                parameters.extend(v.parameters())
-            if self.extra_modules is not None:
-                for k, v in self.extra_modules.items():
-                    parameters.extend(v.parameters())
-            assert parameters, "no parameters added to optimizer"
-            self._optim = AdamW(
-                parameters,
-                lr=self.config.train.learning_rate,
-                weight_decay=self.config.train.weight_decay,
-            )
-            if self.config.train.warmup == 0.0:
-                self._warmup = None
-            total = self.total_steps
-            n_steps = int(total * self.config.train.warmup)
-            self._warmup = get_linear_schedule_with_warmup(
-                self._optim, num_warmup_steps=n_steps, num_training_steps=total
-            )
-
-    @property
-    def forward_context(self):
-        if self.scaler is None:
-            return utils.dummy_context
-        else:
-            return torch.cuda.amp.autocast
-
-    @property
-    def tqdm(self):
-        desc = "train" if self.is_train else "eval"
-        self._tqdm = tqdm(self.loader, desc=desc, ncols=0, file=sys.stdout)
-        return self._tqdm
-
-    @property
-    def batch_size(self):
-        if getattr(self, "_bz", None) is not None:
-            return self._bz
-        else:
-            if self.is_train:
-                return self.config.train.batch_size
-            else:
-                return self.config.evaluate.batch_size
-
     @property
     def total_steps(self):
         if self.is_train:
@@ -221,6 +180,28 @@ class Loop(LoopIdentifier, ABC):
                     clean_info[k] = v
 
             self._tqdm.set_postfix(**clean_info)
+
+    def write_iter(self, info: dict = None):
+        if info is not None:
+            clean_info = {}
+            for k, v in info.items():
+                if v is None or (not isinstance(v, bool) and not v):
+                    continue
+                else:
+                    clean_info[k] = v
+        logstr = ""
+        for k, v in info.items():
+            logstr += f"{k}={v}; "
+
+        if self.config.logging and info is not None and info:
+            logfile = os.path.join(self.config.logdir, "cur_epoch.txt")
+            assert logfile is not None
+            with open(logfile, "a") as f:
+                date = datetime.datetime.now()
+                f.write(f"Time: {date} | {logstr} \n")
+                f.flush()
+            return True
+        return False
 
     def toCuda(self, batch, device=None):
         self.loader.toCuda(batch, device)
@@ -284,6 +265,8 @@ class Loop(LoopIdentifier, ABC):
                 with self.forward_context():
                     model_outputs = self.forward(batch)
                 outputs = self.loop(batch, model_outputs)
+                self.write_iter(outputs)
+
                 if self.is_train:
                     losses = outputs.get("losses", None)
                     assert losses is not None

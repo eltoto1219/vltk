@@ -11,6 +11,18 @@ class ViTConfig(config.Config):
     ckp_name_or_path: str = ""
 
 
+class ModelConfig(config.Config):
+    checkpoint = None
+    freeze_layers = None
+    freeze_embeddigs = None
+    freeze_heads = None
+
+    def __init__(self, **kwargs):
+        for f, v in kwargs.items():
+            setattr(self, f, v)
+            self._overwritten[f] = v
+
+
 class ModelsConfig(config.Config):
     main_model: str = "lxmert"
 
@@ -18,19 +30,19 @@ class ModelsConfig(config.Config):
         model_base = model_name.split("_")[0]
         attr_dict = {}
         if hasattr(self, model_base):
-            print("hi", getattr(self, model_base))
             for attr, attr_val in getattr(self, model_base).items():
                 attr_dict[attr] = attr_val
             mconf = model_config(**attr_dict)
 
-            print("conf", mconf)
             setattr(self, model_base, mconf)
         else:
-            print(model_name, model_config)
             raise Exception
 
     def __init__(self, **kwargs):
         for f, v in kwargs.items():
+
+            if isinstance(v, dict):
+                v = ModelsConfig(**v)
             setattr(self, f, v)
             self._overwritten[f] = v
 
@@ -90,6 +102,8 @@ class DataConfig(config.Config):
     textfile_extensions: Union[List[str], str] = ["json", "jsonl"]
     datadirs: Union[List[str], str] = "/playpen1/home/avmendoz/data"
     img_first: bool = False
+    cache_batch: str = "batch.temp"
+    overwrite_cache_batch: bool = False
     pad_collate: bool = True
     shuffle: bool = True
     num_workers: int = 8
@@ -129,7 +143,7 @@ class DataConfig(config.Config):
     def __init__(self, finetune=True, **kwargs):
         super().__init__(**kwargs)
         self.eval_datasets = Config.handle_iterables(self.eval_datasets)
-        if isinstance(self.eval_datasets[1], str):
+        if len(self.eval_datasets) > 1 and isinstance(self.eval_datasets[1], str):
             self.eval_datasets = [(self.eval_datasets[0], set([self.eval_datasets[1]]))]
         self.text_processors = Config.handle_iterables(self.text_processors)
         self.image_processors = Config.handle_iterables(self.image_processors)
@@ -147,7 +161,7 @@ class Config(config.Config):
     aux_gpu: int = None
     seed: int = 9595
     percent_min_gpu_free_mem: float = 0.75
-    print_config: bool = True
+    print_config: bool = False
     datasets: Union[None, str] = None
     base_logdir: str = os.path.join(os.environ.get("HOME", os.getcwd()), "logs")
     rel_logdir: str = ""
@@ -159,6 +173,7 @@ class Config(config.Config):
     email = None
     private_file = None
     test_run: bool = True
+    break_loop_on_test: bool = True
 
     def __init__(self, finetune=True, **kwargs):
         super().__init__(**kwargs)
@@ -176,9 +191,16 @@ class Config(config.Config):
 
         os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
+        """
+        ? a better way to propogate these to subconfigs ?
+        """
+        setattr(self.data, "test_run", self.test_run)
+        setattr(self.data, "logdir", self.logdir)
+
+    # should add more testcases incase all gpus are busy
     def _set_gpus(self):
         if self.gpu is not None and self.aux_gpu is not None:
-            assert self.aux_gpu != self.gpu
+            pass
         if self.gpu is None:
             self.gpu = get_most_free_gpu()
         if self.aux_gpu is None:
@@ -195,3 +217,7 @@ class Config(config.Config):
                     print("WARNING: all models using aux gpu will be on cpu")
                     print()
                 self.aux_gpu = -1
+        if self.gpu == -1:
+            self.gpu = "cpu"
+        if self.aux_gpu == -1:
+            self.aux_gpu = "cpu"

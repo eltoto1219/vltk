@@ -116,7 +116,14 @@ def collate(
 
 
 class UniversalLoader(DataLoader):
-    def __init__(self, names, config, label_dict, textsetdict, imagesetdict):
+    def __init__(
+        self,
+        names,
+        config,
+        label_dict,
+        textsetdict,
+        imagesetdict,
+    ):
         splits = set()
         for v in textsetdict.values():
             splits = splits.union(set(v.keys()))
@@ -161,12 +168,14 @@ class UniversalLoader(DataLoader):
                 device = "cpu"
             else:
                 device = f"cuda:{device}"
+        elif isinstance(device, str):
+            pass
         for k in batch:
             v = batch.get(k)
             if isinstance(v, torch.Tensor):
-                batch[k] = v.to(device)
+                batch[k] = v.to(torch.device(device))
             elif isinstance(v, list) and isinstance(v[0], torch.Tensor):
-                batch[k] = [i.to(device) for i in v]
+                batch[k] = [i.to(torch.device(device)) for i in v]
 
 
 class UniversalDataset(Dataset):
@@ -177,6 +186,7 @@ class UniversalDataset(Dataset):
         self.tokenizer.add_special_tokens(self.special_tokens)
         self.tokenizer.enable_truncation(max_length=config.sent_length)
         self.tokenizer.enable_padding(length=config.sent_length)
+        self._init_cache_batch()
         splits = set()
         for v in textsetdict.values():
             splits = splits.union(set(v.keys()))
@@ -206,6 +216,17 @@ class UniversalDataset(Dataset):
         self.special_ids = deepcopy(special_ids)
         all_ids = [i[1] for i in self.tokenizer.get_vocab().items()]
         self.all_ids = deepcopy(all_ids)
+
+    def _init_cache_batch(self):
+        if self.config.img_first:
+            cache_batch_path = os.path.join(
+                self.config.logdir, "img_first_" + self.config.cache_batch.lstrip("/")
+            )
+        else:
+            cache_batch_path = os.path.join(self.config.logdir, self.config.cache_batch)
+
+        self.cache_batch_path = cache_batch_path
+        self.cache_batch_exists = os.path.isfile(cache_batch_path)
 
     def processor_args(self):
         max_rand_sents = 1 if not self.config.img_first else 32
@@ -287,9 +308,9 @@ class UniversalDataset(Dataset):
         proc_args = {"config": self.config}
         if self.config.extractor is None:
             filepath = entry[RAWIMAGEKEY]
-            image_preprocessor_name = self.config.image_preprocessor
-            image_preprocessor = _image_preprocessors.get(image_preprocessor_name)
-            config_dict = self.config.to_dict()
+            # image_preprocessor_name = self.config.image_preprocessor
+            # image_preprocessor = _image_preprocessors.get(image_preprocessor_name)
+            # config_dict = self.config.to_dict()
             im = Image.open(filepath)
             img = im.resize((self.config.min_size, self.config.min_size), Image.BICUBIC)
             img = torch.Tensor(numpy.array(img))
@@ -350,6 +371,14 @@ class UniversalDataset(Dataset):
     @torch.no_grad()
     def __getitem__(self, i):
         if self.config.img_first:
+            if (
+                self.config.test_run
+                and self.cache_batch_exists
+                and not self.config.overwrite_cache_batch
+            ):
+                cache_batch = torch.load(self.cache_batch_path)
+
+                return cache_batch
             img_id = self.uniq_imgs[i]
             ts_name, ts_split = self.img2textset[img_id]
             textset = self.textsetdict[ts_name][ts_split]
@@ -370,8 +399,17 @@ class UniversalDataset(Dataset):
                 img_info_dict = {RAWIMAGEKEY: img_info_dict}
             self._handle_image(img_info_dict)
             entry = {**img_text_dict, **img_info_dict}
+            if not self.cache_batch_exists or self.config.overwrite_cache_batch:
+                torch.save(entry, self.cache_batch_path)
+
             return entry
         else:
+            if (
+                self.config.test_run
+                and self.cache_batch_exists
+                and not self.config.overwrite_cache_batch
+            ):
+                return torch.load(self.cache_batch_path)
             textset, ind = self.datasets.get_textset_and_ind(i)
             small_textset = textset[ind]
             img_id = small_textset["img_id"]
@@ -394,6 +432,9 @@ class UniversalDataset(Dataset):
                 img_info_dict = {RAWIMAGEKEY: img_info_dict}
             self._handle_image(img_info_dict)
             entry = {**text_info, **img_info_dict}
+            if not self.cache_batch_exists or self.config.overwrite_cache_batch:
+                torch.save(entry, self.cache_batch_path)
+
             return entry
 
     @property
