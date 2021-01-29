@@ -1,7 +1,8 @@
 models:
   lxmert:
     checkpoint: "unc-nlp/lxmert-base-uncased"
-    visual_feat_dim: 2048
+    visual_feat_dim: 576
+    topk_patches: 100
   deit:
     checkpoint: '/playpen1/home/avmendoz/data/deit/pytorch_model.bin'
     distillation_type: "soft"

@@ -234,6 +234,14 @@ class PatchEmbed(nn.Module):
         assert (
             H == self.img_size[0] and W == self.img_size[1]
         ), f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]})."
+        """
+        x (b, 3, w, h)
+        proj (b, 3, p, p)
+        flatten (b, 3, p^2)
+        transpose (b, p^2, 3)
+
+        if we reshape with returned patch shape things:
+        """
         x = self.proj(x).flatten(2).transpose(1, 2)
         return x
 

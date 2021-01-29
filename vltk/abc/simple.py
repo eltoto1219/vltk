@@ -21,6 +21,7 @@ from vltk.abc.imageset import Imagesets
 from vltk.abc.textset import Textsets
 from vltk.dataset import UniversalLoader
 from vltk.modeling import Get as Mget
+from vltk.modeling.configs import Get
 from vltk.utils import get_classes
 
 __all__ = ["SimpleExperiment", "SimpleIdentifier", "SimpleExperiments"]
@@ -86,6 +87,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         model_list = self.model_list
         model_dict = {}
         model_configs = {}
+        state_dict = None
         for x in model_list:
             if isinstance(x, tuple):
                 name = x[0]
@@ -106,19 +108,31 @@ class SimpleExperiment(SimpleIdentifier, ABC):
             # load from checkpoint if specificed
 
             if checkpoint is not None and hasattr(model_class, "from_pretrained"):
+                # this is a huggingface model, so the config must be added appropriately
                 model_instance = model_class.from_pretrained(
                     checkpoint,
                 )
+                checkpoint = model_instance.state_dict()
+                model_config = Get[name](**model_config.to_dict())
+                model_instance = model_class(model_config)
+
             elif not hasattr(model_class, "from_pretrained"):
                 model_instance = model_class(**model_config.to_dict())
                 if checkpoint is not None:
-                    model_instance.load_state_dict(torch.load(checkpoint), strict=False)
+                    state_dict = torch.load(checkpoint)
             else:
                 # model does not have checkpoint
                 try:
+                    print("a")
                     model_instance = model_class(model_config)
+                    print("b")
                 except Exception:
+                    print("c")
                     model_instance = model_class(**model_config.to_dict())
+                    print("d")
+
+            if checkpoint is not None and state_dict is not None:
+                model_instance.load_state_dict(state_dict, strict=False)
 
             # for question answering models, we will need to resize the number of labels
             # accordingly
