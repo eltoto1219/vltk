@@ -445,6 +445,20 @@ class UniversalDataset(Dataset):
             return self.config.train_batch_size
 
     @staticmethod
+    def flatten_text(batch, flatten_keys=None):
+        if flatten_keys is None:
+            flatten_keys = {"input_ids", "type_ids", "text_attention_mask", "label"}
+        for f in flatten_keys:
+            flattened = None
+            key = batch[f]
+            for i in key:
+                if flattened is None:
+                    key[i] = flattened
+                else:
+                    flattened = torch.cat((flattened, key[i]), dim = 0)
+            batch[f] = flattened
+
+    @staticmethod
     def transpose_img2txt(batch, img_keys, device=None):
         n_sents_per_img = [len(i) for i in batch["input_ids"]]
         for img_key in img_keys:

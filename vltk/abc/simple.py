@@ -158,6 +158,8 @@ class SimpleExperiment(SimpleIdentifier, ABC):
             imagesetdict=imagesetdict,
             textsetdict=textsetdict,
         )
+        #get necessary methods from the loader
+        self.flatten_text = loader.dataset.flatten_text
         return loader
 
     def _init_loaders(self):
