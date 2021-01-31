@@ -16,6 +16,7 @@ class ModelConfig(config.Config):
     freeze_layers = None
     freeze_embeddigs = None
     freeze_heads = None
+    all_on_same_device = True
 
     def __init__(self, **kwargs):
         for f, v in kwargs.items():

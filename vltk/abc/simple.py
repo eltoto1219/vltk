@@ -97,12 +97,12 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                 model_class = Mget[name]
 
             model_config = getattr(self.config.models, name, None)
-            if name == "deit":
-                raise Exception("this is the model config", str(model_config))
             if model_config is None:
                 print(f"No Model Config For {name}", "returning class, not instance")
                 model_dict[name] = model_class
                 model_configs[name] = None
+                if self.config.models.all_on_same_device:
+                    model_class.to(torch.device(self.config.gpu))
                 setattr(self, name, model_class)
                 continue
             checkpoint = getattr(model_config, "checkpoint", None)
@@ -144,6 +144,9 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                 ), "no label dict found"
                 print(f"Number of Labels: {len(self.label_to_id)}")
                 model_instance.resize_num_qa_labels(len(self.label_to_id))
+
+            if self.config.models.all_on_same_device:
+                model_instance.to(torch.device(self.config.gpu))
             model_dict[name] = model_instance
             model_configs[name] = model_config
             setattr(self, name, model_instance)
