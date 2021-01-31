@@ -331,19 +331,7 @@ def load_yaml(flags: dict):
         yaml_path = flags.pop("yaml")
         loaded = yaml.load(open(yaml_path), Loader=yaml.Loader)
         updated_flags = dict(mergedicts(loaded, flags))
-        raise Exception(updated_flags)
-        # for y in yam:
-        #     if isinstance(yam[y], dict):
-        #         if y in flags:
-        #             for nk, nv in yam[y].items():
-        #                 if nk not in flags[y]:
-        #                     flags[y][nk] = nv
-        #         else:
-        #             flags[y] = yam[y]
-        #     else:
-        #         if y not in flags:
-        #            flags[y] = yam[y]
-    return flags
+        return updated_flags
 
 
 def convert_jax_to_torch_weights(
