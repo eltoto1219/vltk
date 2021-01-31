@@ -16,7 +16,6 @@ class ModelConfig(config.Config):
     freeze_layers = None
     freeze_embeddigs = None
     freeze_heads = None
-    all_on_same_device = True
 
     def __init__(self, **kwargs):
         for f, v in kwargs.items():
@@ -26,6 +25,8 @@ class ModelConfig(config.Config):
 
 class ModelsConfig(config.Config):
     main_model: str = "lxmert"
+    checkpoint = None
+    all_on_same_device = True
 
     def add(self, model_name, model_config):
         model_base = model_name.split("_")[0]
