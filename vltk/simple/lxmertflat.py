@@ -12,7 +12,7 @@ class DeitLxmertSimple(SimpleExperiment):
     iter_outputs contain combined batch dictionary and ouput dictionary from forward
     """
 
-    name = "deitlxmert"
+    name = "lxmertflat"
     model_list = [
         ("lxmert", LxmertModel),
     ]
