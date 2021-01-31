@@ -15,19 +15,23 @@ models:
     qkv_bias: true
 
 data:
+  num_workers: 4
   eval_datasets:
     [[gqa, [dev]]]
   train_datasets:
-    [[gqa, [dev]]]
-  skip_eval: true
+    [[gqa, [val]], [gqa, [train]]]
+  # skip_eval: true
+  skip_eval: false
   img_first: true
-  overwrite_cache_batch: true
+  # overwrite_cache_batch: true
   extractor: null
   min_size: 784
   max_size: 784
-  train_batch_size: 2
+  train_batch_size: 4
   eval_batch_size: 2
-test_run: true
+test_run: false
 break_loop_on_test: false
-gpu: -1
-aux_gpu: -1
+email: avmendoz@cs.unc.edu
+save_on_crash: true
+email_on_failure: true
+save_after_epoch: true

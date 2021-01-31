@@ -24,10 +24,6 @@ class DeitLxmertSimple(SimpleExperiment):
 
         self.toCuda(batch, device=self.config.aux_gpu)
 
-        for p in self.deit.parameters():
-            print(p.device)
-        raise Exception(batch["image"].device)
-
         output = self.deit(batch["image"])
 
         attn_outputs = {}
