@@ -28,5 +28,3 @@ data:
   eval_batch_size: 2
 test_run: true
 break_loop_on_test: false
-gpu: -1
-aux_gpu: -1

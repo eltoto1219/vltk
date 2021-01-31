@@ -2,7 +2,7 @@ import torch
 from vltk import metrics
 from vltk.abc.simple import SimpleExperiment
 from vltk.modeling import (DistilledVisionTransformer,
-                           LxmertForQuestionAnswering)
+                           LxmertForQuestionAnswering, LxmertModel)
 
 __all__ = ["DeitLxmertSimple"]
 
@@ -14,7 +14,7 @@ class DeitLxmertSimple(SimpleExperiment):
 
     name = "deitlxmert"
     model_list = [
-        ("lxmert", Model),
+        ("lxmert", LxmertModel),
     ]
 
     def forward(self, batch) -> dict:

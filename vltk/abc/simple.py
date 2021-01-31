@@ -97,6 +97,8 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                 model_class = Mget[name]
 
             model_config = getattr(self.config.models, name, None)
+            if name == "deit":
+                raise Exception("this is the model config", str(model_config))
             if model_config is None:
                 print(f"No Model Config For {name}", "returning class, not instance")
                 model_dict[name] = model_class
