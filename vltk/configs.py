@@ -26,7 +26,8 @@ class ModelConfig(config.Config):
 class ModelsConfig(config.Config):
     main_model: str = "lxmert"
     checkpoint = None
-    all_on_same_device = True
+    all_on_same_device = False
+    models_to_devices = None
 
     def add(self, model_name, model_config):
         model_base = model_name.split("_")[0]

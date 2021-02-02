@@ -1,4 +1,6 @@
 models:
+  models_to_devices: [[lxmert, 0], [deit, 0]]
+
   lxmert:
     checkpoint: "unc-nlp/lxmert-base-uncased"
     visual_feat_dim: 576
@@ -29,5 +31,3 @@ data:
   eval_batch_size: 2
 test_run: true
 break_loop_on_test: false
-gpu: -1
-aux_gpu: -1

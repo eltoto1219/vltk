@@ -88,6 +88,13 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         model_dict = {}
         model_configs = {}
         state_dict = None
+        dev_list = self.config.models.models_to_devices
+        if dev_list is not None:
+            dev_map = {}
+            for md in dev_list:
+                dev_map[md[0]] = md[1]
+        else:
+            dev_map = None
         for x in model_list:
             if isinstance(x, tuple):
                 name = x[0]
@@ -103,6 +110,12 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                 model_configs[name] = None
                 if self.config.models.all_on_same_device:
                     model_class.to(torch.device(self.config.gpu))
+                else:
+                    assert (
+                        x in dev_map
+                    ), f"model {x} must be in dev_map, please see docs."
+                    dev = dev_map[x]
+                    model_class.to(torch.device(dev))
                 setattr(self, name, model_class)
                 continue
             checkpoint = getattr(model_config, "checkpoint", None)
@@ -125,13 +138,9 @@ class SimpleExperiment(SimpleIdentifier, ABC):
             else:
                 # model does not have checkpoint
                 try:
-                    print("a")
                     model_instance = model_class(model_config)
-                    print("b")
                 except Exception:
-                    print("c")
                     model_instance = model_class(**model_config.to_dict())
-                    print("d")
 
             if checkpoint is not None and state_dict is not None:
                 model_instance.load_state_dict(state_dict, strict=False)
@@ -147,6 +156,11 @@ class SimpleExperiment(SimpleIdentifier, ABC):
 
             if self.config.models.all_on_same_device:
                 model_instance.to(torch.device(self.config.gpu))
+            else:
+                assert x in dev_map, f"model {x} must be in dev_map, please see docs."
+                dev = dev_map[x]
+                model_instance.to(torch.device(dev))
+
             model_dict[name] = model_instance
             model_configs[name] = model_config
             setattr(self, name, model_instance)
@@ -163,7 +177,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
             imagesetdict=imagesetdict,
             textsetdict=textsetdict,
         )
-        #get necessary methods from the loader
+        # get necessary methods from the loader
         self.flatten_text = loader.dataset.flatten_text
         return loader
 
