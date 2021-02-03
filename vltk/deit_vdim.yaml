@@ -1,5 +1,5 @@
 models:
-  models_to_devices: [[lxmert, 0], [deit, 0]]
+  models_to_devices: [[lxmert, 1], [deit, 0]]
 
   lxmert:
     checkpoint: "unc-nlp/lxmert-base-uncased"
@@ -10,24 +10,30 @@ models:
     distillation_type: "soft"
     embed_dim: 576
     patch_size: 28
-    img_size: 784
+    img_size: 576
     mlp_ratio: 4.0
     num_heads: 12
     freeze_layers: [1,1,1,1,1,1,1,1,1,1,1,1]
     qkv_bias: true
 
 data:
+  num_workers: 4
   eval_datasets:
     [[gqa, [dev]]]
   train_datasets:
-    [[gqa, [dev]]]
-  skip_eval: true
+    [[gqa, [val]], [gqa, [train]]]
+
+  skip_eval: false
   img_first: true
   overwrite_cache_batch: true
   extractor: null
-  min_size: 784
-  max_size: 784
-  train_batch_size: 2
-  eval_batch_size: 2
-test_run: true
+  min_size: 576
+  max_size: 576
+  train_batch_size: 4
+  eval_batch_size: 1
+test_run: false
 break_loop_on_test: false
+email: avmendoz@cs.unc.edu
+save_on_crash: true
+email_on_failure: true
+save_after_epoch: true

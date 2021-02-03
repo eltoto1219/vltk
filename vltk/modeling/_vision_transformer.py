@@ -399,6 +399,7 @@ class VisionTransformer(nn.Module):
         x = torch.cat((cls_tokens, x), dim=1)
         x = x + self.pos_embed
         x = self.pos_drop(x)
+        raise Exception(x.shape)
 
         for blk in self.blocks:
             x = blk(x)

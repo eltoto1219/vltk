@@ -110,12 +110,14 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                 model_configs[name] = None
                 if self.config.models.all_on_same_device:
                     model_class.to(torch.device(self.config.gpu))
+                    setattr(self, f"{name}_dev", self.config.gpu)
                 else:
                     assert (
-                        x in dev_map
-                    ), f"model {x} must be in dev_map, please see docs."
-                    dev = dev_map[x]
+                        name in dev_map
+                    ), f"model {name} must be in dev_map, please see docs."
+                    dev = dev_map[name]
                     model_class.to(torch.device(dev))
+                    setattr(self, f"{name}_dev", dev)
                 setattr(self, name, model_class)
                 continue
             checkpoint = getattr(model_config, "checkpoint", None)
@@ -156,10 +158,15 @@ class SimpleExperiment(SimpleIdentifier, ABC):
 
             if self.config.models.all_on_same_device:
                 model_instance.to(torch.device(self.config.gpu))
+                setattr(self, f"{name}_dev", self.config.gpu)
             else:
-                assert x in dev_map, f"model {x} must be in dev_map, please see docs."
-                dev = dev_map[x]
+                assert (
+                    dev_map is not None and
+                    name in dev_map
+                ), f"model {name} must be in dev_map, please see docs."
+                dev = dev_map[name]
                 model_instance.to(torch.device(dev))
+                setattr(self, f"{name}_dev", dev)
 
             model_dict[name] = model_instance
             model_configs[name] = model_config

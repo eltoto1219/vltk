@@ -1,3 +1,5 @@
+import math
+
 import torch
 from vltk import metrics
 from vltk.abc.simple import SimpleExperiment
@@ -16,17 +18,13 @@ class DeitLxmertSimple(SimpleExperiment):
     model_list = [
         ("lxmert", LxmertForQuestionAnswering),
         ("deit", DistilledVisionTransformer),
-        ("connector", torch.nn.Linear(16128, 2048)),
+        ("connector", torch.nn.Linear(11520, 2048)),
         ("dist_proj", torch.nn.Linear(576, 2048)),
     ]
 
     def forward(self, batch) -> dict:
 
-        self.toCuda(batch, device=self.config.aux_gpu)
-
-        for p in self.deit.parameters():
-            print(p.device)
-        raise Exception(batch["image"].device)
+        self.toCuda(batch, device=self.deit_dev)
 
         output = self.deit(batch["image"])
 
@@ -36,22 +34,24 @@ class DeitLxmertSimple(SimpleExperiment):
         dist_token = output["dist"]
         feats = output["feats"]
         feats = feats.flatten(start_dim=-2, end_dim=-1)
-        feats = feats.view(feats.shape[0], self.config.models.deit.patch_size, -1)
-        feats = feats.to(torch.device(self.config.gpu))
-        dist_token = dist_token.to(torch.device(self.config.gpu))
+        feats = feats.view(
+            feats.shape[0],
+            math.floor(
+                self.config.models.deit.embed_dim / self.config.models.deit.patch_size
+            ),
+            -1,
+        )
         dist_proj = self.dist_proj(dist_token).unsqueeze(1)
         feats = self.connector(feats)
         mimic_feats = torch.cat((dist_proj, feats), dim=1)
-        boxes = torch.zeros(mimic_feats.shape[0], mimic_feats.shape[1], 4).to(
-            torch.device(self.config.gpu)
-        )
+        boxes = torch.zeros(mimic_feats.shape[0], mimic_feats.shape[1], 4)
 
         batch["roi_features"] = mimic_feats
         batch["boxes"] = boxes
 
         self.transpose_img2txt(batch, img_keys=["boxes", "roi_features"])
 
-        self.toCuda(batch, device=self.config.gpu)
+        self.toCuda(batch, device=self.lxmert_dev)
         model_outputs = self.lxmert(
             input_ids=batch["input_ids"],
             visual_feats=batch["roi_features"],

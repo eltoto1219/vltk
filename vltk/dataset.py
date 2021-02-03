@@ -455,7 +455,7 @@ class UniversalDataset(Dataset):
                 if flattened is None:
                     key[i] = flattened
                 else:
-                    flattened = torch.cat((flattened, key[i]), dim = 0)
+                    flattened = torch.cat((flattened, key[i]), dim=0)
             batch[f] = flattened
 
     @staticmethod

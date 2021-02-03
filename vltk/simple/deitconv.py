@@ -19,13 +19,17 @@ class Conv(nn.Module):
             kernel_size=kwargs["patch_size"],
             stride=kwargs["patch_size"],
         )
-        w = math.floor(kwargs["embed_dim"] / kwargs["patch_size"])
-        h = kwargs["patch_size"]
-        self.proj_2 = nn.Linear(h * w, kwargs["embed_dim"])
+        n_patches = math.floor(kwargs["embed_dim"] / kwargs["patch_size"])
+        foo = math.floor(n_patches ** 2 / kwargs["patch_size"])
+        self.proj_2 = nn.Linear(n_patches * foo, kwargs["embed_dim"])
         self.act = nn.GELU()
 
     def forward(self, x):
-        return self.proj_2(self.act(self.proj(x).flatten(2)))
+        x = self.proj(x)
+        x = x.flatten(2)
+        x = self.act(x)
+        x = self.proj_2(x)
+        return x
 
 
 class DeitConv(SimpleExperiment):
@@ -42,31 +46,33 @@ class DeitConv(SimpleExperiment):
 
     def forward(self, batch) -> dict:
 
-        self.toCuda(batch, device=self.config.aux_gpu)
+        self.toCuda(batch, device=self.deit_dev)
 
-        output = self.deit(batch["image"])
+        output = None
+        images = torch.split(batch["image"], 1, dim=0)
+        for x in images:
+            temp_output = self.deit(x)
+            if output is None:
+                output = temp_output
+            else:
+                for k, v in output.items():
+                    output[k] = torch.cat((v, temp_output[k]), dim=0)
 
         attn_outputs = {}
         for a, img_id in zip(output["attns"], batch["img_id"]):
             attn_outputs[img_id] = a.detach().cpu().tolist()
         dist_token = output["dist"]
         feats = output["feats"]
-        # feats = feats.flatten(start_dim=-2, end_dim=-1)
-        # feats = feats.view(feats.shape[0], self.config.models.deit.patch_size, -1)
-        feats = feats.to(torch.device(self.config.gpu))
         feats = self.conv(feats.unsqueeze(1))
-        dist_token = dist_token.to(torch.device(self.config.gpu))
         mimic_feats = torch.cat((dist_token.unsqueeze(1), feats), dim=1)
-        boxes = torch.zeros(mimic_feats.shape[0], mimic_feats.shape[1], 4).to(
-            torch.device(self.config.gpu)
-        )
+        boxes = torch.zeros(mimic_feats.shape[0], mimic_feats.shape[1], 4)
 
         batch["roi_features"] = mimic_feats
         batch["boxes"] = boxes
 
         self.transpose_img2txt(batch, img_keys=["boxes", "roi_features"])
 
-        self.toCuda(batch, device=self.config.gpu)
+        self.toCuda(batch, device=self.lxmert_dev)
         model_outputs = self.lxmert(
             input_ids=batch["input_ids"],
             visual_feats=batch["roi_features"],

@@ -20,7 +20,7 @@ class DeitTopk(SimpleExperiment):
 
     def forward(self, batch) -> dict:
 
-        self.toCuda(batch, device=self.config.aux_gpu)
+        self.toCuda(batch, device=self.deit_dev)
         output = self.deit(batch["image"])
 
         attn_outputs = {}
@@ -28,7 +28,6 @@ class DeitTopk(SimpleExperiment):
             attn_outputs[img_id] = a.detach().cpu().tolist()
         dist_token = output["dist"]
         feats = output["feats"]
-        feats = feats.to(torch.device(self.config.gpu))
         feats_topk = torch.topk(
             feats, self.config.models.lxmert.topk_patches, dim=1, sorted=False
         )
@@ -39,18 +38,16 @@ class DeitTopk(SimpleExperiment):
         for a, img_id in zip(output["attns"], batch["img_id"]):
             attn_outputs[img_id] = a.detach().cpu().tolist()
         dist_token = output["dist"]
-        dist_token = dist_token.to(torch.device(self.config.gpu))
+        dist_token = dist_token
         mimic_feats = torch.cat((dist_token.unsqueeze(1), feats), dim=1)
-        boxes = torch.zeros(mimic_feats.shape[0], mimic_feats.shape[1], 4).to(
-            torch.device(self.config.gpu)
-        )
+        boxes = torch.zeros(mimic_feats.shape[0], mimic_feats.shape[1], 4)
 
         batch["roi_features"] = mimic_feats
         batch["boxes"] = boxes
 
         self.transpose_img2txt(batch, img_keys=["boxes", "roi_features"])
 
-        self.toCuda(batch, device=self.config.gpu)
+        self.toCuda(batch, device=self.lxmert_dev)
         model_outputs = self.lxmert(
             input_ids=batch["input_ids"],
             visual_feats=batch["roi_features"],

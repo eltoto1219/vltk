@@ -20,7 +20,7 @@ class DeitVdim(SimpleExperiment):
 
     def forward(self, batch) -> dict:
 
-        self.toCuda(batch, device=self.config.aux_gpu)
+        self.toCuda(batch, device=self.deit_dev)
 
         output = self.deit(batch["image"])
 
@@ -29,21 +29,14 @@ class DeitVdim(SimpleExperiment):
             attn_outputs[img_id] = a.detach().cpu().tolist()
         dist_token = output["dist"]
         feats = output["feats"]
-        # feats = feats.flatten(start_dim=-2, end_dim=-1)
-        # feats = feats.view(feats.shape[0], self.config.models.deit.patch_size, -1)
-        feats = feats.to(torch.device(self.config.gpu))
-        dist_token = dist_token.to(torch.device(self.config.gpu))
         mimic_feats = torch.cat((dist_token.unsqueeze(1), feats), dim=1)
-        boxes = torch.zeros(mimic_feats.shape[0], mimic_feats.shape[1], 4).to(
-            torch.device(self.config.gpu)
-        )
-
+        boxes = torch.zeros(mimic_feats.shape[0], mimic_feats.shape[1], 4)
         batch["roi_features"] = mimic_feats
         batch["boxes"] = boxes
 
         self.transpose_img2txt(batch, img_keys=["boxes", "roi_features"])
 
-        self.toCuda(batch, device=self.config.gpu)
+        self.toCuda(batch, device=self.lxmert_dev)
         model_outputs = self.lxmert(
             input_ids=batch["input_ids"],
             visual_feats=batch["roi_features"],
