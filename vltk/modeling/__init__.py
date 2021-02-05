@@ -1,6 +1,7 @@
 from transformers import (LxmertForPreTraining, LxmertForQuestionAnswering,
                           LxmertModel)
 
+from .botnet_v3 import MyBotNet
 from .deit import DistilledVisionTransformer
 from .frcnn import FRCNN
 from .uniter import UniterModel

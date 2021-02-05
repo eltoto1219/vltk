@@ -161,8 +161,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                 setattr(self, f"{name}_dev", self.config.gpu)
             else:
                 assert (
-                    dev_map is not None and
-                    name in dev_map
+                    dev_map is not None and name in dev_map
                 ), f"model {name} must be in dev_map, please see docs."
                 dev = dev_map[name]
                 model_instance.to(torch.device(dev))
