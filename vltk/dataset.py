@@ -9,6 +9,8 @@ import numpy
 import PIL.Image as Image
 import torch
 import torch.nn.functional as F
+# disable logging from datasets
+from datasets.utils.logging import set_verbosity_error
 from tokenizers import BertWordPieceTokenizer
 from torch.utils.data import DataLoader, Dataset
 
@@ -16,6 +18,8 @@ from vltk import IMAGEKEY, LABELKEY, RAWIMAGEKEY, SCOREKEY, TEXTKEY
 # from vltk.dataset.gqa import load_temp_gqa
 from vltk.maps import files
 from vltk.utils import collect_args_to_func
+
+set_verbosity_error()
 
 VOCABPATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "libdata/bert-base-uncased-vocab.txt")
@@ -308,20 +312,20 @@ class UniversalDataset(Dataset):
         proc_args = {"config": self.config}
         if self.config.extractor is None:
             filepath = entry[RAWIMAGEKEY]
-            # image_preprocessor_name = self.config.image_preprocessor
-            # image_preprocessor = _image_preprocessors.get(image_preprocessor_name)
-            # config_dict = self.config.to_dict()
-            im = Image.open(filepath)
-            img = im.resize((self.config.min_size, self.config.min_size), Image.BICUBIC)
+            image_preprocessor_name = self.config.image_preprocessor
+            image_preprocessor = _image_preprocessors.get(image_preprocessor_name)
+            config_dict = self.config.to_dict()
+            img = Image.open(filepath)
             img = torch.Tensor(numpy.array(img))
             try:
                 img = img.permute((2, 0, 1))
             except Exception:
                 img = img.unsqueeze(-1).repeat(1, 1, 3).permute((2, 0, 1))
 
-            # func_dict = collect_args_to_func(
-            # image_preprocessor, config_dict,
-            # img, (h, w), scales_hw = image_preprocessor(filepath, **func_dict)
+            # okay, now we have the image the way that we want it. so what now?
+
+            func_dict = collect_args_to_func(image_preprocessor, config_dict)
+            img = image_preprocessor(img, **func_dict)["imgs"].squeeze(0)
             entry[RAWIMAGEKEY] = img
         else:
             for k, v in entry.items():
@@ -399,6 +403,7 @@ class UniversalDataset(Dataset):
                 img_info_dict = {RAWIMAGEKEY: img_info_dict}
             self._handle_image(img_info_dict)
             entry = {**img_text_dict, **img_info_dict}
+            # entry = img_info_dict
             if not self.cache_batch_exists or self.config.overwrite_cache_batch:
                 torch.save(entry, self.cache_batch_path)
 
@@ -445,6 +450,7 @@ class UniversalDataset(Dataset):
             return self.config.train_batch_size
 
     @staticmethod
+    # unfinished
     def flatten_text(batch, flatten_keys=None):
         if flatten_keys is None:
             flatten_keys = {"input_ids", "type_ids", "text_attention_mask", "label"}

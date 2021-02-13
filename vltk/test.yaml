@@ -1,0 +1,23 @@
+data:
+  eval_datasets:
+    [[gqa, [dev]]]
+  train_datasets:
+    [[gqa, [dev]]]
+  skip_eval: false
+  skip_train: true
+  img_first: true
+  extractor: null
+  train_batch_size: 3
+  eval_batch_size: 2
+  min_size: 768
+  max_size: 768
+  test_run: true
+  num_workers: 1
+  overwrite_cache_batch: true
+test_run: true
+
+# email: avmendoz@cs.unc.edu
+# email_on_failure: true
+# save_on_crash: true
+# save_after_exp: true
+# save_after_epoch: true

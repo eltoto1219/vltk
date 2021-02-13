@@ -139,9 +139,9 @@ class DataConfig(config.Config):
     visual_dim: int = 2048
     max_detections: str = 36
     vit_pretrained_dir = "vit/"
-    image_preprocessor = "img_to_tensor"
-    min_size: int = 576
-    max_size: int = 576
+    image_preprocessor = "resize_short_edge"
+    min_size: int = 512
+    max_size: int = 768
 
     def __init__(self, finetune=True, **kwargs):
         super().__init__(**kwargs)

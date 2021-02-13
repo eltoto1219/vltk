@@ -227,7 +227,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
     # other methods, too many methods
     def _init_optim(self):
         self.scheduler = None
-        if self.is_train:
+        if self.is_train and self.model_dict:
             parameters = []
             for k, v in self.model_dict.items():
                 parameters.extend(v.parameters())
