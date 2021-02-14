@@ -1,10 +1,10 @@
 from vltk import compat, utils
-from vltk.abc.experiment import Experiments
+from vltk.abc.complex import ComplexExperiments
 from vltk.abc.imageset import Imagesets
 from vltk.abc.simple import SimpleExperiments
 from vltk.configs import Config
 
-_experiments = Experiments()
+_complex_experiments = ComplexExperiments()
 _simple_experiments = SimpleExperiments()
 
 
@@ -13,7 +13,9 @@ def run_experiment(config, flags, name_or_exp, datasets):
         print(config)
     if isinstance(name_or_exp, str):
         utils.update_config_with_logdir(config, flags, name_or_exp, datasets)
-        exp_from_str = _experiments.get(name_or_exp)(config=config, datasets=datasets)
+        exp_from_str = _complex_experiments.get(name_or_exp)(
+            config=config, datasets=datasets
+        )
         exp_from_str()
     else:
         utils.update_config_with_logdir(config, flags, name_or_exp.name, datasets)

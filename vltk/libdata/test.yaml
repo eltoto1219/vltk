@@ -1,4 +1,0 @@
-batch_size: 4
-dryrun: true
-split: dev
-eval_split: dev

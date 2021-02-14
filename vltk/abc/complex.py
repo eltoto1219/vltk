@@ -7,42 +7,43 @@ from itertools import chain
 from typing import Dict, List, Union
 
 import torch
-from vltk import EXPPATH
+from vltk import COMPLEXPATH
 from vltk.abc.imageset import Imagesets
-from vltk.abc.loop import Loops
+from vltk.abc.loop import Loop
 from vltk.abc.textset import Textsets
 from vltk.inspect import collect_args_to_func, get_classes
 from vltk.modeling import Get as Mget
 from vltk.modeling.configs import Get
 
-__all__ = ["Experiment", "ExpIdentifier", "Experiments"]
+__all__ = ["ComplexExperiment", "ComplexExpIdentifier", "ComplexExperiments"]
 
-_loop = Loops()
 _textsets = Textsets()
 _imagesets = Imagesets()
 
 
-class Experiments:
+class ComplexExperiments:
     def __init__(self):
         if "EXPDICT" not in globals():
-            global EXPDICT
-            EXPDICT = get_classes(EXPPATH, ExpIdentifier, pkg="vltk.exp")
+            global COMPLEXDICT
+            COMPLEXDICT = get_classes(
+                COMPLEXPATH, ComplexExpIdentifier, pkg="vltk.complex"
+            )
 
     def avail(self):
-        return list(EXPDICT.keys())
+        return list(COMPLEXDICT.keys())
 
     def get(self, name):
-        return EXPDICT[name]
+        return COMPLEXDICT[name]
 
     def add(self, name, dset):
-        EXPDICT[name] = dset
+        COMPLEXDICT[name] = dset
 
 
-class ExpIdentifier:
+class ComplexExpIdentifier:
     pass
 
 
-class Experiment(ExpIdentifier, ABC):
+class ComplexExperiment(ComplexExpIdentifier, ABC):
     # for now lets just define dataset in loop
     def __init__(self, config, datasets):
 
@@ -124,10 +125,7 @@ class Experiment(ExpIdentifier, ABC):
         any_val = False
         # check for train and eval loops
         for loop_key in self.loops_to_models:
-            if isinstance(loop_key, str):
-                loop_cls = _loop.get(loop_key)
-            else:
-                loop_cls = loop_key
+            loop_cls = loop_key
             if loop_cls.is_train:
                 any_train = True
             else:
@@ -269,11 +267,8 @@ class Experiment(ExpIdentifier, ABC):
         loop_dict = {}
         loop_info = {}
         for loop_key in self.loops_to_models:
-            if isinstance(loop_key, str):
-                loop_cls = _loop.get(loop_key)
-            else:
-                loop_cls = loop_key
-
+            assert isinstance(loop_key, Loop)
+            loop_cls = loop_key
             loop_name = loop_cls.name
             is_train = loop_cls.is_train
             if is_train:

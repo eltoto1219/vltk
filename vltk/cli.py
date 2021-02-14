@@ -7,12 +7,12 @@ import torch
 from fire import Fire
 
 from vltk import commands, configs, utils
-from vltk.abc.experiment import Experiment, Experiments
+from vltk.abc.complex import ComplexExperiment, ComplexExperiments
 from vltk.abc.simple import SimpleExperiment, SimpleExperiments
 from vltk.inspect import get_classes
 
 _simple_experiments = SimpleExperiments()
-_experiments = Experiments()
+_complex_experiments = ComplexExperiments()
 STDERR = sys.stderr = StringIO()
 
 
@@ -41,11 +41,11 @@ def add_exps_from_dir(config):
         if k in _simple_experiments.avail():
             print(f"WARNING: {k} is already a predefined simple experiment")
         _simple_experiments.add(k, v)
-    experiments = get_classes(exp_dir, Experiment)
+    experiments = get_classes(exp_dir, ComplexExperiment)
     for k, v in experiments.items():
         if k in _simple_experiments.avial():
             print(f"WARNING: {k} is already a predefined complex experiment")
-        _experiments.add(k, v)
+        _complex_experiments.add(k, v)
 
 
 @atexit.register
@@ -126,7 +126,7 @@ class Main(object):
     def data(self, datasets, method=""):
 
         datasets = configs.Config.handle_iterables(datasets)
-        expr = _experiments.get("data")(config=self.config, datasets=datasets)
+        expr = _complex_experiments.get("data")(config=self.config, datasets=datasets)
         if method == "":
             call = expr
         else:

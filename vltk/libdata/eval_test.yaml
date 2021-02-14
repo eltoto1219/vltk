@@ -1,5 +1,0 @@
-dryrun: true
-models:
-  lxmert:
-    ckp_name_or_path: null
-

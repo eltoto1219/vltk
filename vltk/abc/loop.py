@@ -10,22 +10,6 @@ from vltk.dataset import UniversalLoader
 from vltk.inspect import get_classes
 
 
-class Loops:
-    def __init__(self):
-        if "LOOPDICT" not in globals():
-            global LOOPDICT
-            LOOPDICT = get_classes(LOOPPATH, LoopIdentifier, pkg="vltk.loop")
-
-    def avail(self):
-        return list(LOOPDICT.keys())
-
-    def get(self, name):
-        return LOOPDICT[name]
-
-    def add(self, name, dset):
-        LOOPDICT[name] = dset
-
-
 class LoopIdentifier:
     pass
 
