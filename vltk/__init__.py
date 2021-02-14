@@ -2,6 +2,14 @@ import os
 
 from setuptools import setup
 
+
+def dummy():
+    if False:
+        return setup
+    else:
+        return
+
+
 IMAGEKEY = "img_id"
 LABELKEY = "label"
 TEXTKEY = "text"
@@ -16,6 +24,11 @@ EXPPATH = os.path.join(BASEPATH, "exp")
 SIMPLEPATH = os.path.join(BASEPATH, "simple")
 MODELPATH = os.path.join(BASEPATH, "modeling")
 LOOPPATH = os.path.join(BASEPATH, "loop")
+SCHEDPATH = os.path.join(BASEPATH, "processing/sched.py")
+DATAPATH = os.path.join(BASEPATH, "processing/data.py")
+LABELPROCPATH = os.path.join(BASEPATH, "processing/label.py")
+IMAGEPROCPATH = os.path.join(BASEPATH, "processing/image.py")
+OPTIMPATH = os.path.join(BASEPATH, "processing/optim.py")
 
 
 """

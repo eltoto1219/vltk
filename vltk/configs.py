@@ -174,7 +174,7 @@ class Config(config.Config):
     save_after_exp = True
     save_after_epoch = False
     email = None
-    private_file = None
+    experimentdir: Union[None, str] = None
     test_run: bool = True
     break_loop_on_test: bool = True
 

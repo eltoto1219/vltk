@@ -1,11 +1,30 @@
 import json
 import os
 
+from vltk import LABELPROCPATH
+from vltk.inspect import import_funcs_from_file
+
 PATH = os.path.join(
     os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "libdata"
 )
 ANS_CONVERT = json.load(open(os.path.join(PATH, "convert_answers.json")))
 CONTRACTION_CONVERT = json.load(open(os.path.join(PATH, "convert_answers.json")))
+
+
+class Label:
+    def __init__(self):
+        if "LABELPROCDICT" not in globals():
+            global LABELPROCDICT
+            LABELPROCDICT = import_funcs_from_file(LABELPROCPATH, pkg="vltk.processing")
+
+    def avail(self):
+        return list(LABELPROCDICT.keys())
+
+    def get(self, name):
+        return LABELPROCDICT[name]
+
+    def add(self, name, lab):
+        LABELPROCDICT[name] = lab
 
 
 def clean_imgid_default(imgid):

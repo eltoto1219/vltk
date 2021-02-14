@@ -9,6 +9,7 @@ from fire import Fire
 from vltk import commands, configs, utils
 from vltk.abc.experiment import Experiment, Experiments
 from vltk.abc.simple import SimpleExperiment, SimpleExperiments
+from vltk.inspect import get_classes
 
 _simple_experiments = SimpleExperiments()
 _experiments = Experiments()
@@ -33,6 +34,20 @@ def crash_save():
                 print("\nWARNING: vltk command crashed and was not saved")
 
 
+def add_exps_from_dir(config):
+    exp_dir = config.experimentdir
+    simple_experiments = get_classes(exp_dir, SimpleExperiment, pkg=None)
+    for k, v in simple_experiments.items():
+        if k in _simple_experiments.avail():
+            print(f"WARNING: {k} is already a predefined simple experiment")
+        _simple_experiments.add(k, v)
+    experiments = get_classes(exp_dir, Experiment)
+    for k, v in experiments.items():
+        if k in _simple_experiments.avial():
+            print(f"WARNING: {k} is already a predefined complex experiment")
+        _experiments.add(k, v)
+
+
 @atexit.register
 def restore_stdout():
     sys.stderr = sys.__stderr__
@@ -49,7 +64,6 @@ class Main(object):
         kwargs = utils.unflatten_dict(kwargs)
         kwargs = utils.load_yaml(kwargs)
         self.flags = kwargs
-        config = configs.Config()
         self.config = configs.Config(**self.flags)
         random.seed(self.config.seed)
 
@@ -60,14 +74,9 @@ class Main(object):
 
         global config
         config = self.config
-        priv = self.config.private_file
+        priv = self.config.experimentdir
         if priv is not None:
-            cls_dict = utils.get_classes(priv, SimpleExperiment, pkg=None)
-            if priv is not None and priv:
-                for name, clss in cls_dict.items():
-                    if name in _simple_experiments.avail():
-                        print(f"WARNING: {name} is already a predefined experiment")
-                        _simple_experiments.add(name, clss)
+            add_exps_from_dir(config)
 
         commands.run_simple_experiment(
             config,
@@ -84,14 +93,10 @@ class Main(object):
 
         global config
         config = self.config
-        priv = self.config.private_file
+
+        priv = self.config.experimentdir
         if priv is not None:
-            cls_dict = utils.get_classes(priv, Experiment, pkg=None)
-            if priv is not None and priv:
-                for name, clss in cls_dict.items():
-                    if name in _experiments.avail():
-                        print(f"WARNING: {name} is already a predefined experiment")
-                        _experiments.add(name, clss)
+            add_exps_from_dir(config)
 
         commands.run_experiment(
             config,

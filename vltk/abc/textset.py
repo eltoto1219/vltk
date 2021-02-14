@@ -14,13 +14,13 @@ import pyarrow
 from datasets import ArrowWriter
 from tqdm import tqdm
 from vltk import IMAGEKEY, LABELKEY, SCOREKEY, TEXTKEY, TEXTSETPATH, utils
-from vltk.maps import files
-from vltk.processing.Label import clean_imgid_default
-from vltk.utils import get_classes, set_metadata
+from vltk.inspect import get_classes
+from vltk.processing.label import Label, clean_imgid_default
+from vltk.utils import set_metadata
 
 __all__ = ["Textset", "Textsets"]
 
-_labelproc = files.Label()
+_labelproc = Label()
 
 
 class Textsets:

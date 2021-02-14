@@ -3,6 +3,24 @@ import os
 import cv2
 import torch
 import torch.nn.functional as F
+from vltk.inspect import import_funcs_from_file
+from vltk import IMAGEPROCPATH
+
+
+class Image:
+    def __init__(self):
+        if "IMAGEPROCDICT" not in globals():
+            global IMAGEPROCDICT
+            IMAGEPROCDICT = import_funcs_from_file(IMAGEPROCPATH, pkg="vltk.processing")
+
+    def avail(self):
+        return list(IMAGEPROCDICT.keys())
+
+    def get(self, name):
+        return IMAGEPROCDICT[name]
+
+    def add(self, name, proc):
+        IMAGEPROCDICT[name] = proc
 
 
 def resize_short_edge(

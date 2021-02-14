@@ -11,9 +11,9 @@ from vltk import EXPPATH
 from vltk.abc.imageset import Imagesets
 from vltk.abc.loop import Loops
 from vltk.abc.textset import Textsets
+from vltk.inspect import collect_args_to_func, get_classes
 from vltk.modeling import Get as Mget
 from vltk.modeling.configs import Get
-from vltk.utils import collect_args_to_func, get_classes
 
 __all__ = ["Experiment", "ExpIdentifier", "Experiments"]
 

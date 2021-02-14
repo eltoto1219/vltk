@@ -15,16 +15,15 @@ import pyarrow
 from datasets import ArrowWriter, Split
 from tqdm import tqdm
 from vltk import IMAGEKEY, IMAGESETPATH
-from vltk.maps import files
-from vltk.processing import Label
-from vltk.processing.Image import img_to_tensor
-from vltk.utils import (apply_args_to_func, collect_args_to_func, get_classes,
-                        set_metadata)
+from vltk.inspect import apply_args_to_func, collect_args_to_func, get_classes
+from vltk.processing import image as image_proc
+from vltk.processing import label as Label
+from vltk.processing.image import img_to_tensor
+from vltk.utils import set_metadata
 
 __all__ = ["Imageset", "Imagesets"]
 
-_featureproc = files.Feature()
-_imageproc = files.Image()
+_imageproc = image_proc.Image()
 
 
 class Imagesets:
@@ -370,15 +369,6 @@ class Imageset(ds.Dataset, ABC):
             feature_dict = collect_args_to_func(features, presets, mandatory=True)
             feature_dict = default_features(feature_dict)
             raise Exception
-            feature_dict[IMAGEKEY] = Imageset._base_features[IMAGEKEY]
-            features = ds.Features(feature_dict)
-        if isinstance(features, str):
-            feature_func = _featureproc.get(features)
-            feature_dict = apply_args_to_func(feature_func, presets)
-            assert isinstance(features, dict), (
-                f"feature function: {feature_func.__name__}"
-                f" must return type dict, not type {type(features)}"
-            )
             feature_dict[IMAGEKEY] = Imageset._base_features[IMAGEKEY]
             features = ds.Features(feature_dict)
         elif isinstance(features, dict):

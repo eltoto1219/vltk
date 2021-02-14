@@ -2,7 +2,24 @@ import random
 
 import numpy as np
 import torch
-from vltk import LABELKEY, SCOREKEY, TEXTKEY
+from vltk import DATAPATH, LABELKEY, SCOREKEY, TEXTKEY
+from vltk.inspect import import_funcs_from_file
+
+
+class Data:
+    def __init__(self):
+        if "DATADICT" not in globals():
+            global DATADICT
+            DATADICT = import_funcs_from_file(DATAPATH, pkg="vltk.processing")
+
+    def avail(self):
+        return list(DATADICT.keys())
+
+    def get(self, name):
+        return DATADICT[name]
+
+    def add(self, name, lab):
+        DATADICT[name] = lab
 
 
 def one_hot_label(cur_entry, **kwargs):

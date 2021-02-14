@@ -22,19 +22,13 @@ from vltk.abc.textset import Textsets
 from vltk.dataset import UniversalLoader
 from vltk.modeling import Get as Mget
 from vltk.modeling.configs import Get
-from vltk.utils import get_classes
+from vltk.inspect import get_classes
 
 __all__ = ["SimpleExperiment", "SimpleIdentifier", "SimpleExperiments"]
 _textsets = Textsets()
 _imagesets = Imagesets()
 
-
-def collection_of_torch(x):
-    pass
-
-
-def collection_of_numpy(x):
-    pass
+# find all packages and classes when pointed to a specific directory?
 
 
 class SimpleExperiments:

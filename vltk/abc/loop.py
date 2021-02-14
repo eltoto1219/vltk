@@ -1,15 +1,13 @@
 import os
-import sys
 from abc import ABC, abstractmethod
 from collections import defaultdict
 from datetime import datetime
 from typing import Union
 
 import torch
-from tqdm import tqdm
 from vltk import LOOPPATH, utils
 from vltk.dataset import UniversalLoader
-from vltk.utils import get_classes
+from vltk.inspect import get_classes
 
 
 class Loops:

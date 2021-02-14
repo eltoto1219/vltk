@@ -16,8 +16,9 @@ from torch.utils.data import DataLoader, Dataset
 
 from vltk import IMAGEKEY, LABELKEY, RAWIMAGEKEY, SCOREKEY, TEXTKEY
 # from vltk.dataset.gqa import load_temp_gqa
-from vltk.maps import files
-from vltk.utils import collect_args_to_func
+from vltk.processing import data as data_proc
+from vltk.processing import image as image_proc
+from vltk.inspect import collect_args_to_func
 
 set_verbosity_error()
 
@@ -28,8 +29,8 @@ TOKENIZEDKEY = "encoded"
 global TORCHCOLS
 TORCHCOLS = set()
 
-_data_procecessors = files.Data()
-_image_preprocessors = files.Image()
+_data_procecessors = data_proc.Data()
+_image_preprocessors = image_proc.Image()
 
 
 class CollatedSets:
