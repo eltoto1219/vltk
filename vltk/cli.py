@@ -1,4 +1,5 @@
 import atexit
+import os
 import random
 import sys
 from io import StringIO
@@ -36,16 +37,18 @@ def crash_save():
 
 def add_exps_from_dir(config):
     exp_dir = config.experimentdir
+    sys.path.append(exp_dir)
+    # now we need to add exp_dir to the path
     simple_experiments = get_classes(exp_dir, SimpleExperiment, pkg=None)
     for k, v in simple_experiments.items():
         if k in _simple_experiments.avail():
             print(f"WARNING: {k} is already a predefined simple experiment")
-        _simple_experiments.add(k, v)
+        _simple_experiments.add(v)
     experiments = get_classes(exp_dir, ComplexExperiment)
     for k, v in experiments.items():
         if k in _simple_experiments.avial():
             print(f"WARNING: {k} is already a predefined complex experiment")
-        _complex_experiments.add(k, v)
+        _complex_experiments.add(v)
 
 
 @atexit.register
@@ -66,6 +69,7 @@ class Main(object):
         self.flags = kwargs
         self.config = configs.Config(**self.flags)
         random.seed(self.config.seed)
+        os.chdir(os.getcwd())
 
     def simple(self, name):
         @atexit.register

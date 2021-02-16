@@ -168,15 +168,19 @@ class Config(config.Config):
     datasets: Union[None, str] = None
     base_logdir: str = os.path.join(os.environ.get("HOME", os.getcwd()), "logs")
     rel_logdir: str = ""
-    logdir: str = None
+    logdir: str = (
+        None  # this will be determined lated by datadir + base_logdir + rel_logdir
+    )
     test_save: bool = False
     save_on_crash = False
     save_after_exp = True
     save_after_epoch = False
     email = None
-    experimentdir: Union[None, str] = None
+    experimentdir: Union[None, str] = os.getcwd()
     test_run: bool = True
     break_loop_on_test: bool = True
+    empty_cache: bool = True
+    launch_blocking: bool = True
 
     def __init__(self, finetune=True, **kwargs):
         super().__init__(**kwargs)
@@ -192,7 +196,8 @@ class Config(config.Config):
 
         self._set_gpus()
 
-        os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
+        if self.launch_blocking:
+            os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
         """
         ? a better way to propogate these to subconfigs ?

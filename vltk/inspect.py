@@ -11,6 +11,7 @@ PATH = os.path.join(
 
 
 def get_classes(path_or_dir_name, cls_defintion=None, pkg=None):
+    os.chdir(os.getcwd())
     # for single file
     if os.path.isfile(path_or_dir_name):
         clsses = import_classes_from_file(path_or_dir_name, pkg=pkg)
@@ -21,22 +22,25 @@ def get_classes(path_or_dir_name, cls_defintion=None, pkg=None):
                     try:
                         filter_dict[c.name] = c
                     except Exception:
-                        filter_dict[n] = c
+                        filter_dict[c.__name__] = c
             return filter_dict
         else:
             return clsses
 
     # for dir
     classes = {}
+
+    sys.path.insert(0, path_or_dir_name)
     for p in os.listdir(path_or_dir_name):
         if p[0] != "_":
             if pkg is None and p[-3:] == ".py":
                 path = os.path.join(path_or_dir_name, p)
                 module_name = p[:-3]
-                spec = importlib.util.spec_from_file_location(module_name, path)
-                npkg = importlib.util.module_from_spec(spec)
-                sys.modules[module_name] = npkg
-                spec.loader.exec_module(npkg)
+                npkg = __import__(module_name, fromlist=[""])
+                # spec = importlib.util.spec_from_file_location(module_name, path)
+                # npkg = importlib.util.module_from_spec(spec)
+                # sys.modules[module_name] = npkg
+                # spec.loader.exec_module(npkg)
             elif pkg is None and p[-3:] != ".py":
                 continue
             else:
@@ -55,7 +59,7 @@ def get_classes(path_or_dir_name, cls_defintion=None, pkg=None):
                             try:
                                 classes[t[-1].name] = t[-1]
                             except AttributeError:
-                                classes[t[0]] = t[-1]
+                                classes[t[-1].__name__] = t[-1]
             except ModuleNotFoundError:
                 pass
     return classes

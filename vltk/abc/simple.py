@@ -1,28 +1,29 @@
-# experiments are composed of loops
 # we can excpet list of forward fucntions at some other point
 # for now, all we really need to care about is one forward method
 # and how to convert that to eval if no class
 
 import datetime
+import gc
 import json
 import os
 import random
 import sys
 from abc import ABC, abstractmethod
-from collections import Iterable, defaultdict
+from collections import Iterable, OrderedDict, defaultdict
 from statistics import mean
 from typing import Dict, List, Union
 
 import torch
+import torch.nn as nn
 from tqdm import tqdm
 from transformers import AdamW, get_linear_schedule_with_warmup
 from vltk import SIMPLEPATH, utils
 from vltk.abc.imageset import Imagesets
 from vltk.abc.textset import Textsets
 from vltk.dataset import UniversalLoader
+from vltk.inspect import get_classes
 from vltk.modeling import Get as Mget
 from vltk.modeling.configs import Get
-from vltk.inspect import get_classes
 
 __all__ = ["SimpleExperiment", "SimpleIdentifier", "SimpleExperiments"]
 _textsets = Textsets()
@@ -43,8 +44,9 @@ class SimpleExperiments:
     def get(self, name):
         return SIMPLEDICT[name]
 
-    def add(self, name, dset):
-        SIMPLEDICT[name] = dset
+    def add(self, experiment):
+        name = experiment.__name__
+        SIMPLEDICT[name] = experiment
 
 
 class SimpleIdentifier:
@@ -58,6 +60,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
     def __init__(self, config, datasets):
         self.config = config
         self.datasets = datasets
+        self.__currently_training = False
         self._init_dirs()
         self._init_seed()
         self._init_scaler()
@@ -66,13 +69,31 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         self._init_models()
         self._init_optim()
         self._init_gradient_tracking()
-        self.open_type = "w" if self.cur_epoch == 0 else "a"
 
-    # hidden methods
+        # do we benchmark?
+        if not self.config.empty_cache:
+            torch.backends.benchmark = True
+
+    def garbage_collect(self):
+        if self.config.empty_cache:
+            gc.collect()
+            torch.cuda.empty_cache()
+
+    def currently_training(self):
+        return True if self.__currently_training == "train" else False
+
+    def _get_open_type(self):
+        return (
+            "w"
+            if (self.cur_epoch == 0) and (self.currently_training or not self.is_train)
+            else "a"
+        )
 
     def _init_scaler(self):
+        # all devices must be on some gpu if we want to use scaler
 
         half_precision = getattr(self.config.train, "half_precision", False)
+        self.half_precision = half_precision
         if self.config.gpu == "cpu":
             half_precision = False
         self.scaler = None if not half_precision else torch.cuda.amp.GradScaler()
@@ -82,13 +103,8 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         model_dict = {}
         model_configs = {}
         state_dict = None
-        dev_list = self.config.models.models_to_devices
-        if dev_list is not None:
-            dev_map = {}
-            for md in dev_list:
-                dev_map[md[0]] = md[1]
-        else:
-            dev_map = None
+        default_device = self.config.gpu if torch.cuda.is_available() else -1
+
         for x in model_list:
             if isinstance(x, tuple):
                 name = x[0]
@@ -98,27 +114,15 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                 model_class = Mget[name]
 
             model_config = getattr(self.config.models, name, None)
-            if model_config is None:
-                print(f"No Model Config For {name}", "returning class, not instance")
-                model_dict[name] = model_class
-                model_configs[name] = None
-                if self.config.models.all_on_same_device:
-                    model_class.to(torch.device(self.config.gpu))
-                    setattr(self, f"{name}_dev", self.config.gpu)
-                else:
-                    assert (
-                        name in dev_map
-                    ), f"model {name} must be in dev_map, please see docs."
-                    dev = dev_map[name]
-                    model_class.to(torch.device(dev))
-                    setattr(self, f"{name}_dev", dev)
-                setattr(self, name, model_class)
-                continue
+            model_device = getattr(model_config, "device", default_device)
+            setattr(self, f"name_{model_device}", model_device)
+            # TODO:  add a preinitialized option
+
             checkpoint = getattr(model_config, "checkpoint", None)
             print(f"instantiating {name} from {checkpoint}")
-            # load from checkpoint if specificed
 
-            if checkpoint is not None and hasattr(model_class, "from_pretrained"):
+            # CASE 1
+            if checkpoint is not None and hasattr(model_class, "from_pretrained") and not os.path.isfile(checkpoint):
                 # this is a huggingface model, so the config must be added appropriately
                 model_instance = model_class.from_pretrained(
                     checkpoint,
@@ -127,19 +131,35 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                 model_config = Get[name](**model_config.to_dict())
                 model_instance = model_class(model_config)
 
+            # CASE 2
             elif not hasattr(model_class, "from_pretrained"):
                 model_instance = model_class(**model_config.to_dict())
                 if checkpoint is not None:
                     state_dict = torch.load(checkpoint)
+            # CASE 3
             else:
-                # model does not have checkpoint
                 try:
                     model_instance = model_class(model_config)
                 except Exception:
                     model_instance = model_class(**model_config.to_dict())
 
+            # CASE 4: try loading checkpoint one last time
             if checkpoint is not None and state_dict is not None:
-                model_instance.load_state_dict(state_dict, strict=False)
+
+                # 1. filter out unnecessary keys
+                new_state_dict = OrderedDict(
+                    {
+                        k: v
+                        for k, v in state_dict.items()
+                        if k in model_instance.state_dict()
+                        and v.shape
+                        == model_instance.state_dict()
+                        .get(k, torch.tensor([], requires_grad=False))
+                        .shape
+                    }
+                )
+                # 3. load the new state dict
+                model_instance.load_state_dict(new_state_dict, strict=False)
 
             # for question answering models, we will need to resize the number of labels
             # accordingly
@@ -150,16 +170,18 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                 print(f"Number of Labels: {len(self.label_to_id)}")
                 model_instance.resize_num_qa_labels(len(self.label_to_id))
 
-            if self.config.models.all_on_same_device:
-                model_instance.to(torch.device(self.config.gpu))
-                setattr(self, f"{name}_dev", self.config.gpu)
-            else:
-                assert (
-                    dev_map is not None and name in dev_map
-                ), f"model {name} must be in dev_map, please see docs."
-                dev = dev_map[name]
-                model_instance.to(torch.device(dev))
-                setattr(self, f"{name}_dev", dev)
+            # SET DEVICE
+            if isinstance(model_device, int):
+                model_instance.to(torch.device(model_device))
+            elif isinstance(model_device, list) and len(model_device) > 1:
+                os.environ["CUDA_LAUNCH_BLOCKING"] = "0"
+                model_instance.to(torch.device(model_device[0]))
+                model_instance = nn.DataParallel(
+                    model_instance, device_ids=model_device
+                ).to(torch.device(model_device[0]))
+            elif isinstance(model_device, list) and len(model_device) == 1:
+                model_instance.to(torch.device(model_device[0]))
+            setattr(self, f"{name}_dev", model_device)
 
             model_dict[name] = model_instance
             model_configs[name] = model_config
@@ -242,6 +264,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
     @property
     def forward_context(self):
         if self.scaler is None:
+            raise Exception("should be here")
             return utils.dummy_context
         else:
             return torch.cuda.amp.autocast
@@ -251,7 +274,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         if getattr(self, "_bz", None) is not None:
             return self._bz
         else:
-            if self.is_train:
+            if self.currently_training():
                 return self.config.train.batch_size
             else:
                 return self.config.evaluate.batch_size
@@ -388,23 +411,32 @@ class SimpleExperiment(SimpleIdentifier, ABC):
             logstr += f"{k}={v}; "
         if self.config.logging and info is not None and info:
             logfile = os.path.join(self.config.logdir, "log.txt")
-            with open(logfile, self.open_type) as f:
+            if self.currently_training():
+                desc = "train"
+            else:
+                desc = "eval"
+            with open(logfile, self._get_open_type()) as f:
                 date = datetime.datetime.now()
-                f.write(f"Time: {date} \n {info} \n")
+                f.write(f"Time: {date} {desc} \n {info} \n")
                 f.flush()
             return True
         return False
 
-    def write_iter(self, info: dict = None):
+    def write_iter(self, info: dict = None, inner_step=0):
         logstr = ""
         for k, v in info.items():
             logstr += f"{k}={v}; "
         if self.config.logging and info is not None and info:
             logfile = os.path.join(self.config.logdir, "cur_epoch.txt")
             assert logfile is not None
-            with open(logfile, self.open_type) as f:
+            open_type = "w" if not inner_step else "a"
+            if self.currently_training():
+                desc = "train"
+            else:
+                desc = "eval"
+            with open(logfile, open_type) as f:
                 date = datetime.datetime.now()
-                f.write(f"Time: {date} \n {info} \n")
+                f.write(f"Time: {date} {desc} \n {info} \n")
                 f.flush()
             return True
         return False
@@ -432,7 +464,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
 
     def get_exp_info(self):
         exp_info = {
-            "name": self.name,
+            "name": type(self).__name__,
             "datasets": self.datasets,
             "cur_steps": self.cur_step,
             "cur_epoch": self.cur_epoch,
@@ -447,10 +479,6 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         return exp_info
 
     # dunder methods
-
-    def __iter__(self):
-        for loop_name in self.loop_order:
-            yield loop_name, self.loop_dict.get(loop_name)
 
     def __call__(self):
         self.outer_loop()
@@ -491,8 +519,9 @@ class SimpleExperiment(SimpleIdentifier, ABC):
 
         pass
 
-    def inner_loop(self, loader, train=True, epoch=None):
-        desc = "train" if train else "eval"
+    def inner_loop(self, loader, train="train", epoch=None):
+        self.__currently_training = train
+        desc = "train" if self.currently_training() else "eval"
         # account for cache batch
         if (
             self.config.test_run
@@ -502,40 +531,53 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         ):
             loader = [torch.load(loader.dataset.cache_batch_path)]
 
-        _tqdm = tqdm(loader, desc=desc, ncols=0, file=sys.stdout)
+        _tqdm = tqdm(
+            loader,
+            desc=f"{desc}_{self.cur_epoch}/{self.config.train.epochs}",
+            ncols=0,
+            file=sys.stdout,
+        )
         loop_outputs = defaultdict(list)
         save_outputs = defaultdict(list)
-        if train:
+        if self.currently_training():
             self.toTrain()
         else:
             self.toEval()
-        with torch.no_grad() if not train else utils.dummy_context():
-            for batch in _tqdm:
-
-                if train and self.model_dict:
+        with torch.no_grad() if not self.currently_training() else utils.dummy_context():
+            for inner_step, batch in enumerate(_tqdm):
+                if self.currently_training() and self.model_dict:
                     self.optim.zero_grad()
                 self.set_batch_size(batch)
-                with self.forward_context():
+                if self.half_precision:
+                    with self.forward_context():
+                        forward_outputs = self.forward(batch)
+                        assert isinstance(
+                            forward_outputs, dict
+                        ), "forward method must return dict"
+                else:
                     forward_outputs = self.forward(batch)
                     assert isinstance(
                         forward_outputs, dict
                     ), "forward method must return dict"
 
-                outputs = self._clean_dict(self.iter_tqdm(forward_outputs, train=train))
+                outputs = self._clean_dict(
+                    self.iter_tqdm(forward_outputs, train=self.currently_training())
+                )
                 # something is wrong with this
                 # save_outputs = self._clean_dict(
                 #     self.iter_save(forward_outputs, train=train)
                 # )
                 temp_save_outputs = outputs
                 _tqdm.set_postfix(epch=self.cur_epoch, **outputs)
-                self.write_iter(outputs)
+                self.write_iter(outputs, inner_step)
 
-                if train:
+                if self.currently_training():
                     losses = forward_outputs.get("losses", None)
                     if losses is None:
                         pass
                     else:
-                        self.step(losses, train)
+                        if self.currently_training():
+                            self.step(losses, self.currently_training())
                 self.cur_step += 1
                 # handle loop outputs
                 if outputs is not None and loop_outputs is not None:
@@ -547,6 +589,15 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                 if temp_save_outputs is not None:
                     for k, v in temp_save_outputs.items():
                         save_outputs[k].append(v)
+                # free empty space
+                self.garbage_collect()
+                if (
+                    not self.config.empty_cache
+                    and inner_step == 0
+                    and self.cur_epoch == 0
+                ):
+                    pass
+                    # torch.cuda.empty_cache()
                 # break, possibly if test
                 if self.config.test_run and self.config.break_loop_on_test:
                     break
@@ -648,6 +699,8 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         ],
         device,
     ):
+        if isinstance(device, list):
+            device = device[0]
 
         # should do something recursive here, not sure what I am thinking
         if isinstance(x, torch.Tensor):
@@ -672,13 +725,6 @@ class SimpleExperiment(SimpleIdentifier, ABC):
             return [i.to(torch.device(device)) for i in v]
         else:
             raise Exception("could not change the device")
-
-    @property
-    @abstractmethod
-    def name(self):
-        """
-        define the name of the experiment
-        """
 
     @abstractmethod
     def forward(self, batch) -> dict:

@@ -1,4 +1,5 @@
 # note if we do not immport a pacakage correctly in this class, no loops or exps will be present
+import math
 import os
 import random
 from collections.abc import Iterable
@@ -15,10 +16,10 @@ from tokenizers import BertWordPieceTokenizer
 from torch.utils.data import DataLoader, Dataset
 
 from vltk import IMAGEKEY, LABELKEY, RAWIMAGEKEY, SCOREKEY, TEXTKEY
+from vltk.inspect import collect_args_to_func
 # from vltk.dataset.gqa import load_temp_gqa
 from vltk.processing import data as data_proc
 from vltk.processing import image as image_proc
-from vltk.inspect import collect_args_to_func
 
 set_verbosity_error()
 
@@ -324,7 +325,6 @@ class UniversalDataset(Dataset):
                 img = img.unsqueeze(-1).repeat(1, 1, 3).permute((2, 0, 1))
 
             # okay, now we have the image the way that we want it. so what now?
-
             func_dict = collect_args_to_func(image_preprocessor, config_dict)
             img = image_preprocessor(img, **func_dict)["imgs"].squeeze(0)
             entry[RAWIMAGEKEY] = img
@@ -466,13 +466,16 @@ class UniversalDataset(Dataset):
             batch[f] = flattened
 
     @staticmethod
-    def transpose_img2txt(batch, img_keys, device=None):
+    def transpose_img2txt(batch, img_keys, device=None, max_size=36):
+        if isinstance(device, list):
+            device = device[0]
+        # first we resize image according to how many examples that we need
         n_sents_per_img = [len(i) for i in batch["input_ids"]]
         for img_key in img_keys:
             assert img_key in batch, f"{img_key} not in {list(batch.keys())}"
             imgs = torch.cat(
                 [
-                    i.unsqueeze(0).repeat((n,) + tuple([1] * (len(i.shape))))
+                    i.unsqueeze(0).expand(min(n, max_size), *i.shape)
                     for i, n in zip(batch.pop(img_key), n_sents_per_img)
                 ],
                 dim=0,
@@ -480,14 +483,29 @@ class UniversalDataset(Dataset):
             batch[img_key] = imgs
             if device is not None:
                 batch[img_key] = batch[img_key].to(device)
+        # then we resize everything else
         for k in batch:
             if k not in img_keys:
                 if isinstance(batch[k][0], torch.Tensor):
-                    batch[k] = torch.cat([i for i in batch[k]], dim=0)
+                    # here is a part that we want to reduce
+
+                    # ll = []
+                    # for i, (j, n) in enumerate(zip(batch[k], n_sents_per_img)):
+                    #     l = []
+                    batch[k] = torch.cat(
+                        [
+                            j[: min(max_size, n)]
+                            for i, (j, n) in enumerate(zip(batch[k], n_sents_per_img))
+                        ],
+                        dim=0,
+                    )
                     if device is not None:
                         batch[k] = batch[k].to(device)
                 elif isinstance(batch[k][0], str):
                     new_v = []
+                    # here is also a part that we want to recude
                     for i, n in zip(batch[k], n_sents_per_img):
+                        if n >= max_size:
+                            n = min(n, max_size)
                         new_v.extend(i * n)
                     batch[k] = new_v
