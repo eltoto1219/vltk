@@ -46,13 +46,11 @@ setup(
     long_description=open("README.md").read(),
     packages=[
         "vltk",
-        "vltk/simple",
         "tests",
         "vltk/modeling",
         "vltk/legacy",
         "vltk/processing",
         "vltk/visualizations",
-        "vltk/exp",
         "vltk/loop",
         "vltk/abc",
         "vltk/textset",
