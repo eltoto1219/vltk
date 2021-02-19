@@ -51,7 +51,6 @@ setup(
         "vltk/legacy",
         "vltk/processing",
         "vltk/visualizations",
-        "vltk/loop",
         "vltk/abc",
         "vltk/textset",
         "vltk/imageset",
