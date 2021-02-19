@@ -94,6 +94,8 @@ class SimpleExperiment(SimpleIdentifier, ABC):
 
     def _init_checkpoint(self):
         checkpoint_dir = self.config.vltk_checkpoint_dir
+        if checkpoint_dir is None or not checkpoint_dir:
+            return 
         highest_model_epoch = {}
         # we can think about making sure the label size is right later
         for f in os.listdir(checkpoint_dir):
