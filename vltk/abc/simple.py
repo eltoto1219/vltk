@@ -61,6 +61,8 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         self.config = config
         self.datasets = datasets
         self.__currently_training = False
+        self.epochs = self.config.train.epochs
+        self.cur_epoch = 0
         self._init_dirs()
         self._init_seed()
         self._init_scaler()
@@ -69,6 +71,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         self._init_models()
         self._init_optim()
         self._init_gradient_tracking()
+        self._init_checkpoint()
 
         # do we benchmark?
         if not self.config.empty_cache:
@@ -88,6 +91,37 @@ class SimpleExperiment(SimpleIdentifier, ABC):
             if (self.cur_epoch == 0) and (self.currently_training or not self.is_train)
             else "a"
         )
+
+    def _init_checkpoint(self):
+        checkpoint_dir = self.config.vltk_checkpoint_dir
+        highest_model_epoch = {}
+        # we can think about making sure the label size is right later
+        for f in os.listdir(checkpoint_dir):
+            path = os.path.join(checkpoint_dir, f)
+            if "exp_outputs" in path:
+                exp_outputs = json.load(open(path))
+                if "scheduler" in exp_outputs:
+                    self.scheduler.load_state_dict(exp_outputs["scheduler"])
+                self.cur_epoch = exp_outputs["cur_epoch"]
+                self.epochs = exp_outputs["epochs"]
+                self.cur_step = exp_outputs["cur_steps"]
+            if "_epoch_" in path:
+                if len(tuple(f.split(".")[0].split("_"))) == 3:
+                    model_n, _, epoch_n = tuple(f.split(".")[0].split("_"))
+
+                    highest_model_epoch[model_n] = max(
+                        highest_model_epoch.get(model_n, 0), int(epoch_n)
+                    )
+            if "optim" in path:
+                self.optim.load_state_dict(torch.load(path))
+
+        # load the model weights
+        for model_n, highest_epoch in highest_model_epoch.items():
+            f = os.path.join(checkpoint_dir, f"{model_n}_epoch_{highest_epoch}.pt")
+            model = getattr(self, model_n)
+            print(f"reloading weights for {model_n} for epoch {highest_epoch}")
+            model.load_state_dict(torch.load(f))
+            # setattr(self, model_n, model)
 
     def _init_scaler(self):
         # all devices must be on some gpu if we want to use scaler
@@ -122,7 +156,11 @@ class SimpleExperiment(SimpleIdentifier, ABC):
             print(f"instantiating {name} from {checkpoint}")
 
             # CASE 1
-            if checkpoint is not None and hasattr(model_class, "from_pretrained") and not os.path.isfile(checkpoint):
+            if (
+                checkpoint is not None
+                and hasattr(model_class, "from_pretrained")
+                and not os.path.isfile(checkpoint)
+            ):
                 # this is a huggingface model, so the config must be added appropriately
                 model_instance = model_class.from_pretrained(
                     checkpoint,
@@ -242,7 +280,6 @@ class SimpleExperiment(SimpleIdentifier, ABC):
 
     # other methods, too many methods
     def _init_optim(self):
-        self.scheduler = None
         if self.is_train and self.model_dict:
             parameters = []
             for k, v in self.model_dict.items():
@@ -253,11 +290,9 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                 lr=self.config.train.learning_rate,
                 weight_decay=self.config.train.weight_decay,
             )
-            if self.config.train.warmup == 0.0:
-                self._warmup = None
             total = self.total_steps
             n_steps = int(total * self.config.train.warmup)
-            self._warmup = get_linear_schedule_with_warmup(
+            self._scheduler = get_linear_schedule_with_warmup(
                 self._optim, num_warmup_steps=n_steps, num_training_steps=total
             )
 
@@ -452,7 +487,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         if getattr(self, "optim", None) is not None:
             save_name = os.path.join(self.config.logdir, save_name)
             torch.save(self.optim.state_dict(), save_name)
-        save_name = os.path.join(self.config.logdir, "exp_outputs.pkl")
+        save_name = os.path.join(self.config.logdir, "exp_outputs.json")
         json.dump(self.get_exp_info(), open(save_name, "w"))
         save_name = os.path.join(self.config.logdir, "config.yaml")
         self.config.dump_yaml(save_name)
@@ -471,8 +506,6 @@ class SimpleExperiment(SimpleIdentifier, ABC):
             "epochs": self.config.train.epochs,
         }
 
-        if getattr(self, "warmup", None) is not None:
-            exp_info["warmup"] = self.warmup.state_dict()
         if getattr(self, "scheduler", None) is not None:
             exp_info["scheduler"]: self.scheduler.state_dict()
 
@@ -498,14 +531,17 @@ class SimpleExperiment(SimpleIdentifier, ABC):
     # loop methods
 
     def outer_loop(self, epoch=None):
-        for epoch in range(self.config.train.epochs):
-            self.cur_epoch = epoch
+        for _ in range(self.epochs):
+            if self.cur_epoch == self.epochs - 1:
+                return
             # iterate through train and eval loops
             for (run, loader) in self.loaders:
                 if loader is None:
                     continue
                 else:
-                    loop_output = self.inner_loop(loader, train=run, epoch=epoch)
+                    loop_output = self.inner_loop(
+                        loader, train=run, epoch=self.cur_epoch
+                    )
                     self.write_epoch(self._clean_dict(loop_output))
             # collect epoch output from each  loop
             if self.config.test_save or self.config.save_after_epoch:
@@ -517,7 +553,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         ):
             self.save()
 
-        pass
+        self.cur_epoch += 1
 
     def inner_loop(self, loader, train="train", epoch=None):
         self.__currently_training = train
@@ -631,13 +667,13 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                 )
                 self.optim.step()
 
-            self.warmup.step()
+            self.scheduler.step()
 
     def get_lr(self):
         if not self.is_train:
             return []
-        elif self.warmup is not None:
-            return self.warmup.get_lr()
+        elif self.scheduler is not None:
+            return self.scheduler.get_lr()
         else:
             lrs = []
             for param_group in self.optim.param_groups:
@@ -657,8 +693,8 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         return self._loaders
 
     @property
-    def warmup(self):
-        return getattr(self, "_warmup", None)
+    def scheduler(self):
+        return getattr(self, "_scheduler", None)
 
     @property
     def optim(self):

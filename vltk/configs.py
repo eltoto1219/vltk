@@ -181,6 +181,7 @@ class Config(config.Config):
     break_loop_on_test: bool = True
     empty_cache: bool = True
     launch_blocking: bool = True
+    vltk_checkpoint_dir: Union[str, None] = None
 
     def __init__(self, finetune=True, **kwargs):
         super().__init__(**kwargs)
