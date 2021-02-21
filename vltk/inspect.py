@@ -31,6 +31,7 @@ def get_classes(path_or_dir_name, cls_defintion=None, pkg=None):
     classes = {}
 
     sys.path.insert(0, path_or_dir_name)
+    module_name = None
     for p in os.listdir(path_or_dir_name):
         if p[0] != "_":
             if pkg is None and p[-3:] == ".py":
@@ -48,6 +49,8 @@ def get_classes(path_or_dir_name, cls_defintion=None, pkg=None):
             try:
                 if pkg is None:
                     mod = inspect.getmembers(npkg, inspect.isclass)
+                    # if module_name == 'exp_newdata':
+                    #    raise Exception(mod)
                 else:
                     mod = importlib.import_module(npkg)
                     mod = inspect.getmembers(mod, inspect.isclass)
@@ -61,6 +64,7 @@ def get_classes(path_or_dir_name, cls_defintion=None, pkg=None):
                             except AttributeError:
                                 classes[t[-1].__name__] = t[-1]
             except ModuleNotFoundError:
+                assert module_name != "exp_newdata"
                 pass
     return classes
 

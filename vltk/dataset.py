@@ -1,7 +1,8 @@
 # note if we do not immport a pacakage correctly in this class, no loops or exps will be present
-import math
+import json
 import os
 import random
+import resource
 from collections.abc import Iterable
 from copy import deepcopy
 from typing import Dict, List
@@ -20,6 +21,9 @@ from vltk.inspect import collect_args_to_func
 # from vltk.dataset.gqa import load_temp_gqa
 from vltk.processing import data as data_proc
 from vltk.processing import image as image_proc
+
+rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
+resource.setrlimit(resource.RLIMIT_NOFILE, (6144, rlimit[1]))
 
 set_verbosity_error()
 
@@ -73,50 +77,13 @@ def collate(
 ) -> Dict[str, torch.Tensor]:
     batch = {}
     columns = sorted(columns, key=lambda x: len(x), reverse=True)
-    # handle different keys per batch
     keys = deepcopy(list(columns[0].keys()))
 
     for k in keys:
-        # if k not in
-        if k == RAWIMAGEKEY:
-            sizes = map(lambda x: x.get(k).shape[-2:], columns)
-            # prin(sizes)
-
-            same_size = 1 if len(set(sizes)) == 1 else 0
-
-            if same_size:
-                batch[k] = torch.stack([i.pop(k) for i in columns if i is not None])
-            else:
-                sizes = map(lambda x: x.get(k).shape[-2:], columns)
-                max_h = max(list(sizes), key=lambda x: x[0])[0]
-                sizes = map(lambda x: x.get(k).shape[-2:], columns)
-                max_w = max(list(sizes), key=lambda x: x[1])[1]
-                batch[k] = []
-                for i in columns:
-                    if i is None:
-                        continue
-                    feats_i = i.pop(k)
-                    (h, w) = feats_i.shape[-2:]
-                    feats_i = F.pad(feats_i, [0, max_w - w, 0, max_h - h], value=0)
-                    batch[k].append(feats_i)
-                batch[k] = torch.stack(batch[k])
-        else:
-            STACK_IGNORE = (
-                LABELKEY,
-                SCOREKEY,
-                TEXTKEY,
-                "type_ids",
-                "input_ids",
-                "text_attention_mask",
-                "masked_labels",
-                "is_matched",
-            )
-            if isinstance(columns[0].get(k), torch.Tensor) and k not in STACK_IGNORE:
-                batch[k] = torch.stack([i.pop(k) for i in columns if i is not None])
-                # consider what to do with mixed datasets with diferent keys pointing
-                # to tensor values
-            else:
-                batch[k] = [i.pop(k, "") for i in columns if i is not None]
+        try:
+            batch[k] = torch.stack([i.pop(k) for i in columns if i is not None])
+        except Exception:
+            batch[k] = [i.pop(k, "") for i in columns if i is not None]
 
     return batch
 
@@ -133,7 +100,7 @@ class UniversalLoader(DataLoader):
         splits = set()
         for v in textsetdict.values():
             splits = splits.union(set(v.keys()))
-        if splits.intersection((config.eval_aliases.union(config.valid_aliases))):
+        if "train" not in splits or "pretrain" not in splits:
             num_workers = 0
         else:
             num_workers = config.num_workers
@@ -161,27 +128,6 @@ class UniversalLoader(DataLoader):
             shuffle=shuffle,
             batch_size=dataset.batch_size,
         )
-
-    @staticmethod
-    def toCuda(batch, device=None):
-        if device is None:
-            if torch.cuda.is_available():
-                device = "cuda"
-            else:
-                device = "cpu"
-        elif isinstance(device, int):
-            if device == -1:
-                device = "cpu"
-            else:
-                device = f"cuda:{device}"
-        elif isinstance(device, str):
-            pass
-        for k in batch:
-            v = batch.get(k)
-            if isinstance(v, torch.Tensor):
-                batch[k] = v.to(torch.device(device))
-            elif isinstance(v, list) and isinstance(v[0], torch.Tensor):
-                batch[k] = [i.to(torch.device(device)) for i in v]
 
 
 class UniversalDataset(Dataset):
@@ -222,6 +168,14 @@ class UniversalDataset(Dataset):
         self.special_ids = deepcopy(special_ids)
         all_ids = [i[1] for i in self.tokenizer.get_vocab().items()]
         self.all_ids = deepcopy(all_ids)
+
+    def update_labels(self, path_or_dict):
+        if isinstance(path_or_dict, str):
+            path_or_dict = json.load(open(path_or_dict))
+        else:
+            pass
+        self.label_to_id = path_or_dict
+        self.uniq_labels = set(path_or_dict.keys())
 
     def _init_cache_batch(self):
         if self.config.img_first:
@@ -373,6 +327,40 @@ class UniversalDataset(Dataset):
             lambda x: UniversalDataset.text_map_function(x, proc_args=proc_args)
         )
 
+    def _do_map_img_first(self, i):
+        img_id = self.uniq_imgs[i]
+        ts_name, ts_split = self.img2textset[img_id]
+        textset = self.textsetdict[ts_name][ts_split]
+        idxs = textset.img_to_rows_map[img_id]
+        small_textset = textset.select(idxs)
+        img_text_dict = self._map(small_textset)
+
+        img_text_dict.set_format(
+            type="torch", output_all_columns=True, columns=list(TORCHCOLS)
+        )
+        # so what we have to turn into tensors ar
+        img_text_dict = img_text_dict[:]
+        img_text_dict[IMAGEKEY] = img_id
+        return img_text_dict, textset, ts_split, img_id
+
+    def _do_map_text_first(self, i):
+        textset, ind = self.datasets.get_textset_and_ind(i)
+        small_textset = textset[ind]
+        img_id = small_textset["img_id"]
+        proc_args = self.processor_args()
+        text_info = self.text_map_function(small_textset, proc_args)
+        text_info = dict(
+            map(
+                lambda x: (
+                    x[0],
+                    torch.tensor(x[1]) if x[0] in TORCHCOLS else x[1],
+                ),
+                text_info.items(),
+            )
+        )
+
+        return text_info, img_id, textset
+
     @torch.no_grad()
     def __getitem__(self, i):
         if self.config.img_first:
@@ -382,21 +370,9 @@ class UniversalDataset(Dataset):
                 and not self.config.overwrite_cache_batch
             ):
                 cache_batch = torch.load(self.cache_batch_path)
-
                 return cache_batch
-            img_id = self.uniq_imgs[i]
-            ts_name, ts_split = self.img2textset[img_id]
-            textset = self.textsetdict[ts_name][ts_split]
-            idxs = textset.img_to_rows_map[img_id]
-            small_textset = textset.select(idxs)
-            img_text_dict = self._map(small_textset)
 
-            img_text_dict.set_format(
-                type="torch", output_all_columns=True, columns=list(TORCHCOLS)
-            )
-            # so what we have to turn into tensors ar
-            img_text_dict = img_text_dict[:]
-            img_text_dict[IMAGEKEY] = img_id
+            img_text_dict, textset, ts_split, img_id = self._do_map_img_first(i)
             is_name, is_split = zip(*textset.data_info[ts_split].items())
             imageset = self.imagesetdict[is_name[0]][is_split[0][0]]
             img_info_dict = imageset.get(img_id)
@@ -416,20 +392,8 @@ class UniversalDataset(Dataset):
                 and not self.config.overwrite_cache_batch
             ):
                 return torch.load(self.cache_batch_path)
-            textset, ind = self.datasets.get_textset_and_ind(i)
-            small_textset = textset[ind]
-            img_id = small_textset["img_id"]
-            proc_args = self.processor_args()
-            text_info = self.text_map_function(small_textset, proc_args)
-            text_info = dict(
-                map(
-                    lambda x: (
-                        x[0],
-                        torch.tensor(x[1]) if x[0] in TORCHCOLS else x[1],
-                    ),
-                    text_info.items(),
-                )
-            )
+
+            text_info, img_id, textset = self._do_map_text_first(i)
             ts_name, ts_split = self.img2textset[img_id]
             is_name, is_split = zip(*textset.data_info[ts_split].items())
             imageset = self.imagesetdict[is_name[0]][is_split[0][0]]

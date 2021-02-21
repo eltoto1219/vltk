@@ -67,6 +67,8 @@ class Main(object):
         kwargs = utils.unflatten_dict(kwargs)
         kwargs = utils.load_yaml(kwargs)
         self.flags = kwargs
+        if self.flags is None:
+            self.flags = {}
         self.config = configs.Config(**self.flags)
         random.seed(self.config.seed)
         os.chdir(os.getcwd())

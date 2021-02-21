@@ -62,7 +62,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         self.datasets = datasets
         self.__currently_training = False
         self.epochs = self.config.train.epochs
-        self.cur_epoch = 0
+        self.cur_epoch = 1
         self._init_dirs()
         self._init_seed()
         self._init_scaler()
@@ -88,14 +88,14 @@ class SimpleExperiment(SimpleIdentifier, ABC):
     def _get_open_type(self):
         return (
             "w"
-            if (self.cur_epoch == 0) and (self.currently_training or not self.is_train)
+            if (self.cur_epoch == 1) and (self.currently_training or not self.is_train)
             else "a"
         )
 
     def _init_checkpoint(self):
         checkpoint_dir = self.config.vltk_checkpoint_dir
         if checkpoint_dir is None or not checkpoint_dir:
-            return 
+            return
         highest_model_epoch = {}
         # we can think about making sure the label size is right later
         for f in os.listdir(checkpoint_dir):
@@ -534,7 +534,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
 
     def outer_loop(self, epoch=None):
         for _ in range(self.epochs):
-            if self.cur_epoch == self.epochs - 1:
+            if self.cur_epoch == self.epochs + 1:
                 return
             # iterate through train and eval loops
             for (run, loader) in self.loaders:

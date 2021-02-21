@@ -87,6 +87,8 @@ class FinetuneConfig(config.Config):
 
 
 class DataConfig(config.Config):
+    gpu: bool = False
+    square: bool = False
     eval_aliases: set = {"testdev", "eval", "dev", "evaluation", "inference"}
     train_aliases: set = {"train", "finetune", "pretrain"}
     test_aliases: set = {"test"}
@@ -111,7 +113,7 @@ class DataConfig(config.Config):
     shuffle: bool = True
     num_workers: int = 8
     drop_last: bool = True
-    pin_memory: bool = True
+    pin_memory: bool = False
     sent_length: int = 20
     max_objects: int = 36
     attribute_file: str = ""
@@ -133,7 +135,6 @@ class DataConfig(config.Config):
     add_special_tokens: bool = True
     return_tensors: str = "pt"
     return_attention_mask: bool = True
-    arrow_fields: Union[None, tuple, str] = None
     use_raw_imgs: bool = False
     pos_dim: int = 4
     visual_dim: int = 2048
@@ -161,7 +162,6 @@ class Config(config.Config):
     train: Union[FinetuneConfig, PretrainConfig] = None
     logging: bool = True
     gpu: int = None
-    aux_gpu: int = None
     seed: int = 9595
     percent_min_gpu_free_mem: float = 0.75
     print_config: bool = False
@@ -208,22 +208,11 @@ class Config(config.Config):
 
     # should add more testcases incase all gpus are busy
     def _set_gpus(self):
-        if self.gpu is not None and self.aux_gpu is not None:
+        if self.gpu is not None:
             pass
         if self.gpu is None:
             self.gpu = get_most_free_gpu()
-        if self.aux_gpu is None:
-            set_aux = False
-            gpus = get_nvidia_gpu_memory()
-            for k in gpus:
-                p_use = gpus[k][0] / gpus[k][1]
-                if p_use < 1.0 - self.percent_min_gpu_free_mem and int(k) != self.gpu:
-                    self.aux_gpu = int(k)
-                    set_aux = True
-                    break
-            if not set_aux:
-                self.aux_gpu = self.gpu
+
         if self.gpu == -1:
+            print("WARNING: setting everything to cpu")
             self.gpu = "cpu"
-        if self.aux_gpu == -1:
-            self.aux_gpu = "cpu"

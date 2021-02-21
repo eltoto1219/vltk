@@ -3,8 +3,8 @@ import os
 import cv2
 import torch
 import torch.nn.functional as F
-from vltk.inspect import import_funcs_from_file
 from vltk import IMAGEPROCPATH
+from vltk.inspect import import_funcs_from_file
 
 
 class Image:
@@ -24,52 +24,61 @@ class Image:
 
 
 def resize_short_edge(
-    imgs, order="chw", min_size=512, max_size=768, mode="bicubic", scale=True, pad=True
+    img,
+    order="chw",
+    min_size=512,
+    max_size=768,
+    mode="bicubic",
+    scale=True,
+    pad=True,
+    gpu=False,
+    square=False,
 ):
+    if gpu:
+        img = img.cuda()
     with torch.no_grad():
-        out_imgs = []
         orig_sizes = []
         sizes = []
-        if not isinstance(imgs, list):
-            imgs = [imgs]
-        for x in imgs:
-            if order == "chw":
-                C, H, W = x.shape
-            elif order == "hwc":
-                H, W, C = x.shape
-                x = x.permute(3, 1, 2)
+        if order == "chw":
+            C, H, W = img.shape
+        elif order == "hwc":
+            H, W, C = img.shape
+            img = img.permute(3, 1, 2)
 
-            scale = min_size * 1.0 / min(H, W)
+        scale = min_size * 1.0 / min(H, W)
 
-            if H < W:
-                newh, neww = min_size, scale * W
-            else:
-                newh, neww = scale * H, min_size
+        if H < W:
+            newh, neww = min_size, scale * W
+        else:
+            newh, neww = scale * H, min_size
 
-            if max(newh, neww) > max_size:
-                scale = max_size * 1.0 / max(newh, neww)
-                newh = newh * scale
-                neww = neww * scale
+        if max(newh, neww) > max_size:
+            scale = max_size * 1.0 / max(newh, neww)
+            newh = newh * scale
+            neww = neww * scale
 
-            neww = int(neww + 0.5)
-            newh = int(newh + 0.5)
-            x = x.unsqueeze(0)
-            x = F.interpolate(x, (newh, neww), mode=mode, align_corners=False)
-            x = x.squeeze(0)
-            if scale:
-                x /= 255
-            if pad:
-                x = F.pad(x, [0, max_size - neww, 0, max_size - newh], value=0)
-            out_imgs.append(x)
-            orig_sizes.append([H, W])
-            sizes.append([newh, neww])
+        neww = int(neww + 0.5)
+        newh = int(newh + 0.5)
+        img = img.unsqueeze(0)
+        if not square:
+            img = F.interpolate(img, (newh, neww), mode=mode, align_corners=False)
+            img = img.squeeze(0)
+        else:
+            img = F.interpolate(
+                img, (max_size, max_size), mode=mode, align_corners=False
+            )
+            img = img.squeeze(0)
+        if scale:
+            img /= 255
+        if not square and pad:
+            img = F.pad(img, [0, max_size - neww, 0, max_size - newh], value=0)
+        orig_sizes.append([H, W])
+        sizes.append([newh, neww])
 
-    if pad:
-        out_imgs = torch.stack(out_imgs, dim=0)
         orig_sizes = torch.tensor(orig_sizes)
         sizes = torch.tensor(sizes)
 
-    return {"imgs": out_imgs, "sizes": sizes, "orig_sizes": orig_sizes}
+    return {"imgs": img, "sizes": sizes, "orig_sizes": orig_sizes}
 
 
 def img_to_tensor(
