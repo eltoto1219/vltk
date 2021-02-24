@@ -80,15 +80,16 @@ class SimpleExperiment(SimpleIdentifier, ABC):
     def garbage_collect(self):
         if self.config.empty_cache:
             gc.collect()
-            torch.cuda.empty_cache()
+            # torch.cuda.empty_cache()
 
     def currently_training(self):
         return True if self.__currently_training == "train" else False
 
-    def _get_open_type(self):
+    def open_type(self):
         return (
             "w"
-            if (self.cur_epoch == 1) and (self.currently_training or not self.is_train)
+            if (self.cur_epoch == 1)
+            and ((self.currently_training and self.is_train) or not self.is_train)
             else "a"
         )
 
@@ -100,7 +101,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         # we can think about making sure the label size is right later
         for f in os.listdir(checkpoint_dir):
             path = os.path.join(checkpoint_dir, f)
-            if "exp_outputs" in path:
+            if "info" in path:
                 exp_outputs = json.load(open(path))
                 if "scheduler" in exp_outputs:
                     self.scheduler.load_state_dict(exp_outputs["scheduler"])
@@ -114,8 +115,6 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                     highest_model_epoch[model_n] = max(
                         highest_model_epoch.get(model_n, 0), int(epoch_n)
                     )
-            if "optim" in path:
-                self.optim.load_state_dict(torch.load(path))
 
         # load the model weights
         for model_n, highest_epoch in highest_model_epoch.items():
@@ -208,7 +207,13 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                     getattr(self, "label_to_id", None) is not None
                 ), "no label dict found"
                 print(f"Number of Labels: {len(self.label_to_id)}")
-                model_instance.resize_num_qa_labels(len(self.label_to_id))
+                label_file = self.config.data.labels
+                if label_file is not None or "":
+                    model_instance.resize_num_qa_labels(
+                        len(json.load(open(label_file)))
+                    )
+                else:
+                    model_instance.resize_num_qa_labels(len(self.label_to_id))
 
             # SET DEVICE
             if isinstance(model_device, int):
@@ -301,7 +306,6 @@ class SimpleExperiment(SimpleIdentifier, ABC):
     @property
     def forward_context(self):
         if self.scaler is None:
-            raise Exception("should be here")
             return utils.dummy_context
         else:
             return torch.cuda.amp.autocast
@@ -356,7 +360,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
 
     def _save_outputs(self, save_outputs):
         save_name = os.path.join(
-            self.config.logdir, f"save_outputs_epoch_{self.cur_epoch}.pt"
+            self.config.logdir, f"user_saved_epoch_{self.cur_epoch}.pt"
         )
         json.dump(save_outputs, open(save_name, "w"))
 
@@ -441,20 +445,25 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                 if split in train_splits and not self.config.data.skip_train:
                     self.train_imagesetdict[is_name][is_split] = imageset
 
+        label_file = self.config.data.labels
+        if label_file is not None or "":
+            self.label_to_id = json.load(open(label_file))
+
     # vanilla mehtods
     def write_epoch(self, info: dict = None):
         logstr = ""
         for k, v in info.items():
             logstr += f"{k}={v}; "
         if self.config.logging and info is not None and info:
-            logfile = os.path.join(self.config.logdir, "log.txt")
+            logfile = os.path.join(self.config.logdir, "epoch_log.txt")
             if self.currently_training():
                 desc = "train"
             else:
                 desc = "eval"
-            with open(logfile, self._get_open_type()) as f:
+            with open(logfile, self.open_type()) as f:
                 date = datetime.datetime.now()
-                f.write(f"Time: {date} {desc} \n {info} \n")
+                out_str = f"{desc} | epoch: {self.cur_epoch} | date: {date} | {info} \n"
+                f.write(out_str)
                 f.flush()
             return True
         return False
@@ -464,16 +473,24 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         for k, v in info.items():
             logstr += f"{k}={v}; "
         if self.config.logging and info is not None and info:
-            logfile = os.path.join(self.config.logdir, "cur_epoch.txt")
+            logfile = os.path.join(self.config.logdir, "steps_log.json")
             assert logfile is not None
-            open_type = "w" if not inner_step else "a"
             if self.currently_training():
                 desc = "train"
             else:
                 desc = "eval"
-            with open(logfile, open_type) as f:
+            with open(logfile, self.open_type()) as f:
+
                 date = datetime.datetime.now()
-                f.write(f"Time: {date} {desc} \n {info} \n")
+                json.dump(
+                    {
+                        "desc": desc,
+                        "step": self.cur_step,
+                        "data": info,
+                        "time": str(date),
+                    },
+                    f,
+                )
                 f.flush()
             return True
         return False
@@ -489,7 +506,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         if getattr(self, "optim", None) is not None:
             save_name = os.path.join(self.config.logdir, save_name)
             torch.save(self.optim.state_dict(), save_name)
-        save_name = os.path.join(self.config.logdir, "exp_outputs.json")
+        save_name = os.path.join(self.config.logdir, "info.json")
         json.dump(self.get_exp_info(), open(save_name, "w"))
         save_name = os.path.join(self.config.logdir, "config.yaml")
         self.config.dump_yaml(save_name)
@@ -548,14 +565,15 @@ class SimpleExperiment(SimpleIdentifier, ABC):
             # collect epoch output from each  loop
             if self.config.test_save or self.config.save_after_epoch:
                 self.save()
+
+            self.cur_epoch += 1
+
         if (
             not self.config.save_after_epoch
             and not self.config.test_run
             and ((self.config.save_after_exp) or self.config.test_save)
         ):
             self.save()
-
-        self.cur_epoch += 1
 
     def inner_loop(self, loader, train="train", epoch=None):
         self.__currently_training = train
@@ -586,13 +604,8 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                 if self.currently_training() and self.model_dict:
                     self.optim.zero_grad()
                 self.set_batch_size(batch)
-                if self.half_precision:
-                    with self.forward_context():
-                        forward_outputs = self.forward(batch)
-                        assert isinstance(
-                            forward_outputs, dict
-                        ), "forward method must return dict"
-                else:
+
+                with self.forward_context():
                     forward_outputs = self.forward(batch)
                     assert isinstance(
                         forward_outputs, dict
@@ -601,12 +614,14 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                 outputs = self._clean_dict(
                     self.iter_tqdm(forward_outputs, train=self.currently_training())
                 )
+
                 # something is wrong with this
                 # save_outputs = self._clean_dict(
                 #     self.iter_save(forward_outputs, train=train)
                 # )
                 temp_save_outputs = outputs
                 _tqdm.set_postfix(epch=self.cur_epoch, **outputs)
+
                 self.write_iter(outputs, inner_step)
 
                 if self.currently_training():
@@ -614,8 +629,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                     if losses is None:
                         pass
                     else:
-                        if self.currently_training():
-                            self.step(losses, self.currently_training())
+                        self.step(losses)
                 self.cur_step += 1
                 # handle loop outputs
                 if outputs is not None and loop_outputs is not None:
@@ -650,10 +664,8 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                     pass
             return loop_outputs
 
-        pass
-
-    def step(self, loss=None, train=True):
-        if train and loss is not None and self.model_dict:
+    def step(self, loss=None):
+        if loss is not None and self.model_dict:
             if self.scaler is not None:
                 self.scaler.scale(loss).backward()
                 self.scaler.unscale_(self.optim)

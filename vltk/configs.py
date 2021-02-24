@@ -98,6 +98,7 @@ class DataConfig(config.Config):
     label_processor: Union[None, str] = "one_hot_label"
     imgid_processor: str = "clean_imgid_default"
     label_preprocessor: str = "label_default"
+    labels: Union[None, str] = None
     eval_datasets = ("gqa", "dev")
     train_datasets = [("gqa", ("train", "val"))]
     eval_batch_size = 32

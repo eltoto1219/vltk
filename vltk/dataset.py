@@ -33,6 +33,7 @@ VOCABPATH = os.path.abspath(
 TOKENIZEDKEY = "encoded"
 global TORCHCOLS
 TORCHCOLS = set()
+os.environ["TOKENIZERS_PARALLELISM"] = "False"
 
 _data_procecessors = data_proc.Data()
 _image_preprocessors = image_proc.Image()
@@ -81,9 +82,12 @@ def collate(
 
     for k in keys:
         try:
-            batch[k] = torch.stack([i.pop(k) for i in columns if i is not None])
+
+            batch[k] = torch.stack([i.get(k) for i in columns if i is not None])
         except Exception:
-            batch[k] = [i.pop(k, "") for i in columns if i is not None]
+            # print("THIS IS K", k, columns[0].get(k, ""), columns[0].keys())
+            # print()
+            batch[k] = [i.get(k, "") for i in columns if i is not None]
 
     return batch
 

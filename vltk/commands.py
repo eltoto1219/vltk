@@ -9,33 +9,36 @@ _simple_experiments = SimpleExperiments()
 
 
 def run_experiment(config, flags, name_or_exp, datasets):
+    global experiment
+    experiment = ""
     if config.print_config:
         print(config)
     if isinstance(name_or_exp, str):
         utils.update_config_with_logdir(config, flags, name_or_exp, datasets)
-        exp_from_str = _complex_experiments.get(name_or_exp)(
+        experiment = _complex_experiments.get(name_or_exp)(
             config=config, datasets=datasets
         )
-        exp_from_str()
+        experiment()
     else:
         utils.update_config_with_logdir(config, flags, name_or_exp.name, datasets)
-        global experiment
         experiment = name_or_exp(config=config, datasets=datasets)
         experiment()
 
 
 def run_simple_experiment(config, flags, name_or_exp, datasets):
+
+    global experiment
+    experiment = ""
     if config.print_config:
         print(config)
     if isinstance(name_or_exp, str):
         utils.update_config_with_logdir(config, flags, name_or_exp, datasets)
-        exp_from_str = _simple_experiments.get(name_or_exp)(
+        experiment = _simple_experiments.get(name_or_exp)(
             config=config, datasets=datasets
         )
-        exp_from_str()
+        experiment()
     else:
         utils.update_config_with_logdir(config, flags, name_or_exp.name, datasets)
-        global experiment
         experiment = name_or_exp(config=config, datasets=datasets)
         experiment()
 

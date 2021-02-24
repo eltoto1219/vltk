@@ -19,20 +19,25 @@ STDERR = sys.stderr = StringIO()
 
 def crash_save():
     errorlog = STDERR.getvalue()
-    if "experiment" in globals():
-        experiment = globals()["experiment"]
-        if experiment is not None and config is not None:
-            save_on_crash = getattr(config, "save_on_crash", False)
-            if config.email is not None:
-                utils.send_email(config.email, errorlog)
-            if save_on_crash:
-                try:
-                    experiment.save()
-                    print("\nCRASH SAVE SUCCESS: vltk command crashed and was saved")
-                except Exception:
-                    print("\nFAILURE: vltk command crashed and was not saved")
-            else:
-                print("\nWARNING: vltk command crashed and was not saved")
+    config = globals()["config"]
+    if config.email is not None:
+        utils.send_email(config.email, errorlog)
+
+    # if "experiment" in globals():
+    #     experiment = globals()["experiment"]
+    #     if experiment is not None and config is not None:
+    #         raise Exception("woot")
+    #         save_on_crash = getattr(config, "save_on_crash", False)
+    #         if config.email is not None:
+    #             utils.send_email(config.email, errorlog)
+    #         if save_on_crash:
+    #             try:
+    #                 experiment.save()
+    #                 print("\nCRASH SAVE SUCCESS: vltk command crashed and was saved")
+    #             except Exception:
+    #                 print("\nFAILURE: vltk command crashed and was not saved")
+    #         else:
+    #             print("\nWARNING: vltk command crashed and was not saved")
 
 
 def add_exps_from_dir(config):
@@ -80,6 +85,7 @@ class Main(object):
 
         global config
         config = self.config
+
         priv = self.config.experimentdir
         if priv is not None:
             add_exps_from_dir(config)
