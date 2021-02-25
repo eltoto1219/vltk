@@ -101,6 +101,7 @@ class DataConfig(config.Config):
     labels: Union[None, str] = None
     eval_datasets = ("gqa", "dev")
     train_datasets = [("gqa", ("train", "val"))]
+    rand_feats: Union[None, tuple] = None
     eval_batch_size = 32
     train_batch_size = 64
     min_label_frequency = 9

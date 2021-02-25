@@ -10,6 +10,7 @@ import random
 import sys
 from abc import ABC, abstractmethod
 from collections import Iterable, OrderedDict, defaultdict
+from copy import deepcopy
 from statistics import mean
 from typing import Dict, List, Union
 
@@ -54,8 +55,8 @@ class SimpleIdentifier:
 
 
 class SimpleExperiment(SimpleIdentifier, ABC):
-    cur_epoch: int = 0
-    cur_step: int = 0
+    cur_epoch: int = 1
+    cur_step: int = 1
 
     def __init__(self, config, datasets):
         self.config = config
@@ -85,14 +86,6 @@ class SimpleExperiment(SimpleIdentifier, ABC):
     def currently_training(self):
         return True if self.__currently_training == "train" else False
 
-    def open_type(self):
-        return (
-            "w"
-            if (self.cur_epoch == 1)
-            and ((self.currently_training and self.is_train) or not self.is_train)
-            else "a"
-        )
-
     def _init_checkpoint(self):
         checkpoint_dir = self.config.vltk_checkpoint_dir
         if checkpoint_dir is None or not checkpoint_dir:
@@ -121,7 +114,13 @@ class SimpleExperiment(SimpleIdentifier, ABC):
             f = os.path.join(checkpoint_dir, f"{model_n}_epoch_{highest_epoch}.pt")
             model = getattr(self, model_n)
             print(f"reloading weights for {model_n} for epoch {highest_epoch}")
-            model.load_state_dict(torch.load(f))
+
+            checkpoint = torch.load(f)
+            keys = deepcopy(list(checkpoint.keys()))
+            for k in keys:
+                k_stripped = k.replace("module.", "")
+                checkpoint[k_stripped] = checkpoint.pop(k)
+            model.load_state_dict(checkpoint)
             # setattr(self, model_n, model)
 
     def _init_scaler(self):
@@ -360,7 +359,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
 
     def _save_outputs(self, save_outputs):
         save_name = os.path.join(
-            self.config.logdir, f"user_saved_epoch_{self.cur_epoch}.pt"
+            self.config.logdir, f"user_saved_epoch_{self.cur_epoch}.json"
         )
         json.dump(save_outputs, open(save_name, "w"))
 
@@ -460,7 +459,11 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                 desc = "train"
             else:
                 desc = "eval"
-            with open(logfile, self.open_type()) as f:
+            if os.path.isfile(logfile):
+                open_type = "a"
+            else:
+                open_type = "w"
+            with open(logfile, open_type) as f:
                 date = datetime.datetime.now()
                 out_str = f"{desc} | epoch: {self.cur_epoch} | date: {date} | {info} \n"
                 f.write(out_str)
@@ -479,7 +482,8 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                 desc = "train"
             else:
                 desc = "eval"
-            with open(logfile, self.open_type()) as f:
+            open_type = "a" if self.cur_step > 1 else "w"
+            with open(logfile, open_type) as f:
 
                 date = datetime.datetime.now()
                 json.dump(
@@ -571,7 +575,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         if (
             not self.config.save_after_epoch
             and not self.config.test_run
-            and ((self.config.save_after_exp) or self.config.test_save)
+            and self.config.save_after_exp
         ):
             self.save()
 

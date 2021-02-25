@@ -270,8 +270,16 @@ class UniversalDataset(Dataset):
 
     def _handle_image(self, entry):
         proc_args = {"config": self.config}
-        if self.config.extractor is None:
+        if self.config.rand_feats is not None:
+            feat_shape = tuple(self.config.rand_feats)
             filepath = entry[RAWIMAGEKEY]
+            entry["filepath"] = filepath
+            img = torch.rand(feat_shape)
+            entry[RAWIMAGEKEY] = img
+
+        elif self.config.extractor is None:
+            filepath = entry[RAWIMAGEKEY]
+            entry["filepath"] = filepath
             image_preprocessor_name = self.config.image_preprocessor
             image_preprocessor = _image_preprocessors.get(image_preprocessor_name)
             config_dict = self.config.to_dict()
@@ -383,7 +391,7 @@ class UniversalDataset(Dataset):
             if isinstance(img_info_dict, str):
                 img_info_dict = {RAWIMAGEKEY: img_info_dict}
             self._handle_image(img_info_dict)
-            entry = {**img_text_dict, **img_info_dict}
+            entry = {**img_text_dict, **img_info_dict, "img_id": img_id}
             # entry = img_info_dict
             if not self.cache_batch_exists or self.config.overwrite_cache_batch:
                 torch.save(entry, self.cache_batch_path)
@@ -405,7 +413,7 @@ class UniversalDataset(Dataset):
             if isinstance(img_info_dict, str):
                 img_info_dict = {RAWIMAGEKEY: img_info_dict}
             self._handle_image(img_info_dict)
-            entry = {**text_info, **img_info_dict}
+            entry = {**text_info, **img_info_dict, "img_id": img_id}
             if not self.cache_batch_exists or self.config.overwrite_cache_batch:
                 torch.save(entry, self.cache_batch_path)
 
