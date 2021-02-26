@@ -8,19 +8,16 @@ from copy import deepcopy
 from typing import Dict, List
 
 import numpy
-import PIL.Image as Image
 import torch
-import torch.nn.functional as F
 # disable logging from datasets
 from datasets.utils.logging import set_verbosity_error
 from tokenizers import BertWordPieceTokenizer
 from torch.utils.data import DataLoader, Dataset
 
-from vltk import IMAGEKEY, LABELKEY, RAWIMAGEKEY, SCOREKEY, TEXTKEY
+from vltk import IMAGEKEY, LABELKEY, RAWIMAGEKEY, TEXTKEY
 from vltk.inspect import collect_args_to_func
-# from vltk.dataset.gqa import load_temp_gqa
 from vltk.processing import data as data_proc
-from vltk.processing import image as image_proc
+from vltk.processing.image import Pipeline
 
 rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
 resource.setrlimit(resource.RLIMIT_NOFILE, (6144, rlimit[1]))
@@ -36,7 +33,6 @@ TORCHCOLS = set()
 os.environ["TOKENIZERS_PARALLELISM"] = "False"
 
 _data_procecessors = data_proc.Data()
-_image_preprocessors = image_proc.Image()
 
 
 class CollatedSets:
@@ -143,6 +139,7 @@ class UniversalDataset(Dataset):
         self.tokenizer.enable_truncation(max_length=config.sent_length)
         self.tokenizer.enable_padding(length=config.sent_length)
         self._init_cache_batch()
+        self._init_image_pipeline()
         splits = set()
         for v in textsetdict.values():
             splits = splits.union(set(v.keys()))
@@ -180,6 +177,15 @@ class UniversalDataset(Dataset):
             pass
         self.label_to_id = path_or_dict
         self.uniq_labels = set(path_or_dict.keys())
+
+    @property
+    def image_transforms(self):
+        return self._image_transforms
+
+    def _init_image_pipeline(self):
+        config_dict = self.config.to_dict()
+        func_dict = collect_args_to_func(Pipeline, config_dict)
+        self._image_transforms = Pipeline(**func_dict)
 
     def _init_cache_batch(self):
         if self.config.img_first:
@@ -280,20 +286,7 @@ class UniversalDataset(Dataset):
         elif self.config.extractor is None:
             filepath = entry[RAWIMAGEKEY]
             entry["filepath"] = filepath
-            image_preprocessor_name = self.config.image_preprocessor
-            image_preprocessor = _image_preprocessors.get(image_preprocessor_name)
-            config_dict = self.config.to_dict()
-            img = Image.open(filepath)
-            img = torch.Tensor(numpy.array(img))
-            try:
-                img = img.permute((2, 0, 1))
-            except Exception:
-                img = img.unsqueeze(-1).repeat(1, 1, 3).permute((2, 0, 1))
-
-            # okay, now we have the image the way that we want it. so what now?
-            func_dict = collect_args_to_func(image_preprocessor, config_dict)
-            img = image_preprocessor(img, **func_dict)["imgs"].squeeze(0)
-            entry[RAWIMAGEKEY] = img
+            entry[RAWIMAGEKEY] = self.image_transforms(filepath)
         else:
             for k, v in entry.items():
                 if isinstance(v, Iterable):
@@ -463,11 +456,6 @@ class UniversalDataset(Dataset):
         for k in batch:
             if k not in img_keys:
                 if isinstance(batch[k][0], torch.Tensor):
-                    # here is a part that we want to reduce
-
-                    # ll = []
-                    # for i, (j, n) in enumerate(zip(batch[k], n_sents_per_img)):
-                    #     l = []
                     batch[k] = torch.cat(
                         [
                             j[: min(max_size, n)]

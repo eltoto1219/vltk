@@ -87,8 +87,6 @@ class FinetuneConfig(config.Config):
 
 
 class DataConfig(config.Config):
-    gpu: bool = False
-    square: bool = False
     eval_aliases: set = {"testdev", "eval", "dev", "evaluation", "inference"}
     train_aliases: set = {"train", "finetune", "pretrain"}
     test_aliases: set = {"test"}
@@ -96,7 +94,6 @@ class DataConfig(config.Config):
     text_processors: Union[None, List[str], str] = ["one_hot_label"]
     image_processors: Union[None, List[str], str] = []
     label_processor: Union[None, str] = "one_hot_label"
-    imgid_processor: str = "clean_imgid_default"
     label_preprocessor: str = "label_default"
     labels: Union[None, str] = None
     eval_datasets = ("gqa", "dev")
@@ -111,7 +108,6 @@ class DataConfig(config.Config):
     img_first: bool = False
     cache_batch: str = "batch.temp"
     overwrite_cache_batch: bool = False
-    pad_collate: bool = True
     shuffle: bool = True
     num_workers: int = 8
     drop_last: bool = True
@@ -142,9 +138,19 @@ class DataConfig(config.Config):
     visual_dim: int = 2048
     max_detections: str = 36
     vit_pretrained_dir = "vit/"
-    image_preprocessor = "resize_short_edge"
-    min_size: int = 512
-    max_size: int = 768
+
+    # for image processing stuff
+    size = 768
+    mode = "bicubic"
+    scale = "standard"
+    gpu = None
+    pad_value = 0
+    std = None
+    mean = (None,)
+    inplace = True
+    resize = True
+    normalize = True
+    aspect_ratio = True
 
     def __init__(self, finetune=True, **kwargs):
         super().__init__(**kwargs)
