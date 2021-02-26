@@ -764,15 +764,19 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                 if isinstance(v, torch.Tensor):
                     x[k] = v.to(torch.device(device))
                 else:
-                    if isinstance(v[0], torch.Tensor):
-                        x[k] = [
-                            i.to(torch.device(device))
-                            if isinstance(i, torch.Tensor)
-                            else i
-                            for i in v
-                        ]
-                    elif isinstance(v[0], str):
-                        pass
+                    try:
+                        if isinstance(v[0], torch.Tensor):
+                            x[k] = [
+                                i.to(torch.device(device))
+                                if isinstance(i, torch.Tensor)
+                                else i
+                                for i in v
+                            ]
+                        elif isinstance(v[0], str):
+                            pass
+
+                    except Exception:
+                        raise Exception(v)
 
             return x
         elif isinstance(x, list):

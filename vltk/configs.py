@@ -146,11 +146,12 @@ class DataConfig(config.Config):
     gpu = None
     pad_value = 0
     std = None
-    mean = (None,)
+    mean = None
     inplace = True
     resize = True
     normalize = True
     aspect_ratio = True
+    pad = True
 
     def __init__(self, finetune=True, **kwargs):
         super().__init__(**kwargs)

@@ -18,8 +18,8 @@ from vltk import IMAGEKEY, IMAGESETPATH
 from vltk.inspect import apply_args_to_func, collect_args_to_func, get_classes
 from vltk.processing import image as image_proc
 from vltk.processing import label as Label
-from vltk.processing.image import img_to_tensor
 from vltk.utils import set_metadata
+from vltk.processing.image import Pipeline
 
 __all__ = ["Imageset", "Imagesets"]
 
@@ -165,8 +165,8 @@ class Imageset(ds.Dataset, ABC):
 
         # check or init image preprocessor
         if image_preprocessor is None:
-            print(f"defaulting to base image preprocessor: {img_to_tensor.__name__}")
-            image_preprocessor = img_to_tensor
+            # TODO: Fix
+            image_preprocessor = Pipeline()
         if callable(image_preprocessor):
             pass
         elif isinstance(image_preprocessor, str):

@@ -55,7 +55,7 @@ class Normalize(object):
 
     def __call__(self, tensor):
         # tensor must be: (C, H, W)
-        if self.mean is None and self.std is None:
+        if self.mean is None or self.std is None:
             if self.scale == "standard":
                 mean = tensor.mean(dim=(-1, -2))
                 std = torch.sqrt((tensor - mean.reshape(-1, 1, 1)) ** 2).mean(
@@ -153,6 +153,7 @@ def Pipeline(
     std=None,
     mean=None,
     inplace=True,
+    pad=True,
     resize=True,
     normalize=True,
     **kwargs,
@@ -165,7 +166,7 @@ def Pipeline(
     if normalize:
         process.append(Normalize(mean=mean, std=std, inplace=inplace, scale=scale))
 
-    if not isinstance(size, int) and min(size) != max(size):
+    if not isinstance(size, int) and min(size) != max(size) and pad:
         process.append(Pad(size=size, pad_value=pad_value))
 
     return transforms.Compose(process)

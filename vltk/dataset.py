@@ -185,6 +185,7 @@ class UniversalDataset(Dataset):
     def _init_image_pipeline(self):
         config_dict = self.config.to_dict()
         func_dict = collect_args_to_func(Pipeline, config_dict)
+        raise Exception(func_dict)
         self._image_transforms = Pipeline(**func_dict)
 
     def _init_cache_batch(self):
