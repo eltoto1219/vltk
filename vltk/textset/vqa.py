@@ -1,9 +1,9 @@
 from collections import Counter
 
 import datasets as ds
+from tqdm import tqdm
 from vltk.abc.textset import Textset
 from vltk.metrics import soft_score
-from tqdm import tqdm
 
 TESTPATH = "/playpen1/home/avmendoz/data/vqa/train"
 
@@ -45,7 +45,9 @@ class VQAset(Textset):
                 for anno in tqdm(annotations):
                     qid = str(anno["question_id"])
                     answers = anno["answers"]
-                    label_frequencies.update([label_preprocessor(anno["multiple_choice_answer"])])
+                    label_frequencies.update(
+                        [label_preprocessor(anno["multiple_choice_answer"])]
+                    )
                     answer_counter = Counter()
                     for ans_dict in answers:
                         ans = ans_dict["answer"]

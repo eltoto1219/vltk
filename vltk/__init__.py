@@ -10,6 +10,7 @@ def dummy():
         return
 
 
+ANNOTATION_DIR = "annotations"
 IMAGEKEY = "img_id"
 LABELKEY = "label"
 TEXTKEY = "text"

@@ -12,7 +12,6 @@ class FRCNNSet(Imageset):
     # name will be overwritten with the name of the dataset when loaded from file
     name = "frcnn"
 
-
     @staticmethod
     def default_features(max_detections, pos_dim, visual_dim):
         return {
@@ -20,15 +19,6 @@ class FRCNNSet(Imageset):
             "attr_probs": ds.Sequence(
                 length=max_detections, feature=ds.Value("float32")
             ),
-            "boxes": ds.Array2D((max_detections, pos_dim), dtype="float32"),
-            "normalized_boxes": ds.Array2D((max_detections, pos_dim), dtype="float32"),
-            "obj_ids": ds.Sequence(length=max_detections, feature=ds.Value("float32")),
-            "obj_probs": ds.Sequence(
-                length=max_detections, feature=ds.Value("float32")
-            ),
-            "roi_features": ds.Array2D((max_detections, visual_dim), dtype="float32"),
-            "sizes": ds.Sequence(length=2, feature=ds.Value("float32")),
-            "preds_per_image": ds.Value(dtype="int32"),
         }
 
     def forward(filepath, image_preprocessor, model, **kwargs):
@@ -36,10 +26,9 @@ class FRCNNSet(Imageset):
         pad_value = kwargs.get("pad_value", 0.0)
         min_size = kwargs.get("min_size", 800)
         max_size = kwargs.get("max_size", 1333)
-        pxl_mean = kwargs.get("pxl_mean",[102.9801, 115.9465, 122.7717] )
-        pxl_sdev = kwargs.get("pxl_sdev",[1.0, 1.0, 1.0])
+        pxl_mean = kwargs.get("pxl_mean", [102.9801, 115.9465, 122.7717])
+        pxl_sdev = kwargs.get("pxl_sdev", [1.0, 1.0, 1.0])
         device = kwargs.get("device", "cpu")
-
 
         image, sizes, scale_hw = image_preprocessor(
             filepath,

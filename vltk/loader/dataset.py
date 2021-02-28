@@ -13,7 +13,6 @@ import torch
 from datasets.utils.logging import set_verbosity_error
 from tokenizers import BertWordPieceTokenizer
 from torch.utils.data import DataLoader, Dataset
-
 from vltk import IMAGEKEY, LABELKEY, RAWIMAGEKEY, TEXTKEY
 from vltk.inspect import collect_args_to_func
 from vltk.processing import data as data_proc
@@ -69,69 +68,11 @@ class CollatedSets:
         return iter(map(lambda x: self[x], range(0, len(self))))
 
 
-def collate(
-    columns: List[Dict[str, torch.Tensor]], pad: bool = True, img_first=False
-) -> Dict[str, torch.Tensor]:
-    batch = {}
-    columns = sorted(columns, key=lambda x: len(x), reverse=True)
-    keys = deepcopy(list(columns[0].keys()))
-
-    for k in keys:
-        try:
-
-            batch[k] = torch.stack([i.get(k) for i in columns if i is not None])
-        except Exception:
-            # print("THIS IS K", k, columns[0].get(k, ""), columns[0].keys())
-            # print()
-            batch[k] = [i.get(k, "") for i in columns if i is not None]
-
-    return batch
-
-
-class UniversalLoader(DataLoader):
-    def __init__(
-        self,
-        names,
-        config,
-        label_dict,
-        textsetdict,
-        imagesetdict,
-    ):
-        splits = set()
-        for v in textsetdict.values():
-            splits = splits.union(set(v.keys()))
-        if "train" not in splits or "pretrain" not in splits:
-            num_workers = 0
-        else:
-            num_workers = config.num_workers
-        shuffle = config.shuffle
-        shuffle = shuffle if set(splits).union(config.train_aliases) else 0
-        drop_last = config.drop_last
-        pin_memory = config.pin_memory
-        # init dataset
-        dataset = UniversalDataset(
-            names=names,
-            config=config,
-            label_dict=label_dict,
-            textsetdict=textsetdict,
-            imagesetdict=imagesetdict,
-        )
-        # init loader
-        super().__init__(
-            dataset=dataset,
-            collate_fn=lambda x: collate(
-                x, pad=config.pad_collate, img_first=config.img_first
-            ),
-            drop_last=drop_last,
-            pin_memory=pin_memory,
-            num_workers=num_workers,
-            shuffle=shuffle,
-            batch_size=dataset.batch_size,
-        )
-
-
 class UniversalDataset(Dataset):
-    def __init__(self, names, config, label_dict, textsetdict, imagesetdict):
+    def __init__(
+        self, names, config, label_dict, textsetdict, imagesetdict, annotationdict=None
+    ):
+        self.annotationdict = annotationdict
         self.config = config
         self.names = names
         self.tokenizer = BertWordPieceTokenizer(VOCABPATH, lowercase=True)
@@ -185,7 +126,6 @@ class UniversalDataset(Dataset):
     def _init_image_pipeline(self):
         config_dict = self.config.to_dict()
         func_dict = collect_args_to_func(Pipeline, config_dict)
-        raise Exception(func_dict)
         self._image_transforms = Pipeline(**func_dict)
 
     def _init_cache_batch(self):

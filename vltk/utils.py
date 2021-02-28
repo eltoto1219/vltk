@@ -8,6 +8,7 @@ import smtplib
 import subprocess
 import sys
 from collections import defaultdict
+from collections.abc import Iterable
 from datetime import datetime
 from email.message import EmailMessage
 from typing import Tuple, Union
@@ -264,25 +265,56 @@ def tensor_equality(a, b):
     raise Exception("tensors are all good")
 
 
-def get_most_free_gpu():
-    if not torch.cuda.is_available():
-        return -1
-    mem_list = get_nvidia_gpu_memory()
-    return min(
-        list(map(lambda k: (k, mem_list[k][0] / mem_list[k][1]), mem_list)),
-        key=lambda x: x[1],
-    )[0]
+def isprimitive(obj):
+    if (
+        isinstance(obj, int)
+        or isinstance(obj, bool)
+        or isinstance(obj, str)
+        or isinstance(obj, float)
+    ):
+        return True
+    else:
+        return False
 
 
-def get_nvidia_gpu_memory():
-    result = subprocess.check_output(
-        [
-            "nvidia-smi",
-            "--query-gpu=memory.used,memory.total",
-            "--format=csv,nounits,noheader",
-        ],
-        encoding="utf-8",
+def on_children(obj: object, findtype=int, func=None):
+    # if object is dict
+    if isinstance(obj, dict) and not isinstance(obj, findtype):
+        for k, v in obj.items():
+            new_v = on_children(v, findtype=findtype, func=func)
+            if new_v is not None:
+                obj[k] = new_v
+    # if the object is a primitive
+    elif isprimitive(obj) and not isinstance(obj, findtype):
+        return None
+    # if the object is iterable
+    elif isinstance(obj, Iterable) and not isinstance(obj, findtype):
+        for idx, v in enumerate(obj):
+            new_v = on_children(v, findtype=findtype, func=func)
+            if new_v is not None:
+                obj[idx] = new_v
+    # if the object is not a findtype, iterable, dictionary, or prim
+    elif not isinstance(obj, findtype) and hasattr(obj, "__dict__"):
+        raise Exception
+    # if the object is the find type
+    elif func is not None:
+        out = func(obj)
+        if out is not None:
+            obj = out
+        else:
+            obj = None
+    return obj
+
+
+def change_device(batch, device="cpu"):
+    assert isinstance(device, int) or device == "cpu"
+    device = torch.device(device)
+    return on_children(batch, findtype=torch.Tensor, func=lambda x: x.to(device))
+
+
+def check_device(batch):
+    return on_children(
+        batch,
+        findtype=torch.Tensor,
+        func=lambda x: (print(x.shape, x.device) if x is not None else x),
     )
-    gpu_memory = [eval(x) for x in result.strip().split("\n")]
-    gpu_memory_map = dict(zip(range(len(gpu_memory)), gpu_memory))
-    return gpu_memory_map

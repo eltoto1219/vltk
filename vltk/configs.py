@@ -138,6 +138,7 @@ class DataConfig(config.Config):
     visual_dim: int = 2048
     max_detections: str = 36
     vit_pretrained_dir = "vit/"
+    annotations: bool = True
 
     # for image processing stuff
     size = 768

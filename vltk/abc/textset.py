@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import pickle
+import sys
 from abc import ABCMeta, abstractmethod
 from collections import Counter, defaultdict
 from copy import deepcopy
@@ -202,6 +203,7 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
                         image_set_splits.add(s)
         search_dirs = []
         for dd in datadirs:
+            # eg
             for ud in uniq_datasets:
                 for split in image_set_splits:
                     search_dirs.append(os.path.join(dd, ud, split))
@@ -212,7 +214,8 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
         )
         print(f"locating images in the following dirs: {valid_search_dirs}")
         for sdir in valid_search_dirs:
-            for path in Path(sdir).glob("**/*"):
+            for path in tqdm(os.listdir(sdir), file=sys.stdout):
+                path = Path(os.path.join(sdir, path))
                 if path.suffix[1:] in known_suffixes:
                     raw_files.add(str(path))
         return list(raw_files)

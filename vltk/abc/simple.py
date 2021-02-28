@@ -71,7 +71,6 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         self._init_loaders()
         self._init_models()
         self._init_optim()
-        self._init_gradient_tracking()
         self._init_checkpoint()
 
         # do we benchmark?
@@ -229,6 +228,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
 
             model_dict[name] = model_instance
             model_configs[name] = model_config
+            self.init_grad(name, model_instance)
             setattr(self, name, model_instance)
 
         self._model_dict = model_dict
@@ -329,34 +329,6 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         random.seed(self.config.seed)
         torch.manual_seed(self.config.seed)
 
-    def _init_gradient_tracking(self):
-        if self.model_dict:
-            for name, model in self.model_dict.items():
-                name = name.split("_")[0]
-                conf = getattr(self.config.models, name, None)
-                if conf is None:
-                    continue
-                prev_layer = None
-                layer = 0
-                if hasattr(conf, "freeze_layers"):
-                    layers_to_freeze = conf.freeze_layers
-                    for n, p in model.named_parameters():
-                        if (
-                            "blocks" in n.lower()
-                            and prev_layer is not None
-                            and str(prev_layer) in n
-                        ):
-
-                            print(f"{name}: freezing {n}")
-
-                            p.requires_grad = False
-                        elif "blocks" in n.lower() and str(layer) in n:
-                            prev_layer = layer
-                            if layers_to_freeze.pop(0):
-                                print(f"{name}: freezing {n}")
-                                p.requires_grad = False
-                            layer += 1
-
     def _save_outputs(self, save_outputs):
         save_name = os.path.join(
             self.config.logdir, f"user_saved_epoch_{self.cur_epoch}.json"
@@ -372,6 +344,11 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         self.eval_textsetdict = defaultdict(dict)
         self.train_imagesetdict = defaultdict(dict)
         self.eval_imagesetdict = defaultdict(dict)
+        if not self.config.data.annotations:
+            self.annotationdict = None
+        else:
+            self.annotationdict = {}
+
         train_datasets = set()
         eval_datasets = set()
         train_splits = set()
@@ -432,6 +409,13 @@ class SimpleExperiment(SimpleIdentifier, ABC):
                     imageset = textset.get_imgid_to_raw_path(
                         self.config.data.datadirs, is_split
                     )
+                if self.config.data.annotations and is_name not in self.annotationdict:
+                    # TODO: must fix this later
+                    path = os.path.join(
+                        searchdirs[-1], is_name, "annotations/annotations.arrow"
+                    )
+                    ### THIS IS WEHRE I COME BACK TOO ###
+                    self.eval_imagesetdict[is_name][is_split] = imageset
 
                 print(f"Added Imageset {is_name}: {is_split}")
 
@@ -742,47 +726,14 @@ class SimpleExperiment(SimpleIdentifier, ABC):
             parameters.extend([p for p in v.parameters() if p.requires_grad])
         return parameters
 
+    def toCuda(batch, device):
+        # will retun batch, but is still in place)
+        return utils.change_device(batch, device)
+
+    def init_grad(name, model):
+        pass
+
     # abstract methods
-
-    def toCuda(
-        self,
-        x: Union[
-            Dict[str, Union[List[torch.Tensor], torch.Tensor]],
-            torch.Tensor,
-            List[torch.Tensor],
-        ],
-        device,
-    ):
-        if isinstance(device, list):
-            device = device[0]
-
-        # should do something recursive here, not sure what I am thinking
-        if isinstance(x, torch.Tensor):
-            return x.to(torch.device(device))
-        elif isinstance(x, dict):
-            for k, v in x.items():
-                if isinstance(v, torch.Tensor):
-                    x[k] = v.to(torch.device(device))
-                else:
-                    try:
-                        if isinstance(v[0], torch.Tensor):
-                            x[k] = [
-                                i.to(torch.device(device))
-                                if isinstance(i, torch.Tensor)
-                                else i
-                                for i in v
-                            ]
-                        elif isinstance(v[0], str):
-                            pass
-
-                    except Exception:
-                        raise Exception(v)
-
-            return x
-        elif isinstance(x, list):
-            return [i.to(torch.device(device)) for i in v]
-        else:
-            raise Exception("could not change the device")
 
     @abstractmethod
     def forward(self, batch) -> dict:
@@ -813,8 +764,8 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         that will subesequently be processed and written to a log
         """
 
-    @property
     @abstractmethod
+    @property
     def model_list(self):
         """
         user defines a list of models. each list item is either a string that references
