@@ -5,14 +5,13 @@ import random
 import resource
 from collections.abc import Iterable
 from copy import deepcopy
-from typing import Dict, List
 
 import numpy
 import torch
 # disable logging from datasets
 from datasets.utils.logging import set_verbosity_error
 from tokenizers import BertWordPieceTokenizer
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import Dataset
 from vltk import IMAGEKEY, LABELKEY, RAWIMAGEKEY, TEXTKEY
 from vltk.inspect import collect_args_to_func
 from vltk.processing import data as data_proc
@@ -43,6 +42,28 @@ class CollatedSets:
             self.range2listpos[range(start, len(a) + start)] = i
             start += len(a)
 
+    def _is_imageset(self):
+        if not hasattr(self, "__is_imageset"):
+            if all(map(lambda x: hasattr(x, "get"), self.args)):
+                self.__is_imageset = True
+            else:
+                self.__is_imageset = False
+        else:
+            return self.__is_imageset
+
+    # TODO: figure out better solution if we start chaining idk lets say 10 datasets together
+    def get(self, img_id):
+        if not self.__is_imageset:
+            raise Exception(
+                "Only use this method if the datasets within this object are purely vision"
+            )
+        for imageset in self.args:
+            try:
+                return imageset.get(img_id)
+            except KeyError:
+                pass
+        raise Exception("image id not found in any  imageset annotations")
+
     def get_textset_and_ind(self, x):
         if x >= len(self):
             raise IndexError(f"index {x} is out of range 0 to {len(self)}")
@@ -68,13 +89,19 @@ class CollatedSets:
         return iter(map(lambda x: self[x], range(0, len(self))))
 
 
-class UniversalDataset(Dataset):
+class VisionLanguageDataset(Dataset):
     def __init__(
-        self, names, config, label_dict, textsetdict, imagesetdict, annotationdict=None
+        self,
+        config,
+        textsetdict,
+        imagesetdict,
+        annotationdict=None,
+        answer_to_id=None,
+        object_to_id=None,
+        is_train=False,
     ):
         self.annotationdict = annotationdict
         self.config = config
-        self.names = names
         self.tokenizer = BertWordPieceTokenizer(VOCABPATH, lowercase=True)
         self.tokenizer.add_special_tokens(self.special_tokens)
         self.tokenizer.enable_truncation(max_length=config.sent_length)
@@ -88,8 +115,9 @@ class UniversalDataset(Dataset):
         self.textsets = []
         self.textsetdict = textsetdict
         self.imagesetdict = imagesetdict
-        self.label_to_id = label_dict
-        self.uniq_labels = set(label_dict.keys())
+        self.answer_to_id = answer_to_id
+        self.object_to_id = object_to_id
+        self.uniq_labels = set(answer_to_id.keys())
         textsets = []
         # map special function and create list of textsets
         for dset in self.textsetdict:
@@ -116,12 +144,33 @@ class UniversalDataset(Dataset):
             path_or_dict = json.load(open(path_or_dict))
         else:
             pass
-        self.label_to_id = path_or_dict
+        self.answer_to_id = path_or_dict
         self.uniq_labels = set(path_or_dict.keys())
+
+    def update_objects(self, path_or_dict):
+        if isinstance(path_or_dict, str):
+            path_or_dict = json.load(open(path_or_dict))
+        else:
+            pass
+        self.object_to_id = path_or_dict
 
     @property
     def image_transforms(self):
         return self._image_transforms
+
+    @property
+    def annotations(self):
+        return self._annotations
+
+    def _handle_annotations(self, img_id):
+        # TODO: I need to implement this function asap
+        pass
+
+    def _init_annotation_dict(self, annotationdict):
+        if annotationdict is None:
+            self._annotations = None
+            return
+        self._annotations = CollatedSets(*list(annotationdict.values()))
 
     def _init_image_pipeline(self):
         config_dict = self.config.to_dict()
@@ -146,7 +195,7 @@ class UniversalDataset(Dataset):
             "config": self.config,
             "random_sents": [self.random_sent() for i in range(max_rand_sents)],
             "special_ids": self.special_ids,
-            "label_to_id": self.label_to_id,
+            "answer_to_id": self.answer_to_id,
             "all_ids": self.all_ids,
             "n_ids": len(self.all_ids),
         }
@@ -155,7 +204,7 @@ class UniversalDataset(Dataset):
     def text_map_function(x, proc_args):
         config = proc_args.get("config")
         tokenizer = proc_args.get("tokenizer")
-        label_to_id = proc_args.get("label_to_id")
+        answer_to_id = proc_args.get("answer_to_id")
         text_processors = config.text_processors
         if text_processors is not None:
             if "matched_sentence_modeling" in text_processors:
@@ -174,7 +223,7 @@ class UniversalDataset(Dataset):
             if label != config.ignore_id:
                 lids = []
                 for l in label:
-                    lid = label_to_id[l]
+                    lid = answer_to_id[l]
                     lids.append(lid)
                 x[LABELKEY] = lids
 
@@ -216,6 +265,7 @@ class UniversalDataset(Dataset):
         ]
 
     def _handle_image(self, entry):
+        img_id = entry[IMAGEKEY]
         proc_args = {"config": self.config}
         if self.config.rand_feats is not None:
             feat_shape = tuple(self.config.rand_feats)
@@ -237,9 +287,12 @@ class UniversalDataset(Dataset):
                         entry[k] = torch.tensor(v)
                 elif isinstance(v, int) or isinstance(v, float):
                     entry[k] = torch.tensor(v)
+            # TODO: okay I defintely need to change this
             if "roi_features" in entry:
                 proc_args["random_feat_func"] = self.random_feat
                 entry["roi_features"] = entry["roi_features"][: self.config.max_objects]
+        if self.annotationdict is not None:
+            entry.update(self._handle_annotations(img_id))
 
         # now we do other image processors
         if self.config.image_processors is not None:
@@ -270,7 +323,7 @@ class UniversalDataset(Dataset):
     def _map(self, small_textset):
         proc_args = self.processor_args()
         return small_textset.map(
-            lambda x: UniversalDataset.text_map_function(x, proc_args=proc_args)
+            lambda x: VisionLanguageDataset.text_map_function(x, proc_args=proc_args)
         )
 
     def _do_map_img_first(self, i):
@@ -361,8 +414,9 @@ class UniversalDataset(Dataset):
             return self.config.train_batch_size
 
     @staticmethod
-    # unfinished
+    # TODO: unfinished
     def flatten_text(batch, flatten_keys=None):
+        raise Exception
         if flatten_keys is None:
             flatten_keys = {"input_ids", "type_ids", "text_attention_mask", "label"}
         for f in flatten_keys:
@@ -393,7 +447,7 @@ class UniversalDataset(Dataset):
             batch[img_key] = imgs
             if device is not None:
                 batch[img_key] = batch[img_key].to(device)
-        # then we resize everything else
+        # then we convert the other things in the dataset to torch tensors if we can
         for k in batch:
             if k not in img_keys:
                 if isinstance(batch[k][0], torch.Tensor):

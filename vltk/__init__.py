@@ -10,12 +10,26 @@ def dummy():
         return
 
 
+VLDATA = 0
+VDATA = 1
+LDATA = 2
 ANNOTATION_DIR = "annotations"
 IMAGEKEY = "img_id"
 LABELKEY = "label"
 TEXTKEY = "text"
 SCOREKEY = "score"
 RAWIMAGEKEY = "image"
+SPLITALIASES = {
+    "testdev",
+    "test",
+    "dev",
+    "eval",
+    "val",
+    "validation",
+    "evaluation",
+    "train",
+}
+
 
 # patche
 BASEPATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "."))

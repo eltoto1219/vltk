@@ -3,7 +3,7 @@ from typing import Dict, List
 
 import torch
 from torch.utils.data import DataLoader
-from vltk.loader.datatset import UniversalDataset
+from vltk.loader.dataset import VisionDataset, VisionLanguageDataset
 
 
 def collate(
@@ -21,36 +21,42 @@ def collate(
     return batch
 
 
-class UniversalLoader(DataLoader):
-    def __init__(
-        self,
-        names,
-        config,
-        label_dict,
-        textsetdict,
-        imagesetdict,
-        annotationdict=None,
-    ):
-        splits = set()
-        for v in textsetdict.values():
-            splits = splits.union(set(v.keys()))
-        if "train" not in splits or "pretrain" not in splits:
+class VisionLanguageLoader(DataLoader):
+    def __init__(self, config, is_train=False, **kwargs):
+        if not is_train:
             num_workers = 0
         else:
             num_workers = config.num_workers
-        shuffle = config.shuffle
-        shuffle = shuffle if set(splits).union(config.train_aliases) else 0
+        shuffle = config.shuffle if is_train else 0
         drop_last = config.drop_last
         pin_memory = config.pin_memory
         # init dataset
-        dataset = UniversalDataset(
-            names=names,
-            config=config,
-            label_dict=label_dict,
-            textsetdict=textsetdict,
-            imagesetdict=imagesetdict,
-            annotationdict=annotationdict,
+        dataset = VisionLanguageDataset(config=config, is_train=is_train, **kwargs)
+        # init loader
+        super().__init__(
+            dataset=dataset,
+            collate_fn=lambda x: collate(
+                x, pad=config.pad_collate, img_first=config.img_first
+            ),
+            drop_last=drop_last,
+            pin_memory=pin_memory,
+            num_workers=num_workers,
+            shuffle=shuffle,
+            batch_size=dataset.batch_size,
         )
+
+
+class VisionLoader(DataLoader):
+    def __init__(self, config, is_train=False, **kwargs):
+        if not is_train:
+            num_workers = 0
+        else:
+            num_workers = config.num_workers
+        shuffle = config.shuffle if is_train else 0
+        drop_last = config.drop_last
+        pin_memory = config.pin_memory
+        # init dataset
+        dataset = VisionDataset(config=config, is_train=is_train, **kwargs)
         # init loader
         super().__init__(
             dataset=dataset,
