@@ -164,7 +164,21 @@ class VisionLanguageDataset(Dataset):
 
     def _handle_annotations(self, img_id):
         # TODO: I need to implement this function asap
-        pass
+        anno_dict = self.annotations.get(img_id)
+        labels = anno_dict[LABELKEY]
+        labels = torch.Tensor([self.object_to_id[int(l)] for l in labels])
+        anno_dict[LABELKEY] = labels
+        for k, v in anno_dict.items():
+            if (
+                k is LABELKEY
+                or k is IMAGEKEY
+                or (isinstance(v, Iterable) and not isinstance(v[0], list))
+            ):
+                continue
+
+            anno_dict[k] = list(map(lambda x: torch.Tensor(x), v))
+
+        return anno_dict
 
     def _init_annotation_dict(self, annotationdict):
         if annotationdict is None:
@@ -468,3 +482,141 @@ class VisionLanguageDataset(Dataset):
                             n = min(n, max_size)
                         new_v.extend(i * n)
                     batch[k] = new_v
+
+
+class VisionLDataset(Dataset):
+    def __init__(
+        self,
+        config,
+        imagesetdict,
+        annotationdict=None,
+        object_to_id=None,
+        is_train=False,
+    ):
+        self.annotationdict = annotationdict
+        self.config = config
+        self._init_image_pipeline()
+        self.imagesetdict = imagesetdict
+        self.object_to_id = object_to_id
+        self.n_imgs = 0
+        for imgset in list(imagesetdict.values()):
+            self.n_imgs += len(imgset)
+
+    @property
+    def batch_size(self):
+        if not self.is_train:
+            return self.config.eval_batch_size
+        else:
+            return self.config.train_batch_size
+
+    @property
+    def image_transforms(self):
+        return self._image_transforms
+
+    @property
+    def annotations(self):
+        return self._annotations
+
+    def update_objects(self, path_or_dict):
+        if isinstance(path_or_dict, str):
+            path_or_dict = json.load(open(path_or_dict))
+        else:
+            pass
+        self.object_to_id = path_or_dict
+
+    def _handle_annotations(self, img_id):
+        # TODO: I need to implement this function asap
+        anno_dict = self.annotations.get(img_id)
+        labels = anno_dict[LABELKEY]
+        labels = torch.Tensor([self.object_to_id[int(l)] for l in labels])
+        anno_dict[LABELKEY] = labels
+        for k, v in anno_dict.items():
+            if (
+                k is LABELKEY
+                or k is IMAGEKEY
+                or (isinstance(v, Iterable) and not isinstance(v[0], list))
+            ):
+                continue
+
+            anno_dict[k] = list(map(lambda x: torch.Tensor(x), v))
+
+        return anno_dict
+
+    def _init_annotation_dict(self, annotationdict):
+        if annotationdict is None:
+            self._annotations = None
+            return
+        self._annotations = CollatedSets(*list(annotationdict.values()))
+
+    def _init_image_pipeline(self):
+        config_dict = self.config.to_dict()
+        func_dict = collect_args_to_func(Pipeline, config_dict)
+        self._image_transforms = Pipeline(**func_dict)
+
+    def _handle_image(self, entry):
+        img_id = entry[IMAGEKEY]
+        proc_args = {"config": self.config}
+        if self.config.rand_feats is not None:
+            feat_shape = tuple(self.config.rand_feats)
+            filepath = entry[RAWIMAGEKEY]
+            entry["filepath"] = filepath
+            img = torch.rand(feat_shape)
+            entry[RAWIMAGEKEY] = img
+
+        elif self.config.extractor is None:
+            filepath = entry[RAWIMAGEKEY]
+            entry["filepath"] = filepath
+            entry[RAWIMAGEKEY] = self.image_transforms(filepath)
+        else:
+            for k, v in entry.items():
+                if isinstance(v, Iterable):
+                    if isinstance(v, numpy.ndarray):
+                        entry[k] = torch.from_numpy(v)
+                    elif isinstance(v, list):
+                        entry[k] = torch.tensor(v)
+                elif isinstance(v, int) or isinstance(v, float):
+                    entry[k] = torch.tensor(v)
+            # TODO: okay I defintely need to change this
+            if "roi_features" in entry:
+                proc_args["random_feat_func"] = self.random_feat
+                entry["roi_features"] = entry["roi_features"][: self.config.max_objects]
+        if self.annotationdict is not None:
+            entry.update(self._handle_annotations(img_id))
+
+        # now we do other image processors
+        if self.config.image_processors is not None:
+            for proc in self.config.image_processors:
+                proc_func = _data_procecessors.get(proc)
+                proc_func(entry, **proc_args)
+
+    def _do_map_img_first(self, i):
+        img_id = self.uniq_imgs[i]
+        ts_name, ts_split = self.img2textset[img_id]
+        textset = self.textsetdict[ts_name][ts_split]
+        idxs = textset.img_to_rows_map[img_id]
+        small_textset = textset.select(idxs)
+        img_text_dict = self._map(small_textset)
+
+        img_text_dict.set_format(
+            type="torch", output_all_columns=True, columns=list(TORCHCOLS)
+        )
+        # so what we have to turn into tensors ar
+        img_text_dict = img_text_dict[:]
+        img_text_dict[IMAGEKEY] = img_id
+        return img_text_dict, textset, ts_split, img_id
+
+    @torch.no_grad()
+    def __getitem__(self, i):
+        img_text_dict, textset, ts_split, img_id = self._do_map_img_first(i)
+        is_name, is_split = zip(*textset.data_info[ts_split].items())
+        imageset = self.imagesetdict[is_name[0]][is_split[0][0]]
+        img_info_dict = imageset.get(img_id)
+        if isinstance(img_info_dict, str):
+            img_info_dict = {RAWIMAGEKEY: img_info_dict}
+        self._handle_image(img_info_dict)
+        entry = {**img_text_dict, **img_info_dict, "img_id": img_id}
+        # entry = img_info_dict
+        if not self.cache_batch_exists or self.config.overwrite_cache_batch:
+            torch.save(entry, self.cache_batch_path)
+
+        return entry

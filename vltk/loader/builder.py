@@ -3,17 +3,61 @@ from collections import defaultdict
 from vltk import SPLITALIASES, VDATA, VLDATA
 from vltk.abc.imageset import Imagesets
 from vltk.abc.textset import Textsets
+from vltk.loader.loader import VisionLanguageLoader, VisionLoader
 
 _textsets = Textsets()
 _imagesets = Imagesets()
 
 
 def init_datasets(config):
+    train_loader = None
+    eval_loader = None
     train_ds, eval_ds, to_load, datasets_type = parse_datasets(config)
     if datasets_type == VLDATA:
         out_dict = load_vl(to_load, train_ds, eval_ds, config)
+        train = out_dict["train"]
+        test = out_dict["eval"]
+        annos = out_dict["annotations"]
+        imagesets = out_dict["imagesets"]
+        answer_to_id = out_dict["answers"]
+        object_to_id = out_dict["objects"]
+
+        if train:
+            train_loader = VisionLanguageLoader(
+                config,
+                textsetdict=train,
+                imagesetdict=imagesets,
+                annotationdict=annos,
+                answer_to_id=answer_to_id,
+                object_to_id=object_to_id,
+                is_train=False,
+            )
+        if test:
+            eval_loader = VisionLanguageLoader(
+                config,
+                textsetdict=train,
+                imagesetdict=imagesets,
+                annotationdict=annos,
+                answer_to_id=answer_to_id,
+                object_to_id=object_to_id,
+                is_train=False,
+            )
     if datasets_type == VDATA:
         out_dict = load_v(to_load, train_ds, eval_ds, config)
+        """
+        contains
+        train eval annotations objects
+
+        """
+    loaders = {
+        "train": train_loader if train_loader is not None else None,
+        "eval": eval_loader if eval_loader is not None else None,
+    }
+    loaders = [(k, v) for k, v in loaders.items()]
+    any_train = any(map(lambda x: x == "train", [k for k in loaders]))
+    loaders = sorted(loaders, key=lambda x: x[0], reverse=True)
+
+    return loaders, any_train
 
 
 def parse_datasets(config):
@@ -105,8 +149,8 @@ def load_vl(to_load, train_ds, eval_ds, config):
             loaded_imagesets[is_name][is_split] = is_data
             print(f"Added Imageset {is_name}: {is_split}")
     return {
-        "eval_datasets": loaded_eval,
-        "train_datasets": loaded_train,
+        "eval": loaded_eval,
+        "train": loaded_train,
         "annotations": loaded_annotations,
         "imagesets": loaded_imagesets,
         "answers": answer_to_id,
