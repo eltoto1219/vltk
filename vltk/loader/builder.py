@@ -1,3 +1,4 @@
+import json
 from collections import defaultdict
 
 from vltk import SPLITALIASES, VDATA, VLDATA
@@ -12,6 +13,8 @@ _imagesets = Imagesets()
 def init_datasets(config):
     train_loader = None
     eval_loader = None
+    answer_to_id = None
+    object_to_id = None
     train_ds, eval_ds, to_load, datasets_type = parse_datasets(config)
     if datasets_type == VLDATA:
         out_dict = load_vl(to_load, train_ds, eval_ds, config)
@@ -43,12 +46,31 @@ def init_datasets(config):
                 is_train=False,
             )
     if datasets_type == VDATA:
-        out_dict = load_v(to_load, train_ds, eval_ds, config)
-        """
-        contains
-        train eval annotations objects
 
-        """
+        out_dict = load_v(to_load, train_ds, eval_ds, config)
+        # if is_train is false
+        train = out_dict["train"]
+        test = out_dict["eval"]
+        object_to_id = out_dict["objects"]
+        annotations = out_dict["annotations"]
+
+        if train:
+            train_loader = VisionLoader(
+                config,
+                imagesetdict=train,
+                annotationdict=annotations,
+                object_to_id=object_to_id,
+                is_train=True,
+            )
+        if test:
+            eval_loader = VisionLoader(
+                config,
+                imagesetdict=test,
+                annotationdict=annotations,
+                object_to_id=object_to_id,
+                is_train=False,
+            )
+
     loaders = {
         "train": train_loader if train_loader is not None else None,
         "eval": eval_loader if eval_loader is not None else None,
@@ -57,7 +79,7 @@ def init_datasets(config):
     any_train = any(map(lambda x: x == "train", [k for k in loaders]))
     loaders = sorted(loaders, key=lambda x: x[0], reverse=True)
 
-    return loaders, any_train
+    return loaders, any_train, answer_to_id, object_to_id
 
 
 def parse_datasets(config):
@@ -69,25 +91,30 @@ def parse_datasets(config):
     train = train if train is not None else []
     test = config.eval_datasets
     test = test if test is not None else []
-    if isinstance(train[0], str):
+
+    assert train or test, "Must specify dataset in config to instatiate"
+    if train and isinstance(train[0], str):
         train = [train]
-    if isinstance(test[0], str):
+    if test and isinstance(test[0], str):
         test = [test]
     total = train + test
     all_img = False
     all_vl = False
     for pair in total:
         ds, split = pair[0], pair[1]
+        ds = ds.lower()
+        split = split.lower()
+        splits = split_handler(split)
         if ds in _imagesets.avail():
             all_img = True
-            load_imagesets[ds].add(split)
+            load_imagesets[ds].update(splits)
         if ds in _textsets.avail():
             all_vl = True
-            load_textsets[ds].add(split)
+            load_textsets[ds].update(splits)
     for ds, split in train:
-        train_ds[ds].add(split)
+        train_ds[ds].update(split_handler(split))
     for ds, split in test:
-        eval_ds[ds].add(split)
+        eval_ds[ds].update(split_handler(split))
 
     assert not (all_vl and all_img), "cannot specify mixture of VL and Vision datasets"
     datasets_type = VDATA if all_img else VLDATA
@@ -148,6 +175,14 @@ def load_vl(to_load, train_ds, eval_ds, config):
                 is_data = _imagesets.get(is_name).load(config.datadir, split=split)
             loaded_imagesets[is_name][is_split] = is_data
             print(f"Added Imageset {is_name}: {is_split}")
+
+        answer_file = config.labels
+        objects_file = config.objects_file
+        if answer_file is not None or "":
+            answer_to_id = json.load(open(answer_file))
+        if objects_file is not None or "":
+            object_to_id = json.load(open(objects_file))
+
     return {
         "eval": loaded_eval,
         "train": loaded_train,
@@ -167,20 +202,24 @@ def load_v(to_load, train_ds, eval_ds, config):
     object_id = 0
     for name in sorted(set(to_load.keys())):
         splits = split_handler(to_load[name])  # list looks like ['trainval', 'dev']
-        annotations = _imagesets.get(name).load(config.datadir, annotations=True)
+        annotations = _imagesets.get(name).load(config.datadirs[-1], annotations=True)
         loaded_annotations[name] = annotations
         for split in splits:
-            # add textset first
-            imageset = _imagesets.get(name).load(config.datadir, splits=split)
+            imgids2pathes = _imagesets.get(name).load_imgid2path(
+                config.datadirs[-1], split
+            )
             for l in sorted(annotations.labels):
                 if l not in object_to_id:
                     object_to_id[l] = object_id
                     object_id += 1
             if name in eval_ds and split in split in eval_ds[name]:
-                loaded_eval[name][split] = imageset
+                loaded_eval[name][split] = imgids2pathes
             if name in train_ds and split in train_ds[name]:
-                loaded_train[name][split] = imageset
-            print(f"Added Textset {name}: {split}")
+                loaded_train[name][split] = imgids2pathes
+            print(f"Added Imageset {name}: {split}")
+    if config.objects_file is not None:
+        object_to_id = json.load(config.objects_file)
+
     return {
         "train": loaded_train,
         "eval": loaded_eval,
@@ -190,6 +229,8 @@ def load_v(to_load, train_ds, eval_ds, config):
 
 
 def split_handler(splits):
+    if isinstance(splits, str):
+        splits = [splits]
     unique_splits = set()
     for split in splits:
         if split == "testdev":

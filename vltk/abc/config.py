@@ -18,28 +18,7 @@ class Config:
         # if only one
         if isinstance(x, str):
             return [x]
-        # for tuples not nested tuples
-        elif isinstance(x, tuple) and isinstance(x[0], str):
-            return list(x)
-        # for nested tuples or lists
-        elif (isinstance(x, list) or isinstance(x, tuple)) and (
-            isinstance(x[0], list) or isinstance(x, tuple)
-        ):
-            temp = []
-            for t in x:
-                dset = t[0]
-                splt = t[1]
-                if isinstance(splt, str):
-                    splt = set([splt])
-                elif not isinstance(splt, set):
-                    splt = set(splt)
-                temp.append((dset, splt))
-            return temp
-        # for not nested lists
-        elif isinstance(x, list) and isinstance(x[0], str):
-            return x
-        else:
-            raise Exception(f"input: {x} not accepted")
+        return x
 
     def __init__(self, **kwargs):
         for f, v in self:

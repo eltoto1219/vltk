@@ -164,6 +164,8 @@ def load_yaml(flags: dict):
         loaded = yaml.load(open(yaml_path), Loader=yaml.Loader)
         updated_flags = dict(mergedicts(loaded, flags))
         return updated_flags
+    else:
+        return flags
 
 
 def convert_jax_to_torch_weights(

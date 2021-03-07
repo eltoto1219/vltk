@@ -14,15 +14,13 @@
 # print(EvalLxmert.name)
 
 
-from vltk.decorators import get_duration
-from vltk.imageset.frcnn import FRCNNSet
-from vltk.maps.dirs import Imagesets, Loops
-import vltk.loop.data
-from transformers import LxmertModel
-from modeling.configs import Get
+# from transformers import LxmertModel
 
-
-
+# import vltk.loop.data
+# from modeling.configs import Get
+# from vltk.decorators import get_duration
+# from vltk.imageset.frcnn import FRCNNSet
+# from vltk.maps.dirs import Imagesets, Loops
 
 # lxmert = models.get_model("lxmertforquestionanswering")
 # config = Config().data

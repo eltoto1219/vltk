@@ -35,9 +35,7 @@ class VisionLanguageLoader(DataLoader):
         # init loader
         super().__init__(
             dataset=dataset,
-            collate_fn=lambda x: collate(
-                x, pad=config.pad_collate, img_first=config.img_first
-            ),
+            collate_fn=lambda x: collate(x, img_first=config.img_first),
             drop_last=drop_last,
             pin_memory=pin_memory,
             num_workers=num_workers,
@@ -60,9 +58,7 @@ class VisionLoader(DataLoader):
         # init loader
         super().__init__(
             dataset=dataset,
-            collate_fn=lambda x: collate(
-                x, pad=config.pad_collate, img_first=config.img_first
-            ),
+            collate_fn=lambda x: collate(x, img_first=config.img_first),
             drop_last=drop_last,
             pin_memory=pin_memory,
             num_workers=num_workers,

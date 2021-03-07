@@ -128,7 +128,7 @@ class Imageset(ds.Dataset, ABC):
         files = {}
         for i in os.listdir(path):
             fp = os.path.join(path, i)
-            iid = clean_imgid_default(i.split("")[0])
+            iid = clean_imgid_default(i.split(".")[0])
             files[iid] = fp
         return files
 
@@ -171,6 +171,12 @@ class Imageset(ds.Dataset, ABC):
 
         extra_meta = {"img_to_row_map": imgid2row, "object_frequencies": object_dict}
         cls._write_data(writer, buffer, savedir, extra_meta)
+
+    @classmethod
+    def load_imgid2path(cls, datadir, split):
+        name = cls.__name__.lower()
+        path = os.path.join(datadir, name, split)
+        return Imageset.files(path)
 
     @staticmethod
     def _write_batches(annos, feature_dict, batch_size):
@@ -260,9 +266,9 @@ class Imageset(ds.Dataset, ABC):
             self._img_to_row_map[self[i]["img_id"]] = i
         return True
 
-    @staticmethod
-    def from_file(*args, **kwargs):
-        return Imageset.load(*args, **kwargs)
+    @classmethod
+    def from_file(cls, *args, **kwargs):
+        return Imageset.load(cls, *args, **kwargs)
 
     @staticmethod
     def _load_handler(path, name, split=None, extractor=None, annotations=False):
@@ -287,11 +293,14 @@ class Imageset(ds.Dataset, ABC):
             return Imageset.files(path)
 
     @classmethod
-    def load(
-        cls,
-        path,
-    ):
-        out = Imageset._load_handler(path, cls.__name__)
+    def load(cls, path, split=None, extractor=None, annotations=None):
+        out = Imageset._load_handler(
+            path,
+            cls.__name__.lower(),
+            split=split,
+            extractor=extractor,
+            annotations=annotations,
+        )
         if isinstance(out, dict):
             return out
         mmap = pyarrow.memory_map(out)
@@ -311,6 +320,9 @@ class Imageset(ds.Dataset, ABC):
             object_frequencies=object_frequencies,
         )
         return arrow_dset
+
+    def _name(self):
+        return type(self).__name__.lower()
 
     @staticmethod
     @abstractmethod

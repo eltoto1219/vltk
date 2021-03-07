@@ -2,7 +2,7 @@ import os
 from typing import List, Union
 
 from vltk.abc import config
-from vltk.utils import get_most_free_gpu, get_nvidia_gpu_memory
+from vltk.memory import get_most_free_gpu, get_nvidia_gpu_memory
 
 
 class ViTConfig(config.Config):
@@ -87,17 +87,14 @@ class FinetuneConfig(config.Config):
 
 
 class DataConfig(config.Config):
-    eval_aliases: set = {"testdev", "eval", "dev", "evaluation", "inference"}
-    train_aliases: set = {"train", "finetune", "pretrain"}
-    test_aliases: set = {"test"}
-    valid_aliases: set = {"val", "valid", "validation"}
+    objects_file: Union[str, None] = None
     text_processors: Union[None, List[str], str] = ["one_hot_label"]
     image_processors: Union[None, List[str], str] = []
     label_processor: Union[None, str] = "one_hot_label"
     label_preprocessor: str = "label_default"
     labels: Union[None, str] = None
-    eval_datasets = ("gqa", "dev")
-    train_datasets = [("gqa", ("train", "val"))]
+    eval_datasets = None
+    train_datasets = None
     rand_feats: Union[None, tuple] = None
     eval_batch_size = 32
     train_batch_size = 64
@@ -156,13 +153,11 @@ class DataConfig(config.Config):
 
     def __init__(self, finetune=True, **kwargs):
         super().__init__(**kwargs)
-        self.eval_datasets = Config.handle_iterables(self.eval_datasets)
-        if len(self.eval_datasets) > 1 and isinstance(self.eval_datasets[1], str):
-            self.eval_datasets = [(self.eval_datasets[0], set([self.eval_datasets[1]]))]
         self.text_processors = Config.handle_iterables(self.text_processors)
         self.image_processors = Config.handle_iterables(self.image_processors)
         self.datadirs = Config.handle_iterables(self.datadirs)
         self.textfile_extensions = Config.handle_iterables(self.textfile_extensions)
+        # raise Exception(self.eval_datasets, self.train_datasets)
 
 
 class Config(config.Config):

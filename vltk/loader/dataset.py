@@ -7,12 +7,16 @@ from collections.abc import Iterable
 from copy import deepcopy
 
 import numpy
+import numpy as np
 import torch
 # disable logging from datasets
 from datasets.utils.logging import set_verbosity_error
+from PIL import Image
+from pycocotools import mask as Mask
 from tokenizers import BertWordPieceTokenizer
 from torch.utils.data import Dataset
-from vltk import IMAGEKEY, LABELKEY, RAWIMAGEKEY, TEXTKEY
+from vltk import (BBOXKEY, FEATURES, FILEPATH, IMAGEKEY, LABELKEY, RAWIMAGEKEY,
+                  RAWSIZEKEY, SEGMENTATIONKEY, SIZEKEY, TEXTKEY)
 from vltk.inspect import collect_args_to_func
 from vltk.processing import data as data_proc
 from vltk.processing.image import Pipeline
@@ -33,8 +37,43 @@ os.environ["TOKENIZERS_PARALLELISM"] = "False"
 _data_procecessors = data_proc.Data()
 
 
+def rescale_box(boxes, hw_scale):
+    # boxes = (n, (x, y, w, h))
+    # x = top left x position
+    # y = top left y position
+    h_scale = hw_scale[0]
+    w_scale = hw_scale[1]
+    y_centroids = (boxes[:, 1] - boxes[:, 3] / 2) * h_scale
+    x_centroids = (boxes[:, 0] + boxes[:, 2] / 2) * w_scale
+    boxes[:, 2] *= w_scale
+    boxes[:, 3] *= h_scale
+    boxes[:, 0] = x_centroids - boxes[:, 2] / 2  # scaled xs
+    boxes[:, 1] = y_centroids + boxes[:, 3] / 2  # scaled ys
+    return boxes
+
+
+def seg_to_mask(segmentation, h, w):
+    segmentation = Mask.decode(Mask.frPyObjects(segmentation, h, w))
+    if len(segmentation.shape) == 3:
+        segmentation = np.any(segmentation, axis=-1).astype(np.uint8)
+    return segmentation
+
+
+def resize_binary_mask(array, new_size):
+    image = Image.fromarray(array.astype(np.uint8) * 255)
+    image = image.resize(new_size)
+    return np.asarray(image).astype(np.bool_)
+
+
+def uncompress_mask(compressed, size):
+    mask = np.zeros(size, dtype=np.uint8)
+    mask[compressed[0], compressed[1]] = 1
+    return mask
+
+
 class CollatedSets:
     def __init__(self, *args):
+
         self.args = args
         self.range2listpos = {}
         start = 0
@@ -42,18 +81,20 @@ class CollatedSets:
             self.range2listpos[range(start, len(a) + start)] = i
             start += len(a)
 
+    @property
     def _is_imageset(self):
         if not hasattr(self, "__is_imageset"):
             if all(map(lambda x: hasattr(x, "get"), self.args)):
                 self.__is_imageset = True
             else:
                 self.__is_imageset = False
+            return self.__is_imageset
         else:
             return self.__is_imageset
 
     # TODO: figure out better solution if we start chaining idk lets say 10 datasets together
     def get(self, img_id):
-        if not self.__is_imageset:
+        if not self._is_imageset:
             raise Exception(
                 "Only use this method if the datasets within this object are purely vision"
             )
@@ -160,11 +201,15 @@ class VisionLanguageDataset(Dataset):
 
     @property
     def annotations(self):
-        return self._annotations
+        return getattr(self, "_annotations", None)
 
     def _handle_annotations(self, img_id):
         # TODO: I need to implement this function asap
-        anno_dict = self.annotations.get(img_id)
+        annotation_pointer = self.annotations
+        if annotation_pointer is None:
+            raise Exception
+            return
+        anno_dict = annotation_pointer.get(img_id)
         labels = anno_dict[LABELKEY]
         labels = torch.Tensor([self.object_to_id[int(l)] for l in labels])
         anno_dict[LABELKEY] = labels
@@ -184,7 +229,9 @@ class VisionLanguageDataset(Dataset):
         if annotationdict is None:
             self._annotations = None
             return
-        self._annotations = CollatedSets(*list(annotationdict.values()))
+        annotations = list(annotationdict.values())
+        raise Exception("HERE", annotations)
+        self._annotations = CollatedSets(*annotations)
 
     def _init_image_pipeline(self):
         config_dict = self.config.to_dict()
@@ -302,9 +349,9 @@ class VisionLanguageDataset(Dataset):
                 elif isinstance(v, int) or isinstance(v, float):
                     entry[k] = torch.tensor(v)
             # TODO: okay I defintely need to change this
-            if "roi_features" in entry:
+            if FEATURES in entry:
                 proc_args["random_feat_func"] = self.random_feat
-                entry["roi_features"] = entry["roi_features"][: self.config.max_objects]
+                entry[FEATURES] = entry[FEATURES][: self.config.max_objects]
         if self.annotationdict is not None:
             entry.update(self._handle_annotations(img_id))
 
@@ -322,8 +369,8 @@ class VisionLanguageDataset(Dataset):
         is_name, is_split = zip(*textset.data_info[ts_split].items())
         imageset = self.imagesetdict[is_name[0]][is_split[0][0]]
         img_info = imageset.get(img_id)
-        if "roi_features" in img_info:
-            feat = random.choice(img_info["roi_features"])
+        if FEATURES in img_info:
+            feat = random.choice(img_info[FEATURES])
             return feat
         else:
             return None
@@ -484,7 +531,7 @@ class VisionLanguageDataset(Dataset):
                     batch[k] = new_v
 
 
-class VisionLDataset(Dataset):
+class VisionDataset(Dataset):
     def __init__(
         self,
         config,
@@ -493,14 +540,23 @@ class VisionLDataset(Dataset):
         object_to_id=None,
         is_train=False,
     ):
-        self.annotationdict = annotationdict
+        self.is_train = is_train
+        # self.annotationdict = annotationdict
+        self._init_annotation_dict(annotationdict)
         self.config = config
         self._init_image_pipeline()
         self.imagesetdict = imagesetdict
         self.object_to_id = object_to_id
+        self.img_id_to_path = {}
         self.n_imgs = 0
-        for imgset in list(imagesetdict.values()):
-            self.n_imgs += len(imgset)
+        # later if we need
+        self.imgid_info = {}
+        for imgsetsplits in list(imagesetdict.values()):
+            for imgids2files in imgsetsplits.values():
+                self.n_imgs += len(imgids2files)
+                # for imgid, filepath in imgids2files.items():
+                #    self.img_id_to_path
+                self.img_id_to_path.update(imgids2files)
 
     @property
     def batch_size(self):
@@ -524,29 +580,70 @@ class VisionLDataset(Dataset):
             pass
         self.object_to_id = path_or_dict
 
-    def _handle_annotations(self, img_id):
-        # TODO: I need to implement this function asap
+    def _handle_annotations(self, img_id, img_info, img):
+        skip_segmentation = False
+        cur_size = img_info[SIZEKEY]
+        if img_info is None:
+            skip_segmentation = True
+        else:
+            if RAWSIZEKEY not in img_info:
+                scale = (1.0, 1.0)
+            else:
+                raw_size = img_info[RAWSIZEKEY]
+                scale = cur_size[0] / raw_size[0], cur_size[1] / raw_size[1]
         anno_dict = self.annotations.get(img_id)
-        labels = anno_dict[LABELKEY]
-        labels = torch.Tensor([self.object_to_id[int(l)] for l in labels])
+        word_labels = anno_dict[LABELKEY]
+        labels = torch.Tensor([self.object_to_id[l] for l in word_labels])
         anno_dict[LABELKEY] = labels
         for k, v in anno_dict.items():
             if (
                 k is LABELKEY
                 or k is IMAGEKEY
-                or (isinstance(v, Iterable) and not isinstance(v[0], list))
+                or k == "img_id"
+                or isinstance(v, torch.Tensor)
             ):
                 continue
+            elif k == SEGMENTATIONKEY and not skip_segmentation:
+                size = anno_dict[SIZEKEY]
+                try:
+                    segmentations = np.stack(
+                        [
+                            resize_binary_mask(seg_to_mask(s, *size), cur_size)
+                            for s in v
+                            if s
+                        ]
+                    )
+                except Exception:
+                    raise Exception(v)
+                values = torch.as_tensor(segmentations)
 
-            anno_dict[k] = list(map(lambda x: torch.Tensor(x), v))
+            else:
+                if k == "area" or k == SIZEKEY:
+                    values = torch.tensor(v)
+
+                else:
+                    values = list(map(lambda x: torch.Tensor(x), v))
+                try:
+                    values = torch.stack(values, dim=0)
+                except Exception:
+                    pass
+                if k == BBOXKEY:
+                    values = rescale_box(values, scale)
+
+            anno_dict[k] = values
+
+        if skip_segmentation and SEGMENTATIONKEY in anno_dict:
+            anno_dict.pop(SEGMENTATIONKEY)
 
         return anno_dict
 
     def _init_annotation_dict(self, annotationdict):
         if annotationdict is None:
+            raise Exception("HERE")
             self._annotations = None
             return
-        self._annotations = CollatedSets(*list(annotationdict.values()))
+        annotations = list(annotationdict.values())
+        self._annotations = CollatedSets(*annotations)
 
     def _init_image_pipeline(self):
         config_dict = self.config.to_dict()
@@ -555,68 +652,37 @@ class VisionLDataset(Dataset):
 
     def _handle_image(self, entry):
         img_id = entry[IMAGEKEY]
-        proc_args = {"config": self.config}
+        filepath = self.img_id_to_path[img_id]
         if self.config.rand_feats is not None:
             feat_shape = tuple(self.config.rand_feats)
-            filepath = entry[RAWIMAGEKEY]
-            entry["filepath"] = filepath
+            entry[FILEPATH] = filepath
             img = torch.rand(feat_shape)
             entry[RAWIMAGEKEY] = img
-
-        elif self.config.extractor is None:
-            filepath = entry[RAWIMAGEKEY]
-            entry["filepath"] = filepath
-            entry[RAWIMAGEKEY] = self.image_transforms(filepath)
+            img_info = None
         else:
-            for k, v in entry.items():
-                if isinstance(v, Iterable):
-                    if isinstance(v, numpy.ndarray):
-                        entry[k] = torch.from_numpy(v)
-                    elif isinstance(v, list):
-                        entry[k] = torch.tensor(v)
-                elif isinstance(v, int) or isinstance(v, float):
-                    entry[k] = torch.tensor(v)
-            # TODO: okay I defintely need to change this
-            if "roi_features" in entry:
-                proc_args["random_feat_func"] = self.random_feat
-                entry["roi_features"] = entry["roi_features"][: self.config.max_objects]
-        if self.annotationdict is not None:
-            entry.update(self._handle_annotations(img_id))
+            entry[FILEPATH] = filepath
+            transformed = self.image_transforms(filepath)
+            if isinstance(transformed, tuple):
+                img, img_info = transformed
+            else:
+                img, img_info = transformed, {}
+                size = transformed.shape[1:]
+                img_info[SIZEKEY] = size
+            for k, v in img_info.items():
+                entry[k] = torch.Tensor(v)
+            entry[RAWIMAGEKEY] = img
 
-        # now we do other image processors
-        if self.config.image_processors is not None:
-            for proc in self.config.image_processors:
-                proc_func = _data_procecessors.get(proc)
-                proc_func(entry, **proc_args)
+        if self.annotations is not None:
+            entry.update(self._handle_annotations(img_id, img_info, img))
 
-    def _do_map_img_first(self, i):
-        img_id = self.uniq_imgs[i]
-        ts_name, ts_split = self.img2textset[img_id]
-        textset = self.textsetdict[ts_name][ts_split]
-        idxs = textset.img_to_rows_map[img_id]
-        small_textset = textset.select(idxs)
-        img_text_dict = self._map(small_textset)
-
-        img_text_dict.set_format(
-            type="torch", output_all_columns=True, columns=list(TORCHCOLS)
-        )
-        # so what we have to turn into tensors ar
-        img_text_dict = img_text_dict[:]
-        img_text_dict[IMAGEKEY] = img_id
-        return img_text_dict, textset, ts_split, img_id
+    def __len__(self):
+        if self.annotations is not None:
+            return len(self.annotations)
+        else:
+            return self.n_imgs
 
     @torch.no_grad()
     def __getitem__(self, i):
-        img_text_dict, textset, ts_split, img_id = self._do_map_img_first(i)
-        is_name, is_split = zip(*textset.data_info[ts_split].items())
-        imageset = self.imagesetdict[is_name[0]][is_split[0][0]]
-        img_info_dict = imageset.get(img_id)
-        if isinstance(img_info_dict, str):
-            img_info_dict = {RAWIMAGEKEY: img_info_dict}
-        self._handle_image(img_info_dict)
-        entry = {**img_text_dict, **img_info_dict, "img_id": img_id}
-        # entry = img_info_dict
-        if not self.cache_batch_exists or self.config.overwrite_cache_batch:
-            torch.save(entry, self.cache_batch_path)
-
-        return entry
+        anno_dict = self.annotations[i]
+        self._handle_image(anno_dict)
+        return anno_dict

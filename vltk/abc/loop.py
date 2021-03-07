@@ -6,7 +6,7 @@ from typing import Union
 
 import torch
 from vltk import LOOPPATH, utils
-from vltk.dataset import UniversalLoader
+# from vltk.dataset import UniversalLoader
 from vltk.inspect import get_classes
 
 

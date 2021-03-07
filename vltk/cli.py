@@ -68,7 +68,8 @@ class Main(object):
 
     def __init__(self, **kwargs):
         if not torch.cuda.is_available():
-            kwargs["gpu"] = -1
+            kwargs["gpu"] = "cpu"
+
         kwargs = utils.unflatten_dict(kwargs)
         kwargs = utils.load_yaml(kwargs)
         self.flags = kwargs

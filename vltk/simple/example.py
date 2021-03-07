@@ -12,6 +12,7 @@ class Data(SimpleExperiment):
     model_list = []
 
     def forward(self, batch) -> dict:
+        print(batch.keys())
         print(batch["image"].shape)
 
         return {}

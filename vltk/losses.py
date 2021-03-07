@@ -1,3 +1,9 @@
+import torch
+import torch.nn as nn
+
+ACT2FN = {}
+
+
 class LxmertPredictionHeadTransform(nn.Module):
     def __init__(self, config):
         super(LxmertPredictionHeadTransform, self).__init__()
@@ -10,6 +16,7 @@ class LxmertPredictionHeadTransform(nn.Module):
         hidden_states = self.transform_act_fn(hidden_states)
         hidden_states = self.LayerNorm(hidden_states)
         return hidden_states
+
 
 class LxmertLMPredictionHead(nn.Module):
     def __init__(self, config, lxmert_model_embedding_weights):

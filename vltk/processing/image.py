@@ -1,10 +1,12 @@
 from collections.abc import Iterable
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 import torchvision.transforms.functional as FV
 from PIL import Image as PImage
 from torchvision import transforms
+from vltk import RAWSIZEKEY, SIZEKEY
 
 
 class Image:
@@ -32,7 +34,7 @@ class ToPILImage(object):
         if isinstance(filepath, str):
             return PImage.open(filepath)
         else:
-            return FV.to_pil_image(filepath, self.mode)
+            return FV.to_pil_image(filepath.byte(), self.mode)
 
 
 class ToTensor(object):
@@ -40,10 +42,19 @@ class ToTensor(object):
         pass
 
     def __call__(self, tensor):
-        tensor = FV.to_tensor(tensor)
+        if isinstance(tensor, tuple):
+            tensor, kwargs = tensor
+        else:
+            kwargs = {}
+        nump = np.array(tensor)
+        tensor = torch.as_tensor(
+            nump.reshape(nump.shape[-1], *nump.shape[:2]), dtype=torch.float
+        ).float()
+
         if len(tensor.shape) == 2:
             tensor = tensor.unsqueeze(0).repeat(3, 1, 1)
-        return tensor
+
+        return tensor, kwargs
 
 
 class Normalize(object):
@@ -54,6 +65,10 @@ class Normalize(object):
         self.inplace = inplace
 
     def __call__(self, tensor):
+        if isinstance(tensor, tuple):
+            tensor, kwargs = tensor
+        else:
+            kwargs = {}
         # tensor must be: (C, H, W)
         if self.mean is None or self.std is None:
             if self.scale == "standard":
@@ -64,12 +79,13 @@ class Normalize(object):
                 mean = mean.tolist()
                 std = std.tolist()
             else:
-                return tensor / 255
+                return tensor / 255, kwargs
         else:
             mean = self.mean
             std = self.std
 
-        return FV.normalize(tensor, mean, std, self.inplace)
+        normalize = FV.normalize(tensor, mean, std, self.inplace)
+        return normalize, kwargs
 
 
 class ResizeTensor(object):
@@ -91,9 +107,14 @@ class ResizeTensor(object):
 
     @torch.no_grad()
     def __call__(self, tensor):
+        if isinstance(tensor, tuple):
+            tensor, kwargs = tensor
+        else:
+            kwargs = {}
         max_size = self.max_size
         min_size = self.min_size
         C, H, W = tensor.shape
+        kwargs[RAWSIZEKEY] = [H, W]
         tensor = tensor.unsqueeze(0)
         if self.gpu is not None:
             tensor = tensor.to(torch.device(self.gpu))
@@ -116,13 +137,19 @@ class ResizeTensor(object):
                 tensor, (newh, neww), mode=self.mode, align_corners=False
             ).squeeze(0)
             tensor = torch.clamp(tensor, max=255)
-            return tensor
+            kwargs[SIZEKEY] = [newh, neww]
+            return tensor, kwargs
         else:
+
+            kwargs[SIZEKEY] = [
+                min_size,
+                max_size,
+            ]  # min and max sizes are the same in this case
             tensor = F.interpolate(
                 tensor, (min_size, max_size), mode=self.mode, align_corners=False
             ).squeeze(0)
             tensor = torch.clamp(tensor, max=255)
-            return tensor
+            return tensor, kwargs
 
 
 class Pad(object):
@@ -138,10 +165,14 @@ class Pad(object):
 
     @torch.no_grad()
     def __call__(self, tensor):
+        if isinstance(tensor, tuple):
+            tensor, kwargs = tensor
+        else:
+            kwargs = {}
         C, H, W = tensor.shape
         max_size = self.max_size
         tensor = F.pad(tensor, [0, max_size - W, 0, max_size - H], value=self.pad_value)
-        return tensor
+        return tensor, kwargs
 
 
 def Pipeline(

@@ -21,8 +21,9 @@ from transformers import AdamW, get_linear_schedule_with_warmup
 from vltk import SIMPLEPATH, utils
 from vltk.abc.imageset import Imagesets
 from vltk.abc.textset import Textsets
-from vltk.dataset import UniversalLoader
+# from vltk.dataset import UniversalLoader
 from vltk.inspect import get_classes
+from vltk.loader.builder import init_datasets
 from vltk.modeling import Get as Mget
 from vltk.modeling.configs import Get
 
@@ -67,7 +68,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         self._init_dirs()
         self._init_seed()
         self._init_scaler()
-        self._init_datasets()
+        # self._init_datasets()
         self._init_loaders()
         self._init_models()
         self._init_optim()
@@ -234,36 +235,45 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         self._model_dict = model_dict
         self._model_configs = model_configs
 
-    def _init_loader(self, textsetdict, imagesetdict, label_dict, train=True):
-        datasets = self.datasets if train else self.config.data.eval_datasets
-        loader = UniversalLoader(
-            config=self.config.data,
-            names=datasets,
-            label_dict=label_dict,
-            imagesetdict=imagesetdict,
-            textsetdict=textsetdict,
-        )
-        # get necessary methods from the loader
-        self.flatten_text = loader.dataset.flatten_text
-        return loader
+    # def _init_loader(self, textsetdict, imagesetdict, label_dict, train=True):
+    #     datasets = self.datasets if train else self.config.data.eval_datasets
+    #     loader = UniversalLoader(
+    #         config=self.config.data,
+    #         names=datasets,
+    #         label_dict=label_dict,
+    #         imagesetdict=imagesetdict,
+    #         textsetdict=textsetdict,
+    #     )
+    #     # get necessary methods from the loader
+    #     self.flatten_text = loader.dataset.flatten_text
+    #     return loader
+
+    @property
+    def is_train(self):
+        return getattr(self, "any_train", None)
 
     def _init_loaders(self):
-        ttsd = self.train_textsetdict
-        tisd = self.train_imagesetdict
-        etsd = self.eval_textsetdict
-        eisd = self.eval_imagesetdict
-        l2id = self.label_to_id
+        loaders, any_train, answer_to_id, object_to_id = init_datasets(self.config.data)
+        self._loaders = loaders
+        self.answer_to_id = answer_to_id
+        self.object_to_id = object_to_id
+        self.any_train = any_train
+        # ttsd = self.train_textsetdict
+        # tisd = self.train_imagesetdict
+        # etsd = self.eval_textsetdict
+        # eisd = self.eval_imagesetdict
+        # l2id = self.label_to_id
 
-        loaders = {
-            "train": self._init_loader(ttsd, tisd, l2id) if ttsd else None,
-            "eval": self._init_loader(etsd, eisd, l2id) if etsd else None,
-        }
-        self._loaders = [(k, v) for k, v in loaders.items()]
-        self.is_train = any(map(lambda x: x == "train", [k for k in loaders]))
-        self._loaders = sorted(self._loaders, key=lambda x: x[0], reverse=True)
-        for k, v in loaders.items():
-            if v is not None:
-                self.transpose_img2txt = v.dataset.transpose_img2txt
+        # loaders = {
+        #     "train": self._init_loader(ttsd, tisd, l2id) if ttsd else None,
+        #     "eval": self._init_loader(etsd, eisd, l2id) if etsd else None,
+        # }
+        # self._loaders = [(k, v) for k, v in loaders.items()]
+        # self.is_train = any(map(lambda x: x == "train", [k for k in loaders]))
+        # self._loaders = sorted(self._loaders, key=lambda x: x[0], reverse=True)
+        # for k, v in loaders.items():
+        #     if v is not None:
+        #         self.transpose_img2txt = v.dataset.transpose_img2txt
 
     def _clean_dict(self, info):
         clean_info = {}
@@ -335,102 +345,102 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         )
         json.dump(save_outputs, open(save_name, "w"))
 
-    def _init_datasets(self):
-        # first check to see if any train or any val
-        # check for train and eval loops
-        self.label_to_id = {}
-        self.dataset2splits = defaultdict(set)
-        self.train_textsetdict = defaultdict(dict)
-        self.eval_textsetdict = defaultdict(dict)
-        self.train_imagesetdict = defaultdict(dict)
-        self.eval_imagesetdict = defaultdict(dict)
-        if not self.config.data.annotations:
-            self.annotationdict = None
-        else:
-            self.annotationdict = {}
+    # def _init_datasets(self):
+    #     # first check to see if any train or any val
+    #     # check for train and eval loops
+    #     self.label_to_id = {}
+    #     self.dataset2splits = defaultdict(set)
+    #     self.train_textsetdict = defaultdict(dict)
+    #     self.eval_textsetdict = defaultdict(dict)
+    #     self.train_imagesetdict = defaultdict(dict)
+    #     self.eval_imagesetdict = defaultdict(dict)
+    #     if not self.config.data.annotations:
+    #         self.annotationdict = None
+    #     else:
+    #         self.annotationdict = {}
 
-        train_datasets = set()
-        eval_datasets = set()
-        train_splits = set()
-        eval_splits = set()
+    #     train_datasets = set()
+    #     eval_datasets = set()
+    #     train_splits = set()
+    #     eval_splits = set()
 
-        # loop through train datasets
-        for (dset, splits) in self.datasets:
-            train_datasets.add(dset)
-            train_splits = train_splits.union(splits)
-            self.dataset2splits[dset] = self.dataset2splits[dset].union(splits)
-        # then loop thorugh eval datasets
-        for (dset, splits) in self.config.data.eval_datasets:
-            assert (
-                dset in train_datasets
-            ), "eval datasets must also be present in train datasets"
-            eval_datasets.add(dset)
-            eval_splits = eval_splits.union(splits)
-            if not splits.intersection(self.dataset2splits[dset]):
-                self.dataset2splits[dset] = self.dataset2splits[dset].union(splits)
+    #     # loop through train datasets
+    #     for (dset, splits) in self.datasets:
+    #         train_datasets.add(dset)
+    #         train_splits = train_splits.union(splits)
+    #         self.dataset2splits[dset] = self.dataset2splits[dset].union(splits)
+    #     # then loop thorugh eval datasets
+    #     for (dset, splits) in self.config.data.eval_datasets:
+    #         assert (
+    #             dset in train_datasets
+    #         ), "eval datasets must also be present in train datasets"
+    #         eval_datasets.add(dset)
+    #         eval_splits = eval_splits.union(splits)
+    #         if not splits.intersection(self.dataset2splits[dset]):
+    #             self.dataset2splits[dset] = self.dataset2splits[dset].union(splits)
 
-        label_id = 0
-        for name in sorted(set(self.dataset2splits.keys())):
-            for split in sorted(set(self.dataset2splits[name])):
-                if (
-                    name in eval_datasets
-                    and split in eval_splits
-                    and not self.config.data.skip_eval
-                ) or (split in train_splits and not self.config.data.skip_train):
-                    textset = _textsets.get(name).from_config(
-                        self.config.data, splits=split
-                    )[split]
-                else:
-                    continue
-                for l in sorted(textset.labels):
-                    if l not in self.label_to_id:
-                        self.label_to_id[l] = label_id
-                        label_id += 1
-                print(f"Added Textset {name}: {split}")
-                if (
-                    name in eval_datasets
-                    and split in eval_splits
-                    and not self.config.data.skip_eval
-                ):
-                    self.eval_textsetdict[name][split] = textset
-                if split in train_splits and not self.config.data.skip_train:
-                    self.train_textsetdict[name][split] = textset
-                is_name, is_split = zip(*textset.data_info[split].items())
-                is_name = is_name[0]
-                is_split = is_split[0][0]
-                if self.config.data.extractor is not None:
-                    is_path = textset.get_arrow_split(
-                        self.config.data.datadirs, is_split, self.config.data.extractor
-                    )
-                    imageset = _imagesets.get(self.config.data.extractor).from_file(
-                        is_path
-                    )
-                else:
-                    imageset = textset.get_imgid_to_raw_path(
-                        self.config.data.datadirs, is_split
-                    )
-                if self.config.data.annotations and is_name not in self.annotationdict:
-                    # TODO: must fix this later
-                    path = os.path.join(
-                        searchdirs[-1], is_name, "annotations/annotations.arrow"
-                    )
-                    ### THIS IS WEHRE I COME BACK TOO ###
-                    self.eval_imagesetdict[is_name][is_split] = imageset
+    #     label_id = 0
+    #     for name in sorted(set(self.dataset2splits.keys())):
+    #         for split in sorted(set(self.dataset2splits[name])):
+    #             if (
+    #                 name in eval_datasets
+    #                 and split in eval_splits
+    #                 and not self.config.data.skip_eval
+    #             ) or (split in train_splits and not self.config.data.skip_train):
+    #                 textset = _textsets.get(name).from_config(
+    #                     self.config.data, splits=split
+    #                 )[split]
+    #             else:
+    #                 continue
+    #             for l in sorted(textset.labels):
+    #                 if l not in self.label_to_id:
+    #                     self.label_to_id[l] = label_id
+    #                     label_id += 1
+    #             print(f"Added Textset {name}: {split}")
+    #             if (
+    #                 name in eval_datasets
+    #                 and split in eval_splits
+    #                 and not self.config.data.skip_eval
+    #             ):
+    #                 self.eval_textsetdict[name][split] = textset
+    #             if split in train_splits and not self.config.data.skip_train:
+    #                 self.train_textsetdict[name][split] = textset
+    #             is_name, is_split = zip(*textset.data_info[split].items())
+    #             is_name = is_name[0]
+    #             is_split = is_split[0][0]
+    #             if self.config.data.extractor is not None:
+    #                 is_path = textset.get_arrow_split(
+    #                     self.config.data.datadirs, is_split, self.config.data.extractor
+    #                 )
+    #                 imageset = _imagesets.get(self.config.data.extractor).from_file(
+    #                     is_path
+    #                 )
+    #             else:
+    #                 imageset = textset.get_imgid_to_raw_path(
+    #                     self.config.data.datadirs, is_split
+    #                 )
+    #             if self.config.data.annotations and is_name not in self.annotationdict:
+    #                 # TODO: must fix this later
+    #                 path = os.path.join(
+    #                     searchdirs[-1], is_name, "annotations/annotations.arrow"
+    #                 )
+    #                 ### THIS IS WEHRE I COME BACK TOO ###
+    #                 self.eval_imagesetdict[is_name][is_split] = imageset
 
-                print(f"Added Imageset {is_name}: {is_split}")
+    #             print(f"Added Imageset {is_name}: {is_split}")
 
-                if (
-                    name in eval_datasets
-                    and split in eval_splits
-                    and not self.config.data.skip_eval
-                ):
-                    self.eval_imagesetdict[is_name][is_split] = imageset
-                if split in train_splits and not self.config.data.skip_train:
-                    self.train_imagesetdict[is_name][is_split] = imageset
+    #             if (
+    #                 name in eval_datasets
+    #                 and split in eval_splits
+    #                 and not self.config.data.skip_eval
+    #             ):
+    #                 self.eval_imagesetdict[is_name][is_split] = imageset
+    #             if split in train_splits and not self.config.data.skip_train:
+    #                 self.train_imagesetdict[is_name][is_split] = imageset
 
-        label_file = self.config.data.labels
-        if label_file is not None or "":
-            self.label_to_id = json.load(open(label_file))
+    #     label_file = self.config.data.labels
+    #     if label_file is not None or "":
+    #         self.label_to_id = json.load(open(label_file))
 
     # vanilla mehtods
     def write_epoch(self, info: dict = None):
@@ -569,7 +579,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         # account for cache batch
         if (
             self.config.test_run
-            and loader.dataset.cache_batch_exists
+            and getattr(loader.dataset, "cache_batch_exists", False)
             and not self.config.data.overwrite_cache_batch
             and self.config.break_loop_on_test
         ):
@@ -764,8 +774,8 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         that will subesequently be processed and written to a log
         """
 
-    @abstractmethod
     @property
+    @abstractmethod
     def model_list(self):
         """
         user defines a list of models. each list item is either a string that references

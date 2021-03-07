@@ -22,7 +22,7 @@ def get_classes(path_or_dir_name, cls_defintion=None, pkg=None):
                     try:
                         filter_dict[c.name] = c
                     except Exception:
-                        filter_dict[c.__name__] = c
+                        filter_dict[c.__name__.lower()] = c
             return filter_dict
         else:
             return clsses
@@ -35,13 +35,8 @@ def get_classes(path_or_dir_name, cls_defintion=None, pkg=None):
     for p in os.listdir(path_or_dir_name):
         if p[0] != "_":
             if pkg is None and p[-3:] == ".py":
-                path = os.path.join(path_or_dir_name, p)
                 module_name = p[:-3]
                 npkg = __import__(module_name, fromlist=[""])
-                # spec = importlib.util.spec_from_file_location(module_name, path)
-                # npkg = importlib.util.module_from_spec(spec)
-                # sys.modules[module_name] = npkg
-                # spec.loader.exec_module(npkg)
             elif pkg is None and p[-3:] != ".py":
                 continue
             else:
@@ -62,7 +57,7 @@ def get_classes(path_or_dir_name, cls_defintion=None, pkg=None):
                             try:
                                 classes[t[-1].name] = t[-1]
                             except AttributeError:
-                                classes[t[-1].__name__] = t[-1]
+                                classes[t[-1].__name__.lower()] = t[-1]
             except ModuleNotFoundError:
                 assert module_name != "exp_newdata"
                 pass

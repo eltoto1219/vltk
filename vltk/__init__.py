@@ -10,15 +10,21 @@ def dummy():
         return
 
 
-VLDATA = 0
-VDATA = 1
-LDATA = 2
+# common keys across library
+RAWSIZEKEY = "raw_size"
+SIZEKEY = "size"
+SEGMENTATIONKEY = "segmentation"
+BBOXKEY = "bbox"
 ANNOTATION_DIR = "annotations"
 IMAGEKEY = "img_id"
 LABELKEY = "label"
 TEXTKEY = "text"
 SCOREKEY = "score"
 RAWIMAGEKEY = "image"
+FILEPATH = "filepath"
+FEATURES = "features"
+
+
 SPLITALIASES = {
     "testdev",
     "test",
@@ -30,8 +36,12 @@ SPLITALIASES = {
     "train",
 }
 
+# dataset selection values
+VLDATA = 0
+VDATA = 1
+LDATA = 2
 
-# patche
+# pathes
 BASEPATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "."))
 TEXTSETPATH = os.path.join(BASEPATH, "textset")
 IMAGESETPATH = os.path.join(BASEPATH, "imageset")
