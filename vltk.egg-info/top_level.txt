@@ -1,12 +1,11 @@
 tests
 vltk
 vltk/abc
-vltk/exp
-vltk/imageset
+vltk/adapters/
+vltk/adapters/extraction
+vltk/adapters/vision
+vltk/adapters/visionlang
 vltk/legacy
-vltk/loop
 vltk/modeling
 vltk/modeling/configs
 vltk/processing
-vltk/textset
-vltk/visualizations
