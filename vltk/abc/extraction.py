@@ -98,12 +98,12 @@ class VizExtractionAdapter(ds.Dataset, ABC):
         return type(self).__name__.lower()
 
     @property
-    def ids(self):
+    def imgids(self):
         return tuple(self._img_to_row_map.keys())
 
     @property
-    def length(self):
-        return len(self.get_imgids)
+    def n_imgs(self):
+        return len(self.imgids)
 
     @property
     def dataset(self):
@@ -139,6 +139,7 @@ class VizExtractionAdapter(ds.Dataset, ABC):
         pass
         args = str(inspect.formatargspec(*inspect.getargspec(forward)))
         assert "entry" in args, (args, type(args))
+        assert "model" in args, (args, type(args))
         assert callable(image_preprocessor), (
             image_preprocessor,
             callable(image_preprocessor),
@@ -477,11 +478,11 @@ class VizExtractionAdapter(ds.Dataset, ABC):
         return arrow_dset
 
     @abstractmethod
-    def forward(entry, **kwargs):
+    def forward(model, entry, **kwargs):
         raise Exception("child forward is not being called")
 
     @abstractmethod
-    def schema(self, *args, **kwargs):
+    def schema(*args, **kwargs):
         return dict
 
     @property
