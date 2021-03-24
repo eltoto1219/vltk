@@ -61,7 +61,7 @@ class FRCNN(VizExtractionAdapter):
 if __name__ == "__main__":
     # dataset = FRCNN.extract("/home/eltoto/vltk/tests/visualgenome")
     dataset = FRCNN.load("/home/eltoto/vltk/tests/visualgenome", split="train")
-    entry = dataset.get(dataset.ids[1])
+    entry = dataset.get(dataset.imgids[1])
     for k, v in entry.items():
         print(k, type(v))
     print(dataset)
