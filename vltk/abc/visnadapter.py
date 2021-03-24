@@ -16,13 +16,13 @@ from vltk.inspect import get_classes
 from vltk.processing.label import clean_imgid_default
 from vltk.utils import set_metadata
 
-__all__ = ["Imageset", "Imagesets"]
+__all__ = ["VisnDatasetAdapter", "VisnDatasetAdapters"]
 
 
 DEFAULT_ANNOS = {}
 
 
-class Imagesets:
+class VisnDatasetAdapters:
     def __init__(self):
         if "IMAGESETDICT" not in globals():
             global IMAGESETDICT
@@ -38,7 +38,7 @@ class Imagesets:
         IMAGESETDICT[name] = dset
 
 
-class Imageset(ds.Dataset, ABC):
+class VisnDatasetAdapter(ds.Dataset, ABC):
     _batch_size = 10
     _base_features = {
         IMAGEKEY: ds.Value("string"),
@@ -176,7 +176,7 @@ class Imageset(ds.Dataset, ABC):
     def load_imgid2path(cls, datadir, split):
         name = cls.__name__.lower()
         path = os.path.join(datadir, name, split)
-        return Imageset.files(path)
+        return VisnDatasetAdapter.files(path)
 
     @staticmethod
     def _write_batches(annos, feature_dict, batch_size):
@@ -238,7 +238,7 @@ class Imageset(ds.Dataset, ABC):
         writer = ArrowWriter(path=savefile, schema=table.schema, with_metadata=False)
         # savedir new table
         writer.write_table(table)
-        e, b = Imageset._custom_finalize(writer, close_stream=True)
+        e, b = VisnDatasetAdapter._custom_finalize(writer, close_stream=True)
         print(f"Success! You wrote {e} entry(s) and {b >> 20} mb")
         print(f"Located: {savefile}")
 
@@ -268,7 +268,7 @@ class Imageset(ds.Dataset, ABC):
 
     @classmethod
     def from_file(cls, *args, **kwargs):
-        return Imageset.load(cls, *args, **kwargs)
+        return VisnDatasetAdapter.load(cls, *args, **kwargs)
 
     @staticmethod
     def _load_handler(path, name, split=None, extractor=None, annotations=False):
@@ -290,11 +290,11 @@ class Imageset(ds.Dataset, ABC):
             return path
         elif split is None:
             path = os.path.join(path, split)
-            return Imageset.files(path)
+            return VisnDatasetAdapter.files(path)
 
     @classmethod
     def load(cls, path, split=None, extractor=None, annotations=None):
-        out = Imageset._load_handler(
+        out = VisnDatasetAdapter._load_handler(
             path,
             cls.__name__.lower(),
             split=split,

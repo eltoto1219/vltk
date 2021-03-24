@@ -2,12 +2,12 @@ import json
 from collections import defaultdict
 
 from vltk import SPLITALIASES, VDATA, VLDATA
-from vltk.abc.imageset import Imagesets
-from vltk.abc.textset import Textsets
+from vltk.abc.visndatasetadapter import VisnDatasetAdapters
+from vltk.abc.visnlangdatasetadapter import VisnLangDatasetAdapters
 from vltk.loader.loader import VisionLanguageLoader, VisionLoader
 
-_textsets = Textsets()
-_imagesets = Imagesets()
+_visnlangdatasetadapters = VisnLangDatasetAdapters()
+_visndatasetadapters = VisnDatasetAdapters()
 
 
 def init_datasets(config):
@@ -21,15 +21,15 @@ def init_datasets(config):
         train = out_dict["train"]
         test = out_dict["eval"]
         annos = out_dict["annotations"]
-        imagesets = out_dict["imagesets"]
+        visndatasetadapters = out_dict["visndatasetadapters"]
         answer_to_id = out_dict["answers"]
         object_to_id = out_dict["objects"]
 
         if train:
             train_loader = VisionLanguageLoader(
                 config,
-                textsetdict=train,
-                imagesetdict=imagesets,
+                visnlangdatasetadapterdict=train,
+                visndatasetadapterdict=visndatasetadapters,
                 annotationdict=annos,
                 answer_to_id=answer_to_id,
                 object_to_id=object_to_id,
@@ -38,8 +38,8 @@ def init_datasets(config):
         if test:
             eval_loader = VisionLanguageLoader(
                 config,
-                textsetdict=train,
-                imagesetdict=imagesets,
+                visnlangdatasetadapterdict=train,
+                visndatasetadapterdict=visndatasetadapters,
                 annotationdict=annos,
                 answer_to_id=answer_to_id,
                 object_to_id=object_to_id,
@@ -57,7 +57,7 @@ def init_datasets(config):
         if train:
             train_loader = VisionLoader(
                 config,
-                imagesetdict=train,
+                visndatasetadapterdict=train,
                 annotationdict=annotations,
                 object_to_id=object_to_id,
                 is_train=True,
@@ -65,7 +65,7 @@ def init_datasets(config):
         if test:
             eval_loader = VisionLoader(
                 config,
-                imagesetdict=test,
+                visndatasetadapterdict=test,
                 annotationdict=annotations,
                 object_to_id=object_to_id,
                 is_train=False,
@@ -83,8 +83,8 @@ def init_datasets(config):
 
 
 def parse_datasets(config):
-    load_textsets = defaultdict(set)
-    load_imagesets = defaultdict(set)
+    load_visnlangdatasetadapters = defaultdict(set)
+    load_visndatasetadapters = defaultdict(set)
     train_ds = defaultdict(set)
     eval_ds = defaultdict(set)
     train = config.train_datasets
@@ -105,12 +105,12 @@ def parse_datasets(config):
         ds = ds.lower()
         split = split.lower()
         splits = split_handler(split)
-        if ds in _imagesets.avail():
+        if ds in _visndatasetadapters.avail():
             all_img = True
-            load_imagesets[ds].update(splits)
-        if ds in _textsets.avail():
+            load_visndatasetadapters[ds].update(splits)
+        if ds in _visnlangdatasetadapters.avail():
             all_vl = True
-            load_textsets[ds].update(splits)
+            load_visnlangdatasetadapters[ds].update(splits)
     for ds, split in train:
         train_ds[ds].update(split_handler(split))
     for ds, split in test:
@@ -118,14 +118,14 @@ def parse_datasets(config):
 
     assert not (all_vl and all_img), "cannot specify mixture of VL and Vision datasets"
     datasets_type = VDATA if all_img else VLDATA
-    to_load = load_imagesets if all_img else load_textsets
+    to_load = load_visndatasetadapters if all_img else load_visnlangdatasetadapters
     return train_ds, eval_ds, to_load, datasets_type
 
 
 def load_vl(to_load, train_ds, eval_ds, config):
     loaded_eval = defaultdict(dict)  # will be datasetk
     loaded_train = defaultdict(dict)  # will be datasetk
-    loaded_imagesets = defaultdict(dict)
+    loaded_visndatasetadapters = defaultdict(dict)
     loaded_annotations = defaultdict(dict)
     answer_to_id = {}
     object_to_id = {}
@@ -134,47 +134,47 @@ def load_vl(to_load, train_ds, eval_ds, config):
     for name in sorted(set(to_load.keys())):
         splits = split_handler(to_load[name])  # list looks like ['trainval', 'dev']
         for split in splits:
-            # add textset first
-            textset = _textsets.get(name).from_config(config.data, splits=split)[split]
-            for l in sorted(textset.labels):
+            # add visnlangdatasetadapter first
+            visnlangdatasetadapter = _visnlangdatasetadapters.get(name).from_config(config.data, splits=split)[split]
+            for l in sorted(visnlangdatasetadapter.labels):
                 if l not in answer_to_id:
                     answer_to_id[l] = answer_id
                     answer_id += 1
             if name in eval_ds and split in split_handler(eval_ds[name]):
-                loaded_eval[name][split] = textset
+                loaded_eval[name][split] = visnlangdatasetadapter
             if name in train_ds and split in split_handler(train_ds[name]):
-                loaded_train[name][split] = textset
-            print(f"Added Textset {name}: {split}")
-            # now add imageset
-            is_name, is_split = zip(*textset.data_info[split].items())
+                loaded_train[name][split] = visnlangdatasetadapter
+            print(f"Added VisnLangDatasetAdapter {name}: {split}")
+            # now add visndatasetadapter
+            is_name, is_split = zip(*visnlangdatasetadapter.data_info[split].items())
             is_name = is_name[0]
             is_split = is_split[0][0]
             # first check to see if we want annotations
             if config.annotations and is_name not in loaded_annotations:
-                # function in imageset that: given datadir + optional split + optional
+                # function in visndatasetadapter that: given datadir + optional split + optional
                 # extractor feats + annotation bool will return
                 # the desired path
-                is_annotations = _imagesets.get(is_name).load(
+                is_annotations = _visndatasetadapters.get(is_name).load(
                     config.datadir, annotation=True
                 )
                 loaded_annotations[is_name] = is_annotations
-                for l in sorted(textset.labels):
+                for l in sorted(visnlangdatasetadapter.labels):
                     if l not in object_to_id:
                         object_to_id[l] = object_id
                         object_id += 1
-            if loaded_imagesets[is_name][is_split]:
+            if loaded_visndatasetadapters[is_name][is_split]:
                 continue
             if config.extractor is not None:
                 # this is if we want to get pre-computed features
                 extractor = config.extractor
-                is_data = _imagesets.get(is_name).load(
+                is_data = _visndatasetadapters.get(is_name).load(
                     config.datadir, split=split, extractor=extractor
                 )
             else:
                 # this is if we want to get raw features (in the form {id: raw file})
-                is_data = _imagesets.get(is_name).load(config.datadir, split=split)
-            loaded_imagesets[is_name][is_split] = is_data
-            print(f"Added Imageset {is_name}: {is_split}")
+                is_data = _visndatasetadapters.get(is_name).load(config.datadir, split=split)
+            loaded_visndatasetadapters[is_name][is_split] = is_data
+            print(f"Added VisnDatasetAdapter {is_name}: {is_split}")
 
         answer_file = config.labels
         objects_file = config.objects_file
@@ -187,7 +187,7 @@ def load_vl(to_load, train_ds, eval_ds, config):
         "eval": loaded_eval,
         "train": loaded_train,
         "annotations": loaded_annotations,
-        "imagesets": loaded_imagesets,
+        "visndatasetadapters": loaded_visndatasetadapters,
         "answers": answer_to_id,
         "objects": object_to_id,
     }
@@ -202,10 +202,10 @@ def load_v(to_load, train_ds, eval_ds, config):
     object_id = 0
     for name in sorted(set(to_load.keys())):
         splits = split_handler(to_load[name])  # list looks like ['trainval', 'dev']
-        annotations = _imagesets.get(name).load(config.datadirs[-1], annotations=True)
+        annotations = _visndatasetadapters.get(name).load(config.datadirs[-1], annotations=True)
         loaded_annotations[name] = annotations
         for split in splits:
-            imgids2pathes = _imagesets.get(name).load_imgid2path(
+            imgids2pathes = _visndatasetadapters.get(name).load_imgid2path(
                 config.datadirs[-1], split
             )
             for l in sorted(annotations.labels):
@@ -216,7 +216,7 @@ def load_v(to_load, train_ds, eval_ds, config):
                 loaded_eval[name][split] = imgids2pathes
             if name in train_ds and split in train_ds[name]:
                 loaded_train[name][split] = imgids2pathes
-            print(f"Added Imageset {name}: {split}")
+            print(f"Added VisnDatasetAdapter {name}: {split}")
     if config.objects_file is not None:
         object_to_id = json.load(config.objects_file)
 

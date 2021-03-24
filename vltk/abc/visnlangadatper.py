@@ -19,12 +19,12 @@ from vltk.inspect import get_classes
 from vltk.processing.label import Label, clean_imgid_default
 from vltk.utils import set_metadata
 
-__all__ = ["Textset", "Textsets"]
+__all__ = ["VisnLangDatasetAdapter", "VisnLangDatasetAdapters"]
 
 _labelproc = Label()
 
 
-class Textsets:
+class VisnLangDatasetAdapters:
     def __init__(self):
         if "TEXTSETDICT" not in globals():
             global TEXTSETDICT
@@ -40,9 +40,9 @@ class Textsets:
         TEXTSETDICT[name] = dset
 
 
-class Textset(ds.Dataset, metaclass=ABCMeta):
+class VisnLangDatasetAdapter(ds.Dataset, metaclass=ABCMeta):
     text_reference = "textset"
-    dataset_reference = "imageset"
+    dataset_reference = "visndatasetadapter"
     img_key = IMAGEKEY
     text_key = TEXTKEY
     score_key = SCOREKEY
@@ -79,10 +79,10 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
     @staticmethod
     def _check_features(default_features):
         feature_dict = default_features
-        feature_dict[IMAGEKEY] = Textset._base_features[IMAGEKEY]
-        feature_dict[SCOREKEY] = Textset._base_features[SCOREKEY]
-        feature_dict[TEXTKEY] = Textset._base_features[TEXTKEY]
-        feature_dict[LABELKEY] = Textset._base_features[LABELKEY]
+        feature_dict[IMAGEKEY] = VisnLangDatasetAdapter._base_features[IMAGEKEY]
+        feature_dict[SCOREKEY] = VisnLangDatasetAdapter._base_features[SCOREKEY]
+        feature_dict[TEXTKEY] = VisnLangDatasetAdapter._base_features[TEXTKEY]
+        feature_dict[LABELKEY] = VisnLangDatasetAdapter._base_features[LABELKEY]
         features = ds.Features(feature_dict)
         return features
 
@@ -186,7 +186,7 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
             split = ""
         if isinstance(datadirs, str):
             datadirs = [datadirs]
-        known_suffixes = Textset._known_image_formats
+        known_suffixes = VisnLangDatasetAdapter._known_image_formats
         image_set_splits = set()
         uniq_datasets = set()
         if split != "":
@@ -236,7 +236,7 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
         valid_path_or_dir = list(filter(lambda x: os.path.exists(x), path_or_dir))
         assert valid_path_or_dir, f"no path exists in {path_or_dir}"
         text_files = []
-        suffixes = Textset._extensions
+        suffixes = VisnLangDatasetAdapter._extensions
         for datadir in valid_path_or_dir:
             for suffix in suffixes:
                 for path in Path(datadir).glob(
@@ -320,7 +320,7 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
 
                 text_files = temp
 
-            features = Textset._check_features(cls.default_features)
+            features = VisnLangDatasetAdapter._check_features(cls.default_features)
             if not supervised:
                 features.pop(SCOREKEY)
                 features.pop(LABELKEY)
@@ -359,7 +359,7 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
                     else:
                         for l in b["label"]:
                             label_dict.update([l])
-                    imgid2rows[b[Textset.img_key]].append(cur_row)
+                    imgid2rows[b[VisnLangDatasetAdapter.img_key]].append(cur_row)
                     cur_row += 1
                     b = {k: [v] for k, v in b.items()}
 
@@ -381,7 +381,7 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
                     writer.write_batch(batch)
 
             dset = datasets.Dataset.from_buffer(buffer.getvalue())
-            Textset._custom_finalize(writer, cls)
+            VisnLangDatasetAdapter._custom_finalize(writer, cls)
 
             # misc.
             dset = pickle.loads(pickle.dumps(dset))
@@ -402,7 +402,7 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
 
             # save new table
             writer.write_table(table)
-            e, b = Textset._custom_finalize(writer, close_stream=True)
+            e, b = VisnLangDatasetAdapter._custom_finalize(writer, close_stream=True)
             print(f"Success! You wrote {e} entry(s) and {b >> 20} mb")
             print(f"Located: {savedir}")
 
@@ -434,7 +434,7 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
 
         split_dict = {}
         for split in splits:
-            text_path = Textset._locate_text_set(
+            text_path = VisnLangDatasetAdapter._locate_text_set(
                 datadirs=datadirs, split=split, textset_name=cls.name
             )
             mmap = pyarrow.memory_map(text_path)
@@ -486,15 +486,15 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
 
     def get_from_img(self, img_id, min_freq=14):
         small_dataset = self[self.img_to_rows_map[img_id]]
-        img_ids = set(small_dataset.pop(Textset.img_key))
+        img_ids = set(small_dataset.pop(VisnLangDatasetAdapter.img_key))
         assert len(img_ids) == 1, img_ids
         img_id = next(iter(img_ids))
-        small_dataset[Textset.img_key] = img_id
+        small_dataset[VisnLangDatasetAdapter.img_key] = img_id
         return small_dataset
 
     def get_row(self, i):
         x = self[i]
-        x[Textset.text_reference] = self.name
+        x[VisnLangDatasetAdapter.text_reference] = self.name
         return x
 
     def text_iter(self):
@@ -517,11 +517,11 @@ class Textset(ds.Dataset, metaclass=ABCMeta):
         assert feat_type in ("arrow", "raw")
         if feat_type == "arrow":
             assert extractor is not None
-            files = Textset._locate_arrow_files(
+            files = VisnLangDatasetAdapter._locate_arrow_files(
                 datadirs, self.data_info, extractor, split=split
             )
         else:
-            files = Textset._locate_raw_files(datadirs, self.data_info, split=split)
+            files = VisnLangDatasetAdapter._locate_raw_files(datadirs, self.data_info, split=split)
         return files
 
     def get_imgid_to_raw_path(self, datadirs, split):

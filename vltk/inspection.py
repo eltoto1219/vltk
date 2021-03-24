@@ -10,6 +10,22 @@ PATH = os.path.join(
 )
 
 
+def get_args(func, dictionary):
+    argspec = inspect.getfullargspec(func)
+    args = argspec.args
+    kwargs = 0 if argspec.varkw is None else 1
+    if kwargs:
+        return dictionary
+    elif args:
+        argdict = {}
+        for a in args:
+            if a in dictionary:
+                argdict[a] = dictionary[a]
+        return argdict
+    else:
+        return None
+
+
 def get_classes(path_or_dir_name, cls_defintion=None, pkg=None):
     os.chdir(os.getcwd())
     # for single file

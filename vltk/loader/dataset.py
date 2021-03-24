@@ -82,30 +82,30 @@ class CollatedSets:
             start += len(a)
 
     @property
-    def _is_imageset(self):
-        if not hasattr(self, "__is_imageset"):
+    def _is_visndatasetadapter(self):
+        if not hasattr(self, "__is_visndatasetadapter"):
             if all(map(lambda x: hasattr(x, "get"), self.args)):
-                self.__is_imageset = True
+                self.__is_visndatasetadapter = True
             else:
-                self.__is_imageset = False
-            return self.__is_imageset
+                self.__is_visndatasetadapter = False
+            return self.__is_visndatasetadapter
         else:
-            return self.__is_imageset
+            return self.__is_visndatasetadapter
 
     # TODO: figure out better solution if we start chaining idk lets say 10 datasets together
     def get(self, img_id):
-        if not self._is_imageset:
+        if not self._is_visndatasetadapter:
             raise Exception(
                 "Only use this method if the datasets within this object are purely vision"
             )
-        for imageset in self.args:
+        for visndatasetadapter in self.args:
             try:
-                return imageset.get(img_id)
+                return visndatasetadapter.get(img_id)
             except KeyError:
                 pass
-        raise Exception("image id not found in any  imageset annotations")
+        raise Exception("image id not found in any  visndatasetadapter annotations")
 
-    def get_textset_and_ind(self, x):
+    def get_visnlangdatasetadapter_and_ind(self, x):
         if x >= len(self):
             raise IndexError(f"index {x} is out of range 0 to {len(self)}")
         for rng in self.range2listpos:
@@ -134,8 +134,8 @@ class VisionLanguageDataset(Dataset):
     def __init__(
         self,
         config,
-        textsetdict,
-        imagesetdict,
+        visnlangdatasetadapterdict,
+        visndatasetadapterdict,
         annotationdict=None,
         answer_to_id=None,
         object_to_id=None,
@@ -150,30 +150,30 @@ class VisionLanguageDataset(Dataset):
         self._init_cache_batch()
         self._init_image_pipeline()
         splits = set()
-        for v in textsetdict.values():
+        for v in visnlangdatasetadapterdict.values():
             splits = splits.union(set(v.keys()))
         self.splits = splits
-        self.textsets = []
-        self.textsetdict = textsetdict
-        self.imagesetdict = imagesetdict
+        self.visnlangdatasetadapters = []
+        self.visnlangdatasetadapterdict = visnlangdatasetadapterdict
+        self.visndatasetadapterdict = visndatasetadapterdict
         self.answer_to_id = answer_to_id
         self.object_to_id = object_to_id
         self.uniq_labels = set(answer_to_id.keys())
-        textsets = []
-        # map special function and create list of textsets
-        for dset in self.textsetdict:
-            for split in self.textsetdict[dset]:
-                textset = self.textsetdict[dset][split]
-                textsets.append(textset)
-                self.textsetdict[dset][split] = textset
-        self.datasets = CollatedSets(*textsets)
-        self.img2textset = {}
+        visnlangdatasetadapters = []
+        # map special function and create list of visnlangdatasetadapters
+        for dset in self.visnlangdatasetadapterdict:
+            for split in self.visnlangdatasetadapterdict[dset]:
+                visnlangdatasetadapter = self.visnlangdatasetadapterdict[dset][split]
+                visnlangdatasetadapters.append(visnlangdatasetadapter)
+                self.visnlangdatasetadapterdict[dset][split] = visnlangdatasetadapter
+        self.datasets = CollatedSets(*visnlangdatasetadapters)
+        self.img2visnlangdatasetadapter = {}
         self.uniq_imgs = set()
-        for ts_name, ts_splits in self.textsetdict.items():
-            for split_name, ts in self.textsetdict[ts_name].items():
+        for ts_name, ts_splits in self.visnlangdatasetadapterdict.items():
+            for split_name, ts in self.visnlangdatasetadapterdict[ts_name].items():
                 self.uniq_imgs = self.uniq_imgs.union(ts.uniq_imgs)
                 for img in ts.uniq_imgs:
-                    self.img2textset[img] = (ts_name, split_name)
+                    self.img2visnlangdatasetadapter[img] = (ts_name, split_name)
         self.uniq_imgs = list(self.uniq_imgs)
         special_ids = set([self.tokenizer.token_to_id(t) for t in self.special_tokens])
         self.special_ids = deepcopy(special_ids)
@@ -364,11 +364,11 @@ class VisionLanguageDataset(Dataset):
     def random_feat(self):
         rand_ind = random.randint(0, len(self.uniq_imgs) - 1)
         img_id = self.uniq_imgs[rand_ind]
-        ts_name, ts_split = self.img2textset[img_id]
-        textset = self.textsetdict[ts_name][ts_split]
-        is_name, is_split = zip(*textset.data_info[ts_split].items())
-        imageset = self.imagesetdict[is_name[0]][is_split[0][0]]
-        img_info = imageset.get(img_id)
+        ts_name, ts_split = self.img2visnlangdatasetadapter[img_id]
+        visnlangdatasetadapter = self.visnlangdatasetadapterdict[ts_name][ts_split]
+        is_name, is_split = zip(*visnlangdatasetadapter.data_info[ts_split].items())
+        visndatasetadapter = self.visndatasetadapterdict[is_name[0]][is_split[0][0]]
+        img_info = visndatasetadapter.get(img_id)
         if FEATURES in img_info:
             feat = random.choice(img_info[FEATURES])
             return feat
@@ -381,19 +381,19 @@ class VisionLanguageDataset(Dataset):
         rand_sent = text_info[TEXTKEY]
         return rand_sent
 
-    def _map(self, small_textset):
+    def _map(self, small_visnlangdatasetadapter):
         proc_args = self.processor_args()
-        return small_textset.map(
+        return small_visnlangdatasetadapter.map(
             lambda x: VisionLanguageDataset.text_map_function(x, proc_args=proc_args)
         )
 
     def _do_map_img_first(self, i):
         img_id = self.uniq_imgs[i]
-        ts_name, ts_split = self.img2textset[img_id]
-        textset = self.textsetdict[ts_name][ts_split]
-        idxs = textset.img_to_rows_map[img_id]
-        small_textset = textset.select(idxs)
-        img_text_dict = self._map(small_textset)
+        ts_name, ts_split = self.img2visnlangdatasetadapter[img_id]
+        visnlangdatasetadapter = self.visnlangdatasetadapterdict[ts_name][ts_split]
+        idxs = visnlangdatasetadapter.img_to_rows_map[img_id]
+        small_visnlangdatasetadapter = visnlangdatasetadapter.select(idxs)
+        img_text_dict = self._map(small_visnlangdatasetadapter)
 
         img_text_dict.set_format(
             type="torch", output_all_columns=True, columns=list(TORCHCOLS)
@@ -401,14 +401,14 @@ class VisionLanguageDataset(Dataset):
         # so what we have to turn into tensors ar
         img_text_dict = img_text_dict[:]
         img_text_dict[IMAGEKEY] = img_id
-        return img_text_dict, textset, ts_split, img_id
+        return img_text_dict, visnlangdatasetadapter, ts_split, img_id
 
     def _do_map_text_first(self, i):
-        textset, ind = self.datasets.get_textset_and_ind(i)
-        small_textset = textset[ind]
-        img_id = small_textset["img_id"]
+        visnlangdatasetadapter, ind = self.datasets.get_visnlangdatasetadapter_and_ind(i)
+        small_visnlangdatasetadapter = visnlangdatasetadapter[ind]
+        img_id = small_visnlangdatasetadapter["img_id"]
         proc_args = self.processor_args()
-        text_info = self.text_map_function(small_textset, proc_args)
+        text_info = self.text_map_function(small_visnlangdatasetadapter, proc_args)
         text_info = dict(
             map(
                 lambda x: (
@@ -419,7 +419,7 @@ class VisionLanguageDataset(Dataset):
             )
         )
 
-        return text_info, img_id, textset
+        return text_info, img_id, visnlangdatasetadapter
 
     @torch.no_grad()
     def __getitem__(self, i):
@@ -432,10 +432,10 @@ class VisionLanguageDataset(Dataset):
                 cache_batch = torch.load(self.cache_batch_path)
                 return cache_batch
 
-            img_text_dict, textset, ts_split, img_id = self._do_map_img_first(i)
-            is_name, is_split = zip(*textset.data_info[ts_split].items())
-            imageset = self.imagesetdict[is_name[0]][is_split[0][0]]
-            img_info_dict = imageset.get(img_id)
+            img_text_dict, visnlangdatasetadapter, ts_split, img_id = self._do_map_img_first(i)
+            is_name, is_split = zip(*visnlangdatasetadapter.data_info[ts_split].items())
+            visndatasetadapter = self.visndatasetadapterdict[is_name[0]][is_split[0][0]]
+            img_info_dict = visndatasetadapter.get(img_id)
             if isinstance(img_info_dict, str):
                 img_info_dict = {RAWIMAGEKEY: img_info_dict}
             self._handle_image(img_info_dict)
@@ -453,11 +453,11 @@ class VisionLanguageDataset(Dataset):
             ):
                 return torch.load(self.cache_batch_path)
 
-            text_info, img_id, textset = self._do_map_text_first(i)
-            ts_name, ts_split = self.img2textset[img_id]
-            is_name, is_split = zip(*textset.data_info[ts_split].items())
-            imageset = self.imagesetdict[is_name[0]][is_split[0][0]]
-            img_info_dict = imageset.get(img_id)
+            text_info, img_id, visnlangdatasetadapter = self._do_map_text_first(i)
+            ts_name, ts_split = self.img2visnlangdatasetadapter[img_id]
+            is_name, is_split = zip(*visnlangdatasetadapter.data_info[ts_split].items())
+            visndatasetadapter = self.visndatasetadapterdict[is_name[0]][is_split[0][0]]
+            img_info_dict = visndatasetadapter.get(img_id)
             if isinstance(img_info_dict, str):
                 img_info_dict = {RAWIMAGEKEY: img_info_dict}
             self._handle_image(img_info_dict)
@@ -535,7 +535,7 @@ class VisionDataset(Dataset):
     def __init__(
         self,
         config,
-        imagesetdict,
+        visndatasetadapterdict,
         annotationdict=None,
         object_to_id=None,
         is_train=False,
@@ -545,13 +545,13 @@ class VisionDataset(Dataset):
         self._init_annotation_dict(annotationdict)
         self.config = config
         self._init_image_pipeline()
-        self.imagesetdict = imagesetdict
+        self.visndatasetadapterdict = visndatasetadapterdict
         self.object_to_id = object_to_id
         self.img_id_to_path = {}
         self.n_imgs = 0
         # later if we need
         self.imgid_info = {}
-        for imgsetsplits in list(imagesetdict.values()):
+        for imgsetsplits in list(visndatasetadapterdict.values()):
             for imgids2files in imgsetsplits.values():
                 self.n_imgs += len(imgids2files)
                 # for imgid, filepath in imgids2files.items():

@@ -8,17 +8,17 @@ from typing import Dict, List, Union
 
 import torch
 from vltk import COMPLEXPATH
-from vltk.abc.imageset import Imagesets
+from vltk.abc.visndatasetadapter import VisnDatasetAdapters
 from vltk.abc.loop import Loop
-from vltk.abc.textset import Textsets
+from vltk.abc.visnlangdatasetadapter import VisnLangDatasetAdapters
 from vltk.inspect import collect_args_to_func, get_classes
 from vltk.modeling import Get as Mget
 from vltk.modeling.configs import Get
 
 __all__ = ["ComplexExperiment", "ComplexExpIdentifier", "ComplexExperiments"]
 
-_textsets = Textsets()
-_imagesets = Imagesets()
+_visnlangdatasetadapters = VisnLangDatasetAdapters()
+_visndatasetadapters = VisnDatasetAdapters()
 
 
 class ComplexExperiments:
@@ -133,10 +133,10 @@ class ComplexExperiment(ComplexExpIdentifier, ABC):
 
         self.label_to_id = {}
         self.dataset2splits = defaultdict(set)
-        self.train_textsetdict = defaultdict(dict)
-        self.eval_textsetdict = defaultdict(dict)
-        self.train_imagesetdict = defaultdict(dict)
-        self.eval_imagesetdict = defaultdict(dict)
+        self.train_visnlangdatasetadapterdict = defaultdict(dict)
+        self.eval_visnlangdatasetadapterdict = defaultdict(dict)
+        self.train_visndatasetadapterdict = defaultdict(dict)
+        self.eval_visndatasetadapterdict = defaultdict(dict)
         train_datasets = set()
         eval_datasets = set()
         train_splits = set()
@@ -170,45 +170,45 @@ class ComplexExperiment(ComplexExpIdentifier, ABC):
                     and not self.config.data.skip_train
                     and any_train
                 ):
-                    textset = _textsets.get(name).from_config(
+                    visnlangdatasetadapter = _visnlangdatasetadapters.get(name).from_config(
                         self.config.data, splits=split
                     )[split]
                 else:
                     continue
-                for l in sorted(textset.labels):
+                for l in sorted(visnlangdatasetadapter.labels):
                     if l not in self.label_to_id:
                         self.label_to_id[l] = label_id
                         label_id += 1
-                print(f"Added Textset {name}: {split}")
+                print(f"Added VisnLangDatasetAdapter {name}: {split}")
                 if (
                     name in eval_datasets
                     and split in eval_splits
                     and not self.config.data.skip_eval
                     and any_val
                 ):
-                    self.eval_textsetdict[name][split] = textset
+                    self.eval_visnlangdatasetadapterdict[name][split] = visnlangdatasetadapter
                 if (
                     split in train_splits
                     and not self.config.data.skip_train
                     and any_train
                 ):
-                    self.train_textsetdict[name][split] = textset
-                is_name, is_split = zip(*textset.data_info[split].items())
+                    self.train_visnlangdatasetadapterdict[name][split] = visnlangdatasetadapter
+                is_name, is_split = zip(*visnlangdatasetadapter.data_info[split].items())
                 is_name = is_name[0]
                 is_split = is_split[0][0]
                 if self.config.data.extractor is not None:
-                    is_path = textset.get_arrow_split(
+                    is_path = visnlangdatasetadapter.get_arrow_split(
                         self.config.data.datadirs, is_split, self.config.data.extractor
                     )
-                    imageset = _imagesets.get(self.config.data.extractor).from_file(
+                    visndatasetadapter = _visndatasetadapters.get(self.config.data.extractor).from_file(
                         is_path
                     )
                 else:
-                    imageset = textset.get_imgid_to_raw_path(
+                    visndatasetadapter = visnlangdatasetadapter.get_imgid_to_raw_path(
                         self.config.data.datadirs, is_split
                     )
 
-                print(f"Added Imageset {is_name}: {is_split}")
+                print(f"Added VisnDatasetAdapter {is_name}: {is_split}")
 
                 if (
                     name in eval_datasets
@@ -216,13 +216,13 @@ class ComplexExperiment(ComplexExpIdentifier, ABC):
                     and not self.config.data.skip_eval
                     and any_val
                 ):
-                    self.eval_imagesetdict[is_name][is_split] = imageset
+                    self.eval_visndatasetadapterdict[is_name][is_split] = visndatasetadapter
                 if (
                     split in train_splits
                     and not self.config.data.skip_train
                     and any_train
                 ):
-                    self.train_imagesetdict[is_name][is_split] = imageset
+                    self.train_visndatasetadapterdict[is_name][is_split] = visndatasetadapter
 
     def _init_models(self):
         model_dict = {}
@@ -274,12 +274,12 @@ class ComplexExperiment(ComplexExpIdentifier, ABC):
             if is_train:
                 if self.config.data.skip_train:
                     continue
-                textsetdict = self.train_textsetdict
-                imagesetdict = self.train_imagesetdict
+                visnlangdatasetadapterdict = self.train_visnlangdatasetadapterdict
+                visndatasetadapterdict = self.train_visndatasetadapterdict
             else:
-                textsetdict = self.eval_textsetdict
-                imagesetdict = self.eval_imagesetdict
-                if self.config.data.skip_eval or len(textsetdict) == 0:
+                visnlangdatasetadapterdict = self.eval_visnlangdatasetadapterdict
+                visndatasetadapterdict = self.eval_visndatasetadapterdict
+                if self.config.data.skip_eval or len(visnlangdatasetadapterdict) == 0:
                     continue
 
             loop = loop_cls(
@@ -291,8 +291,8 @@ class ComplexExperiment(ComplexExpIdentifier, ABC):
                 },
                 extra_modules=self.extra_modules,
                 datasets=self.datasets,
-                imagesetdict=imagesetdict,
-                textsetdict=textsetdict,
+                visndatasetadapterdict=visndatasetadapterdict,
+                visnlangdatasetadapterdict=visnlangdatasetadapterdict,
                 label_dict=self.label_to_id,
             )
 

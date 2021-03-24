@@ -19,8 +19,8 @@ import torch.nn as nn
 from tqdm import tqdm
 from transformers import AdamW, get_linear_schedule_with_warmup
 from vltk import SIMPLEPATH, utils
-from vltk.abc.imageset import Imagesets
-from vltk.abc.textset import Textsets
+from vltk.abc.visndatasetadapter import VisnDatasetAdapters
+from vltk.abc.visnlangdatasetadapter import VisnLangDatasetAdapters
 # from vltk.dataset import UniversalLoader
 from vltk.inspect import get_classes
 from vltk.loader.builder import init_datasets
@@ -28,8 +28,8 @@ from vltk.modeling import Get as Mget
 from vltk.modeling.configs import Get
 
 __all__ = ["SimpleExperiment", "SimpleIdentifier", "SimpleExperiments"]
-_textsets = Textsets()
-_imagesets = Imagesets()
+_visnlangdatasetadapters = VisnLangDatasetAdapters()
+_visndatasetadapters = VisnDatasetAdapters()
 
 # find all packages and classes when pointed to a specific directory?
 
@@ -235,14 +235,14 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         self._model_dict = model_dict
         self._model_configs = model_configs
 
-    # def _init_loader(self, textsetdict, imagesetdict, label_dict, train=True):
+    # def _init_loader(self, visnlangdatasetadapterdict, visndatasetadapterdict, label_dict, train=True):
     #     datasets = self.datasets if train else self.config.data.eval_datasets
     #     loader = UniversalLoader(
     #         config=self.config.data,
     #         names=datasets,
     #         label_dict=label_dict,
-    #         imagesetdict=imagesetdict,
-    #         textsetdict=textsetdict,
+    #         visndatasetadapterdict=visndatasetadapterdict,
+    #         visnlangdatasetadapterdict=visnlangdatasetadapterdict,
     #     )
     #     # get necessary methods from the loader
     #     self.flatten_text = loader.dataset.flatten_text
@@ -258,10 +258,10 @@ class SimpleExperiment(SimpleIdentifier, ABC):
         self.answer_to_id = answer_to_id
         self.object_to_id = object_to_id
         self.any_train = any_train
-        # ttsd = self.train_textsetdict
-        # tisd = self.train_imagesetdict
-        # etsd = self.eval_textsetdict
-        # eisd = self.eval_imagesetdict
+        # ttsd = self.train_visnlangdatasetadapterdict
+        # tisd = self.train_visndatasetadapterdict
+        # etsd = self.eval_visnlangdatasetadapterdict
+        # eisd = self.eval_visndatasetadapterdict
         # l2id = self.label_to_id
 
         # loaders = {
@@ -350,10 +350,10 @@ class SimpleExperiment(SimpleIdentifier, ABC):
     #     # check for train and eval loops
     #     self.label_to_id = {}
     #     self.dataset2splits = defaultdict(set)
-    #     self.train_textsetdict = defaultdict(dict)
-    #     self.eval_textsetdict = defaultdict(dict)
-    #     self.train_imagesetdict = defaultdict(dict)
-    #     self.eval_imagesetdict = defaultdict(dict)
+    #     self.train_visnlangdatasetadapterdict = defaultdict(dict)
+    #     self.eval_visnlangdatasetadapterdict = defaultdict(dict)
+    #     self.train_visndatasetadapterdict = defaultdict(dict)
+    #     self.eval_visndatasetadapterdict = defaultdict(dict)
     #     if not self.config.data.annotations:
     #         self.annotationdict = None
     #     else:
@@ -387,36 +387,36 @@ class SimpleExperiment(SimpleIdentifier, ABC):
     #                 and split in eval_splits
     #                 and not self.config.data.skip_eval
     #             ) or (split in train_splits and not self.config.data.skip_train):
-    #                 textset = _textsets.get(name).from_config(
+    #                 visnlangdatasetadapter = _visnlangdatasetadapters.get(name).from_config(
     #                     self.config.data, splits=split
     #                 )[split]
     #             else:
     #                 continue
-    #             for l in sorted(textset.labels):
+    #             for l in sorted(visnlangdatasetadapter.labels):
     #                 if l not in self.label_to_id:
     #                     self.label_to_id[l] = label_id
     #                     label_id += 1
-    #             print(f"Added Textset {name}: {split}")
+    #             print(f"Added VisnLangDatasetAdapter {name}: {split}")
     #             if (
     #                 name in eval_datasets
     #                 and split in eval_splits
     #                 and not self.config.data.skip_eval
     #             ):
-    #                 self.eval_textsetdict[name][split] = textset
+    #                 self.eval_visnlangdatasetadapterdict[name][split] = visnlangdatasetadapter
     #             if split in train_splits and not self.config.data.skip_train:
-    #                 self.train_textsetdict[name][split] = textset
-    #             is_name, is_split = zip(*textset.data_info[split].items())
+    #                 self.train_visnlangdatasetadapterdict[name][split] = visnlangdatasetadapter
+    #             is_name, is_split = zip(*visnlangdatasetadapter.data_info[split].items())
     #             is_name = is_name[0]
     #             is_split = is_split[0][0]
     #             if self.config.data.extractor is not None:
-    #                 is_path = textset.get_arrow_split(
+    #                 is_path = visnlangdatasetadapter.get_arrow_split(
     #                     self.config.data.datadirs, is_split, self.config.data.extractor
     #                 )
-    #                 imageset = _imagesets.get(self.config.data.extractor).from_file(
+    #                 visndatasetadapter = _visndatasetadapters.get(self.config.data.extractor).from_file(
     #                     is_path
     #                 )
     #             else:
-    #                 imageset = textset.get_imgid_to_raw_path(
+    #                 visndatasetadapter = visnlangdatasetadapter.get_imgid_to_raw_path(
     #                     self.config.data.datadirs, is_split
     #                 )
     #             if self.config.data.annotations and is_name not in self.annotationdict:
@@ -425,18 +425,18 @@ class SimpleExperiment(SimpleIdentifier, ABC):
     #                     searchdirs[-1], is_name, "annotations/annotations.arrow"
     #                 )
     #                 ### THIS IS WEHRE I COME BACK TOO ###
-    #                 self.eval_imagesetdict[is_name][is_split] = imageset
+    #                 self.eval_visndatasetadapterdict[is_name][is_split] = visndatasetadapter
 
-    #             print(f"Added Imageset {is_name}: {is_split}")
+    #             print(f"Added VisnDatasetAdapter {is_name}: {is_split}")
 
     #             if (
     #                 name in eval_datasets
     #                 and split in eval_splits
     #                 and not self.config.data.skip_eval
     #             ):
-    #                 self.eval_imagesetdict[is_name][is_split] = imageset
+    #                 self.eval_visndatasetadapterdict[is_name][is_split] = visndatasetadapter
     #             if split in train_splits and not self.config.data.skip_train:
-    #                 self.train_imagesetdict[is_name][is_split] = imageset
+    #                 self.train_visndatasetadapterdict[is_name][is_split] = visndatasetadapter
 
     #     label_file = self.config.data.labels
     #     if label_file is not None or "":

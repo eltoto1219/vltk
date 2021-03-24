@@ -2,12 +2,12 @@ from collections import Counter
 
 import datasets as ds
 from tqdm import tqdm
-from vltk.abc.textset import Textset
+from vltk.abc.visnlangdatasetadapter import VisnLangDatasetAdapter
 
 # user must only define forward in this function, and dataset features
 
 
-class GQAset(Textset):
+class GQAset(VisnLangDatasetAdapter):
     name = "gqa"
     data_info = {
         "dev": {"coco2014": ["test"]},
@@ -64,10 +64,10 @@ class GQAset(Textset):
                     "structure": structure,
                     "super_class": super_class,
                     "operations": operations,
-                    Textset.text_key: text,
-                    Textset.img_key: img_id,
-                    Textset.label_key: [answer],
-                    Textset.score_key: [1.0],
+                    VisnLangDatasetAdapter.text_key: text,
+                    VisnLangDatasetAdapter.img_key: img_id,
+                    VisnLangDatasetAdapter.label_key: [answer],
+                    VisnLangDatasetAdapter.score_key: [1.0],
                 }
 
                 batch_entries.append(entry)

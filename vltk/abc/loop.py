@@ -20,8 +20,8 @@ class Loop(LoopIdentifier, ABC):
         config: object,
         datasets: str,
         label_dict: dict,
-        imagesetdict: dict,
-        textsetdict: dict,
+        visndatasetadapterdict: dict,
+        visnlangdatasetadapterdict: dict,
         model_dict: Union[dict, None],
         extra_modules: Union[dict, None] = None,
     ):
@@ -41,7 +41,7 @@ class Loop(LoopIdentifier, ABC):
         )
         self.scaler = None if not self.half_precision else torch.cuda.amp.GradScaler()
 
-        self._init_loader(textsetdict, imagesetdict, label_dict)
+        self._init_loader(visnlangdatasetadapterdict, visndatasetadapterdict, label_dict)
         self._init_models_and_extras(model_dict, extra_modules)
         self._init_optim()
 
@@ -265,20 +265,20 @@ class Loop(LoopIdentifier, ABC):
     def split(self):
         return self._split
 
-    def get_textset(self):
-        return self.loader.dataset.textsetdict
+    def get_visnlangdatasetadapter(self):
+        return self.loader.dataset.visnlangdatasetadapterdict
 
-    def get_imageset(self):
-        return self.loader.dataset.imagesetdict
+    def get_visndatasetadapter(self):
+        return self.loader.dataset.visndatasetadapterdict
 
-    def _init_loader(self, textsetdict, imagesetdict, label_dict):
+    def _init_loader(self, visnlangdatasetadapterdict, visndatasetadapterdict, label_dict):
         datasets = self.datasets if self.is_train else self.config.data.eval_datasets
         self.loader = UniversalLoader(
             config=self.config.data,
             names=datasets,
             label_dict=label_dict,
-            imagesetdict=imagesetdict,
-            textsetdict=textsetdict,
+            visndatasetadapterdict=visndatasetadapterdict,
+            visnlangdatasetadapterdict=visnlangdatasetadapterdict,
         )
 
     @classmethod

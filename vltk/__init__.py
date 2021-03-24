@@ -2,27 +2,23 @@ import os
 
 from setuptools import setup
 
-
-def dummy():
-    if False:
-        return setup
-    else:
-        return
-
-
 # common keys across library
-RAWSIZEKEY = "raw_size"
-SIZEKEY = "size"
-SEGMENTATIONKEY = "segmentation"
-BBOXKEY = "bbox"
-ANNOTATION_DIR = "annotations"
-IMAGEKEY = "img_id"
-LABELKEY = "label"
-TEXTKEY = "text"
-SCOREKEY = "score"
-RAWIMAGEKEY = "image"
-FILEPATH = "filepath"
-FEATURES = "features"
+rawsize = "rawsize"
+size = "size"
+segmentation = "segmentation"
+box = "box"
+imgid = "imgid"
+label = "label"
+text = "text"
+score = "score"
+label = "label"
+text = "text"
+score = "score"
+image = "image"
+filepath = "filepath"
+features = "features"
+split = "split"
+scale = "scale"
 
 
 SPLITALIASES = {
@@ -42,11 +38,12 @@ VDATA = 1
 LDATA = 2
 
 # pathes
+ANNOTATION_DIR = "annotations"
 BASEPATH = os.path.abspath(os.path.join(os.path.dirname(__file__), "."))
-TEXTSETPATH = os.path.join(BASEPATH, "textset")
-IMAGESETPATH = os.path.join(BASEPATH, "imageset")
-COMPLEXPATH = os.path.join(BASEPATH, "complex")
-SIMPLEPATH = os.path.join(BASEPATH, "simple")
+VISIONLANG = os.path.join(BASEPATH, "adapters/visionlang")
+VISION = os.path.join(BASEPATH, "adapters/vision")
+EXTRACTION = os.path.join(BASEPATH, "adapters/vision")
+SIMPLEPATH = os.path.join(BASEPATH, "experiment")
 MODELPATH = os.path.join(BASEPATH, "modeling")
 LOOPPATH = os.path.join(BASEPATH, "loop")
 SCHEDPATH = os.path.join(BASEPATH, "processing/sched.py")

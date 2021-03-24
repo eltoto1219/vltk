@@ -70,12 +70,15 @@ def update_config_with_logdir(config, flags, name, datasets):
 # this is to update metadata on dataset objects
 def set_metadata(tbl, tbl_meta={}):
     fields = []
-    for f in tbl.schema.names:
-        fields.append(tbl.schema.field_by_name(f))
+    for i, f in enumerate(tbl.schema.names):
+        fields.append(tbl.schema[i])
 
     tbl_metadata = tbl.schema.metadata
     for k, v in tbl_meta.items():
-        tbl_metadata[k] = json.dumps(v).encode("utf-8")
+        if isinstance(v, dict):
+            tbl_metadata[k] = json.dumps(v).encode("utf-8")
+        else:
+            tbl_metadata[k] = str(v).encode("utf-8")
 
     schema = pyarrow.schema(fields, metadata=tbl_metadata)
     tbl = pyarrow.Table.from_arrays(list(tbl.itercolumns()), schema=schema)

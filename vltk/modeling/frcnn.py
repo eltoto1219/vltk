@@ -24,14 +24,14 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
-from vltk import decorators
-from vltk.compat import (WEIGHTS_NAME, Config, cached_path, hf_bucket_url,
-                          is_remote_url, load_checkpoint)
 from torch import nn
 from torch.nn import functional as F
 from torch.nn.modules.batchnorm import BatchNorm2d
 from torchvision.ops import RoIPool
 from torchvision.ops.boxes import batched_nms, nms
+from vltk import decorators
+from vltk.compat import (WEIGHTS_NAME, Config, cached_path, hf_bucket_url,
+                         is_remote_url, load_checkpoint)
 
 __all__ = ["FRCNN"]
 
@@ -1731,7 +1731,6 @@ class FastRCNNOutputLayers(nn.Module):
             return scores, proposal_deltas
 
 
-@decorators.named_model("frcnn")
 class FRCNN(nn.Module):
     def __init__(self, cfg):
         super().__init__()

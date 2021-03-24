@@ -1,6 +1,6 @@
 from vltk import compat, utils
 from vltk.abc.complex import ComplexExperiments
-from vltk.abc.imageset import Imagesets
+from vltk.abc.visndatasetadapter import VisnDatasetAdapters
 from vltk.abc.simple import SimpleExperiments
 from vltk.configs import Config
 
@@ -57,10 +57,10 @@ def extract_data(
         config = Config(**flags)
     if flags is None:
         flags = {}
-    _imagesets = Imagesets()
+    _visndatasetadapters = VisnDatasetAdapters()
     # _models = dirs.Models()
     # will need to fix
-    Imageset = _imagesets.get(extractor)
+    VisnDatasetAdapter = _visndatasetadapters.get(extractor)
     # Model = _models.get(extractor)
     if "features" in flags:
         features = flags.pop("features")
@@ -83,7 +83,7 @@ def extract_data(
     gpu = config.gpu
     config = config.data
 
-    Imageset.extract(
+    VisnDatasetAdapter.extract(
         dataset_name=dataset,
         config=config,
         model=model,

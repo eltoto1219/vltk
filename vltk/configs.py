@@ -2,7 +2,9 @@ import os
 from typing import List, Union
 
 from vltk.abc import config
+from vltk.inspection import get_args
 from vltk.memory import get_most_free_gpu, get_nvidia_gpu_memory
+from vltk.processing.image import Image
 
 
 class ViTConfig(config.Config):
@@ -101,7 +103,7 @@ class DataConfig(config.Config):
     min_label_frequency = 9
     extractor: Union[None, str] = "frcnn"
     textfile_extensions: Union[List[str], str] = ["json", "jsonl"]
-    datadirs: Union[List[str], str] = "/playpen1/home/avmendoz/data"
+    datadir: str = "/playpen1/home/avmendoz/data"
     img_first: bool = False
     cache_batch: str = "batch.temp"
     overwrite_cache_batch: bool = False
@@ -134,7 +136,6 @@ class DataConfig(config.Config):
     pos_dim: int = 4
     visual_dim: int = 2048
     max_detections: str = 36
-    vit_pretrained_dir = "vit/"
     annotations: bool = True
 
     # for image processing stuff
@@ -155,9 +156,33 @@ class DataConfig(config.Config):
         super().__init__(**kwargs)
         self.text_processors = Config.handle_iterables(self.text_processors)
         self.image_processors = Config.handle_iterables(self.image_processors)
-        self.datadirs = Config.handle_iterables(self.datadirs)
         self.textfile_extensions = Config.handle_iterables(self.textfile_extensions)
         # raise Exception(self.eval_datasets, self.train_datasets)
+
+
+class ProcessorConfig(config.Config):
+    transforms: List = ["ToPILImage", "ToTensor"]
+
+    def __init__(self, **kwargs):
+        for f, v in kwargs.items():
+            setattr(self, f, v)
+            self._overwritten[f] = v
+
+    def build(self):
+        from torchvision import transforms
+
+        _image = Image()
+        kwargs = self.to_dict()
+        transformlist = kwargs.pop("transforms")
+        funcs = []
+        for t in transformlist:
+            t = _image.get(t)
+            args = get_args(t, kwargs)
+            if args is None:
+                funcs.append(t())
+            else:
+                funcs.append(t(**args))
+        return transforms.Compose(funcs)
 
 
 class Config(config.Config):

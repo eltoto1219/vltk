@@ -5,13 +5,13 @@ import datasets as ds
 from pycocotools import mask as Mask
 from tqdm import tqdm
 from vltk import IMAGEKEY, LABELKEY
-from vltk.abc.imageset import Imageset
+from vltk.abc.visndatasetadapter import VisnDatasetAdapter
 from vltk.processing.label import clean_imgid_default
 
 # ignore 'iscrowd' because it used rle
 
 
-class Coco2014(Imageset):
+class Coco2014(VisnDatasetAdapter):
     @staticmethod
     def default_features(**kwargs):
         return {

@@ -2,7 +2,7 @@ from collections import Counter
 
 import datasets as ds
 from tqdm import tqdm
-from vltk.abc.textset import Textset
+from vltk.abc.visnlangdatasetadapter import VisnLangDatasetAdapter
 from vltk.metrics import soft_score
 
 TESTPATH = "/playpen1/home/avmendoz/data/vqa/train"
@@ -11,7 +11,7 @@ TESTPATH = "/playpen1/home/avmendoz/data/vqa/train"
 # user must only define forward in this function, and dataset features
 
 
-class VQAset(Textset):
+class VQAset(VisnLangDatasetAdapter):
     name = "vqa"
     data_info = {
         "val": {"coco2014": ["val"]},
@@ -64,23 +64,23 @@ class VQAset(Textset):
 
         skipped = 0
         for entry in tqdm(all_questions):
-            entry[Textset.img_key] = str(entry.pop("image_id"))
-            entry[Textset.text_key] = entry.pop("question")
+            entry[VisnLangDatasetAdapter.img_key] = str(entry.pop("image_id"))
+            entry[VisnLangDatasetAdapter.text_key] = entry.pop("question")
             entry["qid"] = str(entry.pop("question_id"))
             try:
-                entry[Textset.label_key] = qid2answers[entry["qid"]]
+                entry[VisnLangDatasetAdapter.label_key] = qid2answers[entry["qid"]]
                 labels = {
                     l: s
-                    for l, s in entry[Textset.label_key].items()
+                    for l, s in entry[VisnLangDatasetAdapter.label_key].items()
                     if label_frequencies[l] > min_label_frequency
                 }
                 if not labels:
                     skipped += 1
                     continue
 
-                labels, scores = Textset._label_handler(labels)
-                entry[Textset.score_key] = scores
-                entry[Textset.label_key] = labels
+                labels, scores = VisnLangDatasetAdapter._label_handler(labels)
+                entry[VisnLangDatasetAdapter.score_key] = scores
+                entry[VisnLangDatasetAdapter.label_key] = labels
             except KeyError:
                 pass
 

@@ -4,21 +4,27 @@ from vltk.abc.extraction import VizExtractionAdapter
 from vltk.configs import ProcessorConfig
 from vltk.modeling.frcnn import FRCNN as FasterRCNN
 
+PROCESSORCONFIG = ProcessorConfig(
+    **{
+        "transforms": ["ToPILImage", "ToTensor", "ResizeTensor", "Normalize"],
+        "size": (800, 1333),
+        "mode": "bilinear",
+        "pad_value": 0.0,
+        "mean": [102.9801, 115.9465, 122.7717],
+        "sdev": [1.0, 1.0, 1.0],
+    }
+)
+
+MODELCONFIG = compat.Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
+
+WEIGHTS = "unc-nlp/frcnn-vg-finetuned"
+
 
 class FRCNN(VizExtractionAdapter):
 
-    default_processor = ProcessorConfig(
-        **{
-            "transforms": ["ToPILImage", "ToTensor", "ResizeTensor", "Normalize"],
-            "size": (800, 1333),
-            "mode": "bilinear",
-            "pad_value": 0.0,
-            "mean": [102.9801, 115.9465, 122.7717],
-            "sdev": [1.0, 1.0, 1.0],
-        }
-    )
-    model_config = compat.Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
-    weights = "unc-nlp/frcnn-vg-finetuned"
+    default_processor = PROCESSORCONFIG
+    model_config = MODELCONFIG
+    weights = WEIGHTS
     model = FasterRCNN
 
     def schema(max_detections=36, visual_dim=2048):

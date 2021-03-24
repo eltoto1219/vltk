@@ -19,8 +19,7 @@
 # import vltk.loop.data
 # from modeling.configs import Get
 # from vltk.decorators import get_duration
-# from vltk.imageset.frcnn import FRCNNSet
-# from vltk.maps.dirs import Imagesets, Loops
+# from vltk.visndatasetadapter.frcnn import FRCNNSet
 
 # lxmert = models.get_model("lxmertforquestionanswering")
 # config = Config().data
@@ -28,3 +27,6 @@
 # VQAset.extract(config=config, split="trainval", label_processor="foo")
 
 # print(get_features("foo"))
+import vltk
+
+vltk.imgid
