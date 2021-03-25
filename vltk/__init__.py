@@ -19,6 +19,7 @@ filepath = "filepath"
 features = "features"
 split = "split"
 scale = "scale"
+boxtensor = "boxtensor"
 
 
 SPLITALIASES = {

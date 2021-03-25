@@ -195,32 +195,32 @@ class Pad(object):
         return tensor
 
 
-# def Pipeline(
-#     size=768,
-#     mode="bicubic",
-#     scale="standard",
-#     gpu=None,
-#     pad_value=0,
-#     std=None,
-#     mean=None,
-#     inplace=True,
-#     pad=True,
-#     resize=True,
-#     normalize=True,
-#     **kwargs,
-# ):
-#     process = [ToPILImage(), ToTensor()]
+def Pipeline(
+    size=768,
+    mode="bicubic",
+    scale="standard",
+    gpu=None,
+    pad_value=0,
+    std=None,
+    mean=None,
+    inplace=True,
+    pad=True,
+    resize=True,
+    normalize=True,
+    **kwargs,
+):
+    process = [ToPILImage(), ToTensor()]
 
-#     if resize:
-#         process.append(ResizeTensor(size=size, mode=mode, gpu=gpu))
+    if resize:
+        process.append(ResizeTensor(size=size, mode=mode, gpu=gpu))
 
-#     if normalize:
-#         process.append(Normalize(mean=mean, std=std, inplace=inplace, scale=scale))
+    if normalize:
+        process.append(Normalize(mean=mean, std=std, inplace=inplace, scale=scale))
 
-#     if not isinstance(size, int) and min(size) != max(size) and pad:
-#         process.append(Pad(size=size, pad_value=pad_value))
+    if not isinstance(size, int) and min(size) != max(size) and pad:
+        process.append(Pad(size=size, pad_value=pad_value))
 
-#     return transforms.Compose(process)
+    return transforms.Compose(process)
 
 
 class Image:

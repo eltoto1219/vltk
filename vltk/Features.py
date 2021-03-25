@@ -13,6 +13,7 @@ segmentation = (
 area = ds.Sequence(length=-1, feature=ds.Value("float32"))
 
 imgid = ds.Value("string")
+string = ds.Value("string")
 
 ids = ds.Sequence(length=-1, feature=ds.Value("float32"))
 

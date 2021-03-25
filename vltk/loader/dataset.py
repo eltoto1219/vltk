@@ -9,15 +9,14 @@ from copy import deepcopy
 import numpy
 import numpy as np
 import torch
+import vltk
 # disable logging from datasets
 from datasets.utils.logging import set_verbosity_error
 from PIL import Image
 from pycocotools import mask as Mask
 from tokenizers import BertWordPieceTokenizer
 from torch.utils.data import Dataset
-from vltk import (BBOXKEY, FEATURES, FILEPATH, IMAGEKEY, LABELKEY, RAWIMAGEKEY,
-                  RAWSIZEKEY, SEGMENTATIONKEY, SIZEKEY, TEXTKEY)
-from vltk.inspect import collect_args_to_func
+from vltk.inspection import collect_args_to_func
 from vltk.processing import data as data_proc
 from vltk.processing.image import Pipeline
 
@@ -28,7 +27,7 @@ set_verbosity_error()
 
 VOCABPATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "libdata/bert-base-uncased-vocab.txt")
-)
+).replace("loader/", "")
 TOKENIZEDKEY = "encoded"
 global TORCHCOLS
 TORCHCOLS = set()
@@ -143,11 +142,11 @@ class VisionLanguageDataset(Dataset):
     ):
         self.annotationdict = annotationdict
         self.config = config
+        self.is_train = is_train
         self.tokenizer = BertWordPieceTokenizer(VOCABPATH, lowercase=True)
         self.tokenizer.add_special_tokens(self.special_tokens)
         self.tokenizer.enable_truncation(max_length=config.sent_length)
         self.tokenizer.enable_padding(length=config.sent_length)
-        self._init_cache_batch()
         self._init_image_pipeline()
         splits = set()
         for v in visnlangdatasetadapterdict.values():
@@ -168,13 +167,26 @@ class VisionLanguageDataset(Dataset):
                 self.visnlangdatasetadapterdict[dset][split] = visnlangdatasetadapter
         self.datasets = CollatedSets(*visnlangdatasetadapters)
         self.img2visnlangdatasetadapter = {}
+        self.img2visdatasetadapter = {}
         self.uniq_imgs = set()
+        # raise Exception("hello", self.visndatasetadapterdict)
+        for is_info in self.visndatasetadapterdict.items():
+            is_name, is_split_dict = is_info
+            # raise Exception(is_name)
+            for k, imgset in is_split_dict.items():
+                # for split_name, imgset in self.visnlangdatasetadapterdict[is_name].items():
+                img_ids = set(imgset.imgids)
+                for img_id in img_ids:
+                    self.img2visdatasetadapter[img_id] = (is_name, k)
+                self.uniq_imgs = self.uniq_imgs.union(img_ids)
+                # print("HI", imgset._img_to_row_map)
+
         for ts_name, ts_splits in self.visnlangdatasetadapterdict.items():
             for split_name, ts in self.visnlangdatasetadapterdict[ts_name].items():
-                self.uniq_imgs = self.uniq_imgs.union(ts.uniq_imgs)
-                for img in ts.uniq_imgs:
+                temp_uniq = self.uniq_imgs.intersection(ts.uniq_imgs)
+                for img in temp_uniq:
                     self.img2visnlangdatasetadapter[img] = (ts_name, split_name)
-        self.uniq_imgs = list(self.uniq_imgs)
+        self.uniq_imgs = tuple(self.uniq_imgs)
         special_ids = set([self.tokenizer.token_to_id(t) for t in self.special_tokens])
         self.special_ids = deepcopy(special_ids)
         all_ids = [i[1] for i in self.tokenizer.get_vocab().items()]
@@ -210,13 +222,13 @@ class VisionLanguageDataset(Dataset):
             raise Exception
             return
         anno_dict = annotation_pointer.get(img_id)
-        labels = anno_dict[LABELKEY]
+        labels = anno_dict[vltk.label]
         labels = torch.Tensor([self.object_to_id[int(l)] for l in labels])
-        anno_dict[LABELKEY] = labels
+        anno_dict[vltk.label] = labels
         for k, v in anno_dict.items():
             if (
-                k is LABELKEY
-                or k is IMAGEKEY
+                k is vltk.label
+                or k is vltk.image
                 or (isinstance(v, Iterable) and not isinstance(v[0], list))
             ):
                 continue
@@ -237,17 +249,6 @@ class VisionLanguageDataset(Dataset):
         config_dict = self.config.to_dict()
         func_dict = collect_args_to_func(Pipeline, config_dict)
         self._image_transforms = Pipeline(**func_dict)
-
-    def _init_cache_batch(self):
-        if self.config.img_first:
-            cache_batch_path = os.path.join(
-                self.config.logdir, "img_first_" + self.config.cache_batch.lstrip("/")
-            )
-        else:
-            cache_batch_path = os.path.join(self.config.logdir, self.config.cache_batch)
-
-        self.cache_batch_path = cache_batch_path
-        self.cache_batch_exists = os.path.isfile(cache_batch_path)
 
     def processor_args(self):
         max_rand_sents = 1 if not self.config.img_first else 32
@@ -273,20 +274,20 @@ class VisionLanguageDataset(Dataset):
                 x = proc_func(x, **proc_args)
                 TORCHCOLS.add("is_matched")
 
-        encoded = tokenizer.encode(x.pop(TEXTKEY))
+        encoded = tokenizer.encode(x.pop(vltk.text))
         x.pop("img_id", None)
         x["text_attention_mask"] = encoded.attention_mask
         x["input_ids"] = encoded.ids
         x["type_ids"] = encoded.type_ids
 
-        if LABELKEY in x:
-            label = x.pop(LABELKEY)
+        if vltk.label in x:
+            label = x.pop(vltk.label)
             if label != config.ignore_id:
                 lids = []
                 for l in label:
                     lid = answer_to_id[l]
                     lids.append(lid)
-                x[LABELKEY] = lids
+                x[vltk.label] = lids
 
         # now we do other text processors
         if text_processors is not None:
@@ -304,8 +305,8 @@ class VisionLanguageDataset(Dataset):
         for k, v in x.items():
             if isinstance(v, list) and not isinstance(v[0], str):
                 TORCHCOLS.add(k)
-        if LABELKEY in x:
-            TORCHCOLS.add(LABELKEY)
+        if vltk.label in x:
+            TORCHCOLS.add(vltk.label)
 
         return x
 
@@ -326,19 +327,19 @@ class VisionLanguageDataset(Dataset):
         ]
 
     def _handle_image(self, entry):
-        img_id = entry[IMAGEKEY]
+        img_id = entry[vltk.imgid]
         proc_args = {"config": self.config}
         if self.config.rand_feats is not None:
             feat_shape = tuple(self.config.rand_feats)
-            filepath = entry[RAWIMAGEKEY]
-            entry["filepath"] = filepath
+            filepath = entry[vltk.image]
+            entry[vltk.filepath] = filepath
             img = torch.rand(feat_shape)
-            entry[RAWIMAGEKEY] = img
+            entry[vltk.image] = img
 
         elif self.config.extractor is None:
-            filepath = entry[RAWIMAGEKEY]
-            entry["filepath"] = filepath
-            entry[RAWIMAGEKEY] = self.image_transforms(filepath)
+            filepath = entry[vltk.image]
+            entry[vltk.filepath] = filepath
+            entry[vltk.image] = self.image_transforms(filepath)
         else:
             for k, v in entry.items():
                 if isinstance(v, Iterable):
@@ -349,11 +350,11 @@ class VisionLanguageDataset(Dataset):
                 elif isinstance(v, int) or isinstance(v, float):
                     entry[k] = torch.tensor(v)
             # TODO: okay I defintely need to change this
-            if FEATURES in entry:
+            if vltk.features in entry:
                 proc_args["random_feat_func"] = self.random_feat
-                entry[FEATURES] = entry[FEATURES][: self.config.max_objects]
-        if self.annotationdict is not None:
-            entry.update(self._handle_annotations(img_id))
+                entry[vltk.features] = entry[vltk.features][: self.config.max_objects]
+        # if self.annotationdict is not None:
+        #     entry.update(self._handle_annotations(img_id))
 
         # now we do other image processors
         if self.config.image_processors is not None:
@@ -369,8 +370,8 @@ class VisionLanguageDataset(Dataset):
         is_name, is_split = zip(*visnlangdatasetadapter.data_info[ts_split].items())
         visndatasetadapter = self.visndatasetadapterdict[is_name[0]][is_split[0][0]]
         img_info = visndatasetadapter.get(img_id)
-        if FEATURES in img_info:
-            feat = random.choice(img_info[FEATURES])
+        if vltk.features in img_info:
+            feat = random.choice(img_info[vltk.features])
             return feat
         else:
             return None
@@ -378,7 +379,7 @@ class VisionLanguageDataset(Dataset):
     def random_sent(self):
         rand_ind = random.randint(0, len(self.datasets) - 1)
         text_info = self.datasets[rand_ind]
-        rand_sent = text_info[TEXTKEY]
+        rand_sent = text_info[vltk.text]
         return rand_sent
 
     def _map(self, small_visnlangdatasetadapter):
@@ -400,13 +401,15 @@ class VisionLanguageDataset(Dataset):
         )
         # so what we have to turn into tensors ar
         img_text_dict = img_text_dict[:]
-        img_text_dict[IMAGEKEY] = img_id
+        img_text_dict[vltk.features] = img_id
         return img_text_dict, visnlangdatasetadapter, ts_split, img_id
 
     def _do_map_text_first(self, i):
-        visnlangdatasetadapter, ind = self.datasets.get_visnlangdatasetadapter_and_ind(i)
+        visnlangdatasetadapter, ind = self.datasets.get_visnlangdatasetadapter_and_ind(
+            i
+        )
         small_visnlangdatasetadapter = visnlangdatasetadapter[ind]
-        img_id = small_visnlangdatasetadapter["img_id"]
+        img_id = small_visnlangdatasetadapter[vltk.imgid]
         proc_args = self.processor_args()
         text_info = self.text_map_function(small_visnlangdatasetadapter, proc_args)
         text_info = dict(
@@ -424,34 +427,23 @@ class VisionLanguageDataset(Dataset):
     @torch.no_grad()
     def __getitem__(self, i):
         if self.config.img_first:
-            if (
-                self.config.test_run
-                and self.cache_batch_exists
-                and not self.config.overwrite_cache_batch
-            ):
-                cache_batch = torch.load(self.cache_batch_path)
-                return cache_batch
-
-            img_text_dict, visnlangdatasetadapter, ts_split, img_id = self._do_map_img_first(i)
-            is_name, is_split = zip(*visnlangdatasetadapter.data_info[ts_split].items())
-            visndatasetadapter = self.visndatasetadapterdict[is_name[0]][is_split[0][0]]
+            (
+                img_text_dict,
+                visnlangdatasetadapter,
+                ts_split,
+                img_id,
+            ) = self._do_map_img_first(i)
+            # is_name, is_split = zip(*visnlangdatasetadapter.data_info[ts_split].items())
+            is_name, is_split = self.img2visdatasetadapter[img_id]
+            visndatasetadapter = self.visndatasetadapterdict[is_name][is_split]
             img_info_dict = visndatasetadapter.get(img_id)
             if isinstance(img_info_dict, str):
-                img_info_dict = {RAWIMAGEKEY: img_info_dict}
+                img_info_dict = {vltk.features: img_info_dict}
             self._handle_image(img_info_dict)
             entry = {**img_text_dict, **img_info_dict, "img_id": img_id}
             # entry = img_info_dict
-            if not self.cache_batch_exists or self.config.overwrite_cache_batch:
-                torch.save(entry, self.cache_batch_path)
-
             return entry
         else:
-            if (
-                self.config.test_run
-                and self.cache_batch_exists
-                and not self.config.overwrite_cache_batch
-            ):
-                return torch.load(self.cache_batch_path)
 
             text_info, img_id, visnlangdatasetadapter = self._do_map_text_first(i)
             ts_name, ts_split = self.img2visnlangdatasetadapter[img_id]
@@ -459,17 +451,15 @@ class VisionLanguageDataset(Dataset):
             visndatasetadapter = self.visndatasetadapterdict[is_name[0]][is_split[0][0]]
             img_info_dict = visndatasetadapter.get(img_id)
             if isinstance(img_info_dict, str):
-                img_info_dict = {RAWIMAGEKEY: img_info_dict}
+                img_info_dict = {vltk.image: img_info_dict}
             self._handle_image(img_info_dict)
             entry = {**text_info, **img_info_dict, "img_id": img_id}
-            if not self.cache_batch_exists or self.config.overwrite_cache_batch:
-                torch.save(entry, self.cache_batch_path)
 
             return entry
 
     @property
     def batch_size(self):
-        if len(set(self.splits).intersection(self.config.train_aliases)) == 0:
+        if not self.is_train:
             return self.config.eval_batch_size
         else:
             return self.config.train_batch_size
@@ -582,29 +572,29 @@ class VisionDataset(Dataset):
 
     def _handle_annotations(self, img_id, img_info, img):
         skip_segmentation = False
-        cur_size = img_info[SIZEKEY]
+        cur_size = img_info[vltk.size]
         if img_info is None:
             skip_segmentation = True
         else:
-            if RAWSIZEKEY not in img_info:
+            if vltk.rawsize not in img_info:
                 scale = (1.0, 1.0)
             else:
-                raw_size = img_info[RAWSIZEKEY]
+                raw_size = img_info[vltk.rawsize]
                 scale = cur_size[0] / raw_size[0], cur_size[1] / raw_size[1]
         anno_dict = self.annotations.get(img_id)
-        word_labels = anno_dict[LABELKEY]
+        word_labels = anno_dict[vltk.label]
         labels = torch.Tensor([self.object_to_id[l] for l in word_labels])
-        anno_dict[LABELKEY] = labels
+        anno_dict[vltk.label] = labels
         for k, v in anno_dict.items():
             if (
-                k is LABELKEY
-                or k is IMAGEKEY
-                or k == "img_id"
+                k is vltk.label
+                or k is vltk.image
+                or k == vltk.imgid
                 or isinstance(v, torch.Tensor)
             ):
                 continue
-            elif k == SEGMENTATIONKEY and not skip_segmentation:
-                size = anno_dict[SIZEKEY]
+            elif k == vltk.segmentation and not skip_segmentation:
+                size = anno_dict[vltk.size]
                 try:
                     segmentations = np.stack(
                         [
@@ -618,7 +608,7 @@ class VisionDataset(Dataset):
                 values = torch.as_tensor(segmentations)
 
             else:
-                if k == "area" or k == SIZEKEY:
+                if k == vltk.area or k == vltk.size:
                     values = torch.tensor(v)
 
                 else:
@@ -627,13 +617,13 @@ class VisionDataset(Dataset):
                     values = torch.stack(values, dim=0)
                 except Exception:
                     pass
-                if k == BBOXKEY:
+                if k == vltk.box:
                     values = rescale_box(values, scale)
 
             anno_dict[k] = values
 
-        if skip_segmentation and SEGMENTATIONKEY in anno_dict:
-            anno_dict.pop(SEGMENTATIONKEY)
+        if skip_segmentation and vltk.segmentation in anno_dict:
+            anno_dict.pop(vltk.segmentation)
 
         return anno_dict
 
@@ -651,26 +641,26 @@ class VisionDataset(Dataset):
         self._image_transforms = Pipeline(**func_dict)
 
     def _handle_image(self, entry):
-        img_id = entry[IMAGEKEY]
+        img_id = entry[vltk.imgid]
         filepath = self.img_id_to_path[img_id]
         if self.config.rand_feats is not None:
             feat_shape = tuple(self.config.rand_feats)
-            entry[FILEPATH] = filepath
+            entry[vltk.filepath] = filepath
             img = torch.rand(feat_shape)
-            entry[RAWIMAGEKEY] = img
+            entry[vltk.filepath] = img
             img_info = None
         else:
-            entry[FILEPATH] = filepath
+            entry[vltk.filepath] = filepath
             transformed = self.image_transforms(filepath)
             if isinstance(transformed, tuple):
                 img, img_info = transformed
             else:
                 img, img_info = transformed, {}
                 size = transformed.shape[1:]
-                img_info[SIZEKEY] = size
+                img_info[vltk.size] = size
             for k, v in img_info.items():
                 entry[k] = torch.Tensor(v)
-            entry[RAWIMAGEKEY] = img
+            entry[vltk.image] = img
 
         if self.annotations is not None:
             entry.update(self._handle_annotations(img_id, img_info, img))

@@ -2,10 +2,9 @@ import timeit
 from collections import defaultdict
 
 import datasets as ds
-from pycocotools import mask as Mask
+import vltk
 from tqdm import tqdm
-from vltk import IMAGEKEY, LABELKEY
-from vltk.abc.visndatasetadapter import VisnDatasetAdapter
+from vltk.abc.visnadapter import VisnDatasetAdapter
 from vltk.processing.label import clean_imgid_default
 
 # ignore 'iscrowd' because it used rle
@@ -75,19 +74,19 @@ class Coco2014(VisnDatasetAdapter):
                 if img_data is None:
                     img_entry = defaultdict(list)
                     img_entry["size"] = entry["size"]
-                    img_entry[LABELKEY].append(category_id)
+                    img_entry[vltk.label].append(category_id)
                     img_entry["bbox"].append(bbox)
                     img_entry["area"].append(area)
                     img_entry["segmentation"].append(seg_mask)
                     total_annos[img_id] = img_entry
                 else:
                     total_annos[img_id]["bbox"].append(bbox)
-                    total_annos[img_id][LABELKEY].append(category_id)
+                    total_annos[img_id][vltk.label].append(category_id)
                     total_annos[img_id]["area"].append(area)
                     total_annos[img_id]["segmentation"].append(seg_mask)
                     # for sm in seg_mask:
 
-        return [{IMAGEKEY: img_id, **entry} for img_id, entry in total_annos.items()]
+        return [{vltk.imgid: img_id, **entry} for img_id, entry in total_annos.items()]
 
 
 if __name__ == "__main__":

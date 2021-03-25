@@ -2,8 +2,9 @@ import random
 
 import numpy as np
 import torch
-from vltk import DATAPATH, LABELKEY, SCOREKEY, TEXTKEY
-from vltk.inspect import import_funcs_from_file
+import vltk
+from vltk import DATAPATH
+from vltk.inspection import import_funcs_from_file
 
 
 class Data:
@@ -25,12 +26,12 @@ class Data:
 def one_hot_label(cur_entry, **kwargs):
     config = kwargs.get("config")
 
-    label = cur_entry.get(LABELKEY, None)
-    score = cur_entry.get(SCOREKEY, None)
+    label = cur_entry.get(vltk.label, None)
+    score = cur_entry.get(vltk.score, None)
     if label is None:
         label = config.ignore_id
     elif label == config.ignore_id:
-        cur_entry.pop(SCOREKEY, None)
+        cur_entry.pop(vltk.score, None)
         return
     else:
         if isinstance(label, int):
@@ -42,8 +43,8 @@ def one_hot_label(cur_entry, **kwargs):
             prob = [ss / score_sum for ss in score]
             choice = np.random.multinomial(1, prob).argmax()
             label = label[choice]
-    cur_entry.pop(SCOREKEY, None)
-    cur_entry[LABELKEY] = label
+    cur_entry.pop(vltk.score, None)
+    cur_entry[vltk.label] = label
 
 
 def multi_hot_label():
@@ -83,18 +84,18 @@ def matched_sentence_modeling(cur_entry, **kwargs):
     random_sent = lambda: random.choice(random_sents)
     config = kwargs.get("config")
     is_matched = 1
-    text = cur_entry[TEXTKEY]
+    text = cur_entry[vltk.text]
     rand_text = text
     if random.random() < config.sentence_match_rate:
-        if LABELKEY in cur_entry:
-            cur_entry[LABELKEY] = config.ignore_id
-            cur_entry[SCOREKEY] = 0
+        if vltk.label in cur_entry:
+            cur_entry[vltk.label] = config.ignore_id
+            cur_entry[vltk.score] = 0
         is_matched = 0
         while rand_text == text:
             rand_text = random_sent()
 
     cur_entry["is_matched"] = is_matched
-    cur_entry[TEXTKEY] = rand_text
+    cur_entry[vltk.text] = rand_text
     return cur_entry
 
 

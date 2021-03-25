@@ -137,6 +137,7 @@ class DataConfig(config.Config):
     visual_dim: int = 2048
     max_detections: str = 36
     annotations: bool = True
+    tokenizer: None
 
     # for image processing stuff
     size = 768

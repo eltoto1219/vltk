@@ -9,10 +9,11 @@ from pathlib import Path
 import datasets
 import datasets as ds
 import pyarrow
+import vltk
 from datasets import ArrowWriter
 from tqdm import tqdm
-from vltk import ANNOTATION_DIR, IMAGEKEY, IMAGESETPATH, LABELKEY
-from vltk.inspect import get_classes
+from vltk import ANNOTATION_DIR, VISION
+from vltk.inspection import get_classes
 from vltk.processing.label import clean_imgid_default
 from vltk.utils import set_metadata
 
@@ -22,27 +23,11 @@ __all__ = ["VisnDatasetAdapter", "VisnDatasetAdapters"]
 DEFAULT_ANNOS = {}
 
 
-class VisnDatasetAdapters:
-    def __init__(self):
-        if "IMAGESETDICT" not in globals():
-            global IMAGESETDICT
-            IMAGESETDICT = get_classes(IMAGESETPATH, ds.Dataset, pkg="vltk.imageset")
-
-    def avail(self):
-        return list(IMAGESETDICT.keys())
-
-    def get(self, name):
-        return IMAGESETDICT[name]
-
-    def add(self, name, dset):
-        IMAGESETDICT[name] = dset
-
-
 class VisnDatasetAdapter(ds.Dataset, ABC):
     _batch_size = 10
     _base_features = {
-        IMAGEKEY: ds.Value("string"),
-        LABELKEY: ds.Sequence(length=-1, feature=ds.Value("string")),
+        vltk.imgid: ds.Value("string"),
+        vltk.label: ds.Sequence(length=-1, feature=ds.Value("string")),
     }
 
     def __init__(
@@ -87,28 +72,53 @@ class VisnDatasetAdapter(ds.Dataset, ABC):
         return self[self.img_to_row_map[img_id]]
 
     @staticmethod
-    def get_valid_search_pathes(searchdirs, name, anno_dir):
-        if isinstance(searchdirs, str):
-            searchdirs = [searchdirs]
-        for p in searchdirs:
-            if not os.path.isdir(p):
-                searchdirs.remove(p)
-        assert searchdirs
-        new_searchdirs = []
-        for p in searchdirs:
-            p1 = os.path.join(p, name)
-            if not os.path.isdir(p1):
-                continue
-            p2 = os.path.join(p1, anno_dir)
-            if os.path.isdir(p2):
-                new_searchdirs.append(p2)
+    def get_valid_search_pathes(searchdir, name=None, anno_dir="annotations"):
+        # if splits is None:
+        #     splits = vltk.SPLITALIASES
+        # elif isinstance(splits, str):
+        #     splits = [splits]
+        assert os.path.isdir(searchdir)
+        if name is not None:
+            searchdir = os.path.join(searchdir, name)
+        assert os.path.isdir(searchdir)
+        searchdir = os.path.join(searchdir, anno_dir)
+        os.makedirs(searchdir, exist_ok=True)
+        assert os.path.isdir(searchdir)
+        # final_paths = []
+        # valid_splits = []
+        # for splt in splits:
+        #     path = os.path.join(searchdir, splt)
+        #     if not os.path.isdir(path):
+        #         continue
+        #     final_paths.append(path)
+        #     valid_splits.append(splt)
 
-        assert new_searchdirs
-        return new_searchdirs
+        # assert final_paths
+        # return final_paths, valid_splits
+        return searchdir
+
+    # def get_valid_search_pathes(searchdirs, name, anno_dir):
+    #     if isinstance(searchdirs, str):
+    #         searchdirs = [searchdirs]
+    #     for p in searchdirs:
+    #         if not os.path.isdir(p):
+    #             searchdirs.remove(p)
+    #     assert searchdirs
+    #     new_searchdirs = []
+    #     for p in searchdirs:
+    #         p1 = os.path.join(p, name)
+    #         if not os.path.isdir(p1):
+    #             continue
+    #         p2 = os.path.join(p1, anno_dir)
+    #         if os.path.isdir(p2):
+    #             new_searchdirs.append(p2)
+
+    #     assert new_searchdirs
+    #     return new_searchdirs
 
     @staticmethod
     def iter_files(searchdirs, data_format=None):
-        for s in searchdirs:
+        for s in [searchdirs]:
             for f in os.listdir(s):
                 if data_format is not None:
                     if data_format in f:
@@ -141,7 +151,7 @@ class VisnDatasetAdapter(ds.Dataset, ABC):
         **kwargs,
     ):
 
-        feature_dict = {**cls.default_features(**kwargs), **cls._base_features}
+        feature_dict = {**cls.schema(**kwargs), **cls._base_features}
         # lets work on doing the annotations first
         total_annos = {}
         searchdirs = cls.get_valid_search_pathes(
@@ -158,16 +168,16 @@ class VisnDatasetAdapter(ds.Dataset, ABC):
                 anno_data = json.load(open(str(anno_file)))
                 json_files.append((str(anno_file), anno_data))
 
-        total_annos = cls.forward(json_files)
+        total_annos = cls.forward(json_files, **kwargs)
 
         # now write
-        print("write data")
+        print("writing to Datasets/Arrow object")
         writer, buffer, imgid2row, object_dict = cls._write_batches(
             total_annos, feature_dict, cls._batch_size
         )
-        print("save data")
+        print("saving ...")
         if savedir is None:
-            savedir = searchdirs[-1]
+            savedir = searchdirs
 
         extra_meta = {"img_to_row_map": imgid2row, "object_frequencies": object_dict}
         cls._write_data(writer, buffer, savedir, extra_meta)
@@ -191,8 +201,8 @@ class VisnDatasetAdapter(ds.Dataset, ABC):
         n_files = len(annos)
         for i, entry in enumerate(annos):
             imgs_left = abs(i + 1 - n_files)
-            img_id = entry[IMAGEKEY]
-            object_dict.update(entry[LABELKEY])
+            img_id = entry[vltk.imgid]
+            object_dict.update(entry[vltk.label])
             if img_id in imgid2row:
                 print(f"skipping {img_id}. Already written to table")
             imgid2row[img_id] = cur_row
@@ -223,7 +233,12 @@ class VisnDatasetAdapter(ds.Dataset, ABC):
     @staticmethod
     def _write_data(writer, buffer, savedir, extra_meta):
         print("saving...")
-        dset = datasets.Dataset.from_buffer(buffer.getvalue())
+        value = buffer.getvalue()
+        if value.size == 0:
+            print("WARNING: no data saved")
+            return
+            # do something
+        dset = datasets.Dataset.from_buffer(value)
         try:
             writer.finalize(close_stream=False)
         except Exception:
@@ -246,7 +261,7 @@ class VisnDatasetAdapter(ds.Dataset, ABC):
         self._img_to_row_map = imap
 
     @property
-    def get_imgids(self):
+    def imgids(self):
         return set(self._img_to_row_map.keys())
 
     def num_imgs(self):
@@ -273,23 +288,24 @@ class VisnDatasetAdapter(ds.Dataset, ABC):
     @staticmethod
     def _load_handler(path, name, split=None, extractor=None, annotations=False):
         name = name.lower()
-        if os.path.isfile(path):
+        if os.path.isfile(path) and extractor is None:
             return path
         path = os.path.join(path, name)
         assert os.path.exists(path), f"No such {path}"
 
         if extractor is not None and split is not None:
-            path = os.path.join(path, f"{split}.arrow")
+            path = os.path.join(path, extractor, f"{split}.arrow")
             assert os.path.exists(path), f"No such file {path}"
             return path
         elif annotations:
             path = os.path.join(path, ANNOTATION_DIR)
             assert os.path.exists(path), f"No such {path}"
             path = os.path.join(path, "annotations.arrow")
-            assert os.path.exists(path), f"No such file {path}"
+            if not os.path.exists(path):
+                path = None
             return path
         elif split is None:
-            path = os.path.join(path, split)
+            # path = os.path.join(path, split)
             return VisnDatasetAdapter.files(path)
 
     @classmethod
@@ -301,19 +317,26 @@ class VisnDatasetAdapter(ds.Dataset, ABC):
             extractor=extractor,
             annotations=annotations,
         )
+        if out is None:
+            return out
         if isinstance(out, dict):
             return out
+        not_in = False
         mmap = pyarrow.memory_map(out)
         f = pyarrow.ipc.open_stream(mmap)
         pa_table = f.read_all()
         assert "img_to_row_map".encode("utf-8") in pa_table.schema.metadata.keys()
-        assert "object_frequencies".encode("utf-8") in pa_table.schema.metadata.keys()
+        if "object_frequencies".encode("utf-8") not in pa_table.schema.metadata.keys():
+            not_in = True
         img_to_row_map = pa_table.schema.metadata["img_to_row_map".encode("utf-8")]
         img_to_row_map = json.loads(img_to_row_map)
-        object_frequencies = pa_table.schema.metadata[
-            "object_frequencies".encode("utf-8")
-        ]
-        object_frequencies = json.loads(object_frequencies)
+        if not_in:
+            object_frequencies = {}
+        else:
+            object_frequencies = pa_table.schema.metadata[
+                "object_frequencies".encode("utf-8")
+            ]
+            object_frequencies = json.loads(object_frequencies)
         arrow_dset = cls(
             arrow_table=pa_table,
             img_to_row_map=img_to_row_map,
@@ -324,11 +347,35 @@ class VisnDatasetAdapter(ds.Dataset, ABC):
     def _name(self):
         return type(self).__name__.lower()
 
+    @property
+    def name(self):
+        return self._name()
+
     @staticmethod
     @abstractmethod
-    def forward(filepath, image_preprocessor, model, **kwargs):
+    def forward(json_files, **kwargs):
         raise Exception("child forward is not being called")
 
     @abstractmethod
-    def default_features(self, *args, **kwargs):
+    def schema(*args, **kwargs):
         return dict
+
+
+class VisnDatasetAdapters:
+    def __init__(self):
+        if "IMAGESETDICT" not in globals():
+            global IMAGESETDICT
+            IMAGESETDICT = get_classes(VISION, ds.Dataset, pkg="vltk.adapters.vision")
+
+    @property
+    def dict(self):
+        return IMAGESETDICT
+
+    def avail(self):
+        return list(IMAGESETDICT.keys())
+
+    def get(self, name):
+        return IMAGESETDICT[name]
+
+    def add(self, dset):
+        IMAGESETDICT[dset.__name__.lower()] = dset

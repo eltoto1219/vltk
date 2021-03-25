@@ -178,7 +178,7 @@ class VizExtractionAdapter(ds.Dataset, ABC):
         return savepath
 
     @staticmethod
-    def _iter_files(searchdirs, img_format=None):
+    def _iter_files(searchdirs, valid_splits, img_format=None):
         for s in searchdirs:
             for f in os.listdir(s):
                 file = Path(os.path.join(s, f))
@@ -284,7 +284,7 @@ class VizExtractionAdapter(ds.Dataset, ABC):
         batch_size = cls._batch_size
         cur_size = 0
         cur_batch = None
-        files = set(cls._iter_files(searchdirs, img_format))
+        files = set(cls._iter_files(searchdirs, valid_splits, img_format))
         total_files = len(files)
         # raise Exception(files, total_files)
         for i, path in tqdm(
@@ -413,7 +413,7 @@ class VizExtractionAdapter(ds.Dataset, ABC):
             )
             splitdict[split] = arrow_dset
 
-            return splitdict
+        return splitdict
 
     @classmethod
     def load(cls, path, split=None, dataset_name=None):
@@ -505,5 +505,5 @@ class VizExtractionAdapters:
     def get(self, name):
         return EXTRACTIONDICT[name]
 
-    def add(self, name, dset):
-        EXTRACTIONDICT[name] = dset
+    def add(self, dset):
+        EXTRACTIONDICT[dset.__name__.lower()] = dset

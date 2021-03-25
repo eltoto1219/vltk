@@ -2,7 +2,7 @@ import json
 import os
 
 from vltk import LABELPROCPATH
-from vltk.inspect import import_funcs_from_file
+from vltk.inspection import import_funcs_from_file
 
 PATH = os.path.join(
     os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "libdata"
