@@ -42,7 +42,7 @@ PyYAML==5.3.1
 regex==2020.11.13
 requests==2.25.1
 sacremoses==0.0.43
-scipy==1.6.0
+scipy
 six==1.15.0
 termcolor==1.1.0
 timm==0.3.4
