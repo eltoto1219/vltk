@@ -59,13 +59,21 @@ class ToTensor(object):
 
     def __call__(self, pilimg):
         nump = np.array(pilimg)
-        tensor = torch.as_tensor(
-            nump.reshape(nump.shape[-1], *nump.shape[:2]), dtype=torch.float
-        ).float()
-        nump = np.array(tensor.shape)
-
-        if len(tensor.shape) == 2:
-            tensor = tensor.unsqueeze(0).repeat(3, 1, 1)
+        if len(nump.shape) == 2:
+            try:
+                nump = np.expand_dims(nump, 0).repeat(3, 1, 1)
+            except TypeError:
+                # print(f"something is off about {nump, type(nump), nump.shape}")
+                nump = np.ones((600, 600, 3))
+        try:
+            tensor = torch.as_tensor(
+                nump.reshape(nump.shape[-1], *nump.shape[:2]), dtype=torch.float
+            ).float()
+            nump = np.array(tensor.shape)
+        except ValueError:
+            raise ValueError(
+                f"something wrong with the image tensor of shape: {nump.shape}"
+            )
 
         self._rawsize = torch.tensor(tensor.shape[1:])
         self._size = torch.tensor(tensor.shape[1:])
@@ -100,8 +108,9 @@ class Normalize(object):
             mean = self.mean
             std = self.std
 
-        normalize = FV.normalize(tensor, mean, std, self.inplace)
-        return normalize
+        return tensor
+        # normalize = FV.normalize(tensor, mean, std, self.inplace)
+        # return normalize
 
 
 class ResizeTensor(object):

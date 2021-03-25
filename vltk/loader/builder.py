@@ -10,8 +10,6 @@ from vltk.loader.loader import VisionLanguageLoader, VisionLoader
 _visnlangdatasetadapters = VisnLangDatasetAdapters()
 _visndatasetadapters = VisnDatasetAdapters()
 
-# raise Exception(globals())
-
 
 def init_datasets(config):
     train_loader = None
@@ -36,7 +34,7 @@ def init_datasets(config):
                 annotationdict=annos,
                 answer_to_id=answer_to_id,
                 object_to_id=object_to_id,
-                is_train=False,
+                is_train=True,
             )
         if test:
             eval_loader = VisionLanguageLoader(
@@ -180,11 +178,18 @@ def load_vl(to_load, train_ds, eval_ds, config):
                 )
             else:
                 # this is if we want to get raw features (in the form {id: raw file})
-                is_data = _visndatasetadapters.get(is_name).load(
+                is_data = _visndatasetadapters.get(is_name).load_imgid2path(
                     config.datadir, split=split
                 )
-            loaded_visndatasetadapters[is_name][is_split] = is_data
-            print(f"Added VisnDataset {is_name}: {is_split}")
+                # print(is_data)
+            if (
+                is_name in loaded_visndatasetadapters
+                and is_split in loaded_visndatasetadapters[is_name]
+            ):
+                pass
+            else:
+                loaded_visndatasetadapters[is_name][is_split] = is_data
+                print(f"Added VisnDataset {is_name}: {is_split}")
 
         answer_file = config.labels
         objects_file = config.objects_file

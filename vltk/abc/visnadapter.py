@@ -135,6 +135,11 @@ class VisnDatasetAdapter(ds.Dataset, ABC):
 
     @staticmethod
     def files(path):
+        if not os.path.isdir(path):
+            split = path.split("/")[-1]
+            path = path.replace(split, "")
+            print(f"WARNING: No data for {split} in {path}")
+            return {}
         files = {}
         for i in os.listdir(path):
             fp = os.path.join(path, i)

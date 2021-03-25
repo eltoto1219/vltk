@@ -1,5 +1,6 @@
 # note if we do not immport a pacakage correctly in this class, no loops or exps will be present
 import json
+import math
 import os
 import random
 import resource
@@ -175,18 +176,26 @@ class VisionLanguageDataset(Dataset):
             # raise Exception(is_name)
             for k, imgset in is_split_dict.items():
                 # for split_name, imgset in self.visnlangdatasetadapterdict[is_name].items():
-                img_ids = set(imgset.imgids)
+                if isinstance(imgset, dict):
+                    img_ids = set(imgset.keys())
+                else:
+                    img_ids = set(imgset.imgids)
                 for img_id in img_ids:
                     self.img2visdatasetadapter[img_id] = (is_name, k)
                 self.uniq_imgs = self.uniq_imgs.union(img_ids)
                 # print("HI", imgset._img_to_row_map)
 
+        all_ts_imgs = set()
         for ts_name, ts_splits in self.visnlangdatasetadapterdict.items():
             for split_name, ts in self.visnlangdatasetadapterdict[ts_name].items():
-                temp_uniq = self.uniq_imgs.intersection(ts.uniq_imgs)
+                temp_uniq = ts.uniq_imgs
+                temp_uniq = self.uniq_imgs.intersection(temp_uniq)
+                all_ts_imgs = all_ts_imgs.union(temp_uniq)
+                # TODO: change this later
                 for img in temp_uniq:
                     self.img2visnlangdatasetadapter[img] = (ts_name, split_name)
-        self.uniq_imgs = tuple(self.uniq_imgs)
+
+        self.uniq_imgs = tuple(all_ts_imgs)
         special_ids = set([self.tokenizer.token_to_id(t) for t in self.special_tokens])
         self.special_ids = deepcopy(special_ids)
         all_ids = [i[1] for i in self.tokenizer.get_vocab().items()]
@@ -312,9 +321,9 @@ class VisionLanguageDataset(Dataset):
 
     def __len__(self):
         if self.config.img_first:
-            return len(self.uniq_imgs)
+            return int(math.floor(len(self.uniq_imgs) * self.config.percent))
         else:
-            return len(self.datasets)
+            return int(math.floor(len(self.datasets) * self.config.percent))
 
     @property
     def special_tokens(self):
@@ -337,7 +346,7 @@ class VisionLanguageDataset(Dataset):
             entry[vltk.image] = img
 
         elif self.config.extractor is None:
-            filepath = entry[vltk.image]
+            filepath = entry[vltk.filepath]
             entry[vltk.filepath] = filepath
             entry[vltk.image] = self.image_transforms(filepath)
         else:
@@ -438,9 +447,9 @@ class VisionLanguageDataset(Dataset):
             visndatasetadapter = self.visndatasetadapterdict[is_name][is_split]
             img_info_dict = visndatasetadapter.get(img_id)
             if isinstance(img_info_dict, str):
-                img_info_dict = {vltk.features: img_info_dict}
+                img_info_dict = {vltk.filepath: img_info_dict, vltk.imgid: img_id}
             self._handle_image(img_info_dict)
-            entry = {**img_text_dict, **img_info_dict, "img_id": img_id}
+            entry = {**img_text_dict, **img_info_dict}
             # entry = img_info_dict
             return entry
         else:
@@ -451,9 +460,9 @@ class VisionLanguageDataset(Dataset):
             visndatasetadapter = self.visndatasetadapterdict[is_name[0]][is_split[0][0]]
             img_info_dict = visndatasetadapter.get(img_id)
             if isinstance(img_info_dict, str):
-                img_info_dict = {vltk.image: img_info_dict}
+                img_info_dict = {vltk.filepath: img_info_dict, vltk.imgid: img_id}
             self._handle_image(img_info_dict)
-            entry = {**text_info, **img_info_dict, "img_id": img_id}
+            entry = {**text_info, **img_info_dict}
 
             return entry
 

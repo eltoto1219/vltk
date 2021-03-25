@@ -116,7 +116,7 @@ class DataConfig(config.Config):
     attribute_file: str = ""
     object_file: str = ""
     img_format: str = "jpg"
-    percent_data: int = 1.0
+    percent: int = 1.0
     skip_eval: bool = False
     skip_train: bool = False
     num_attrs: int = 400
