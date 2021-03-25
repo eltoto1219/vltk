@@ -2,11 +2,13 @@ README.md
 setup.py
 tests/__init__.py
 tests/arrow_dataset.py
+tests/frcnn.py
 tests/frcnn_test.py
 tests/generic_test.py
 tests/test_imageset.py
 tests/test_model.py
 tests/visualizer_test.py
+vltk/Features.py
 vltk/__init__.py
 vltk/cli.py
 vltk/commands.py
@@ -14,7 +16,7 @@ vltk/compat.py
 vltk/configs.py
 vltk/decorators.py
 vltk/download.py
-vltk/inspect.py
+vltk/inspection.py
 vltk/memory.py
 vltk/metrics.py
 vltk/scratch.py
@@ -29,11 +31,11 @@ vltk/abc/__init__.py
 vltk/abc/checkpoint.py
 vltk/abc/complex.py
 vltk/abc/config.py
-vltk/abc/extractor.py
-vltk/abc/imageset.py
+vltk/abc/extraction.py
 vltk/abc/loop.py
 vltk/abc/simple.py
-vltk/abc/textset.py
+vltk/abc/visnadapter.py
+vltk/abc/visnlangadatper.py
 vltk/adapters/__init__.py
 vltk/adapters/extraction/__init__.py
 vltk/adapters/extraction/frcnn.py
