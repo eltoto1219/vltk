@@ -86,22 +86,24 @@ if __name__ == "__main__":
     # visualgenome = VisualGenome.extract(datadir)
     Vizlang.add(GQA)
     Viz.add(VisualGenome)
-    config = DataConfig(
-        train_datasets=["gqa", "train"],
-        eval_datasets=None,
-        tokenizer="BertWordPeice",
-        extractor=None,
-        datadir=datadir,
-        train_batch_size=4,
-        img_first=False,
-        percent=0.10,
-        num_workers=8,
-    )
-    # use config to create dataset
-    (train, val), _, answer_to_id, object_to_id = init_datasets(config)
-    print("NUM EXAMPLES", len(train[1]))
-    start = time.time()
-    for x in tqdm(train[1]):
-        pass
-    stop = time.time()
-    print(start - stop)
+
+    for p in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]:
+        config = DataConfig(
+            train_datasets=["gqa", "train"],
+            eval_datasets=None,
+            tokenizer="BertWordPeice",
+            extractor=None,
+            datadir=datadir,
+            train_batch_size=8,
+            img_first=False,
+            percent=p,
+            num_workers=8,
+        )
+        # use config to create dataset
+        (train, val), _, answer_to_id, object_to_id = init_datasets(config)
+        print("NUM EXAMPLES", len(train[1]))
+        start = time.time()
+        for x in tqdm(train[1]):
+            pass
+        stop = time.time()
+        print(stop - start)

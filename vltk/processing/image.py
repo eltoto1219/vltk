@@ -1,3 +1,5 @@
+import inspect
+import sys
 from collections.abc import Iterable
 
 import numpy as np
@@ -5,7 +7,7 @@ import torch
 import torch.nn.functional as F
 import torchvision.transforms.functional as FV
 from PIL import Image as PImage
-from torchvision import transforms
+from torchvision.transforms import transforms
 
 
 def get_scale(obj):
@@ -236,7 +238,12 @@ class Image:
     def __init__(self):
         if "IMAGEPROCDICT" not in globals():
             global IMAGEPROCDICT
-            IMAGEPROCDICT = {}
+            IMAGEPROCDICT = {
+                m[0]: m[1]
+                for m in inspect.getmembers(
+                    sys.modules["torchvision.transforms.transforms"], inspect.isclass
+                )
+            }
             IMAGEPROCDICT["ToTensor"] = ToTensor
             IMAGEPROCDICT["ToPILImage"] = ToPILImage
             IMAGEPROCDICT["Pad"] = Pad

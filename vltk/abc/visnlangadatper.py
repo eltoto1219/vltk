@@ -1,9 +1,5 @@
-import json
-import logging
 import os
-import pickle
-import sys
-from abc import ABCMeta, abstractmethod
+from abc import abstractmethod
 from collections import Counter, defaultdict
 from copy import deepcopy
 from pathlib import Path
@@ -15,59 +11,30 @@ import pyarrow
 import vltk
 from datasets import ArrowWriter
 from tqdm import tqdm
-from vltk import VISIONLANG, utils
-from vltk.inspection import get_classes
-from vltk.processing.label import Label, clean_imgid_default
-from vltk.utils import set_metadata
-
-__all__ = ["VisnLangDatasetAdapter", "VisnLangDatasetAdapters"]
+from vltk import utils
+from vltk.absc import Adapter
+from vltk.processing.label import Label
 
 _labelproc = Label()
 
 
-class VisnLangDatasetAdapter(ds.Dataset, metaclass=ABCMeta):
-    text_reference = "textset"
-    dataset_reference = "visndatasetadapter"
-    img_key = vltk.imgid
-    text_key = vltk.text
-    score_key = vltk.score
-    label_key = vltk.label
+class VisnLangDataset(Adapter):
     _extensions = ["json", "jsonl"]
-    _known_image_formats = ("jpg", "png", "jpeg")
     _base_features = {
         vltk.imgid: ds.Value("string"),
         vltk.text: ds.Value("string"),
         vltk.label: ds.Sequence(length=-1, feature=ds.Value("string")),
         vltk.score: ds.Sequence(length=-1, feature=ds.Value("float32")),
     }
-
-    def __init__(
-        self,
-        arrow_table,
-        answer_frequencies,
-        img_to_rows_map,
-        info=None,
-        split="",
-        **kwargs,
-    ):
-
-        super().__init__(
-            arrow_table=arrow_table,
-            split=split,
-            info=info,
-            **kwargs,
-        )
-        self._answer_frequencies = answer_frequencies
-        self._img_to_rows_map = img_to_rows_map
-        self._split = split
+    _meta_names = ["answer_frequencies", "img_to_row_map"]
 
     @staticmethod
     def _check_features(schema):
         feature_dict = schema
-        feature_dict[vltk.imgid] = VisnLangDatasetAdapter._base_features[vltk.imgid]
-        feature_dict[vltk.score] = VisnLangDatasetAdapter._base_features[vltk.score]
-        feature_dict[vltk.text] = VisnLangDatasetAdapter._base_features[vltk.text]
-        feature_dict[vltk.label] = VisnLangDatasetAdapter._base_features[vltk.label]
+        feature_dict[vltk.imgid] = VisnLangDataset._base_features[vltk.imgid]
+        feature_dict[vltk.score] = VisnLangDataset._base_features[vltk.score]
+        feature_dict[vltk.text] = VisnLangDataset._base_features[vltk.text]
+        feature_dict[vltk.label] = VisnLangDataset._base_features[vltk.label]
         features = ds.Features(feature_dict)
         return features
 
@@ -94,29 +61,9 @@ class VisnLangDatasetAdapter(ds.Dataset, metaclass=ABCMeta):
                 return labels, scores
 
     @staticmethod
-    def _custom_finalize(writer, close_stream=True):
-        if writer.pa_writer is None:
-            if writer._schema is not None:
-                writer._build_writer(writer._schema)
-            else:
-                raise ValueError(
-                    "Please pass `features` or at least one example when writing data"
-                )
-        if close_stream:
-            writer.stream.close()
-        logging.info(
-            "Done writing %s %s in %s bytes %s.",
-            writer._num_examples,
-            writer.unit,
-            writer._num_bytes,
-            writer._path if writer._path else "",
-        )
-        return writer._num_examples, writer._num_bytes
-
-    @staticmethod
-    def _locate_text_set(datadirs, textset_name, split):
+    def _locate_text_set(datadir, textset_name, split):
         search_files = []
-        for dd in datadirs:
+        for dd in [datadir]:
             search_files.append(os.path.join(dd, textset_name, f"{split}.arrow"))
         valid_search_files = list(filter(lambda x: os.path.isfile(x), search_files))
         assert any(valid_search_files), (
@@ -128,103 +75,6 @@ class VisnLangDatasetAdapter(ds.Dataset, metaclass=ABCMeta):
         ), "not sure which file to load: {valid_search_files}"
         valid_search_file = valid_search_files[0]
         return valid_search_file
-
-    @staticmethod
-    def _locate_arrow_files(datadirs, textset_data_info, extractor, split=None):
-        if split is None:
-            split = ""
-        image_set_splits = set()
-        uniq_datasets = set()
-        if isinstance(datadirs, str):
-            datadirs = [datadirs]
-        if split != "":
-            for dset in textset_data_info[split]:
-                for split in textset_data_info[split][dset]:
-                    uniq_datasets.add(dset)
-                    image_set_splits.add(split)
-        else:
-            for split, ds_dict in textset_data_info.items():
-                for dset, splits in ds_dict.items():
-                    uniq_datasets.add(dset)
-                    for s in splits:
-                        image_set_splits.add(s)
-        search_files = []
-        for dd in datadirs:
-            for ud in uniq_datasets:
-                for split in image_set_splits:
-                    search_files.append(
-                        os.path.join(dd, ud, extractor, f"{split}.arrow")
-                    )
-        valid_search_files = list(filter(lambda x: os.path.isfile(x), search_files))
-        assert any(valid_search_files), (
-            f"attempting to load *.arrow datasets from the following pathes: '{search_files}'"
-            f" but none of these are real files"
-        )
-        return valid_search_files
-
-    @staticmethod
-    def _locate_raw_files(datadirs, textset_data_info, split=None):
-        raw_files = set()
-        if split is None:
-            split = ""
-        if isinstance(datadirs, str):
-            datadirs = [datadirs]
-        known_suffixes = VisnLangDatasetAdapter._known_image_formats
-        image_set_splits = set()
-        uniq_datasets = set()
-        if split != "":
-            for dset in textset_data_info[split]:
-                for split in textset_data_info[split][dset]:
-                    uniq_datasets.add(dset)
-                    image_set_splits.add(split)
-
-        else:
-            for split, ds_dict in textset_data_info.items():
-                for dset, splits in ds_dict.items():
-                    uniq_datasets.add(dset)
-                    for s in splits:
-                        image_set_splits.add(s)
-        search_dirs = []
-        for dd in datadirs:
-            # eg
-            for ud in uniq_datasets:
-                for split in image_set_splits:
-                    search_dirs.append(os.path.join(dd, ud, split))
-        valid_search_dirs = list(filter(lambda x: os.path.isdir(x), search_dirs))
-        assert any(valid_search_dirs), (
-            f"looking for raw images in the following dirs '{search_dirs}'"
-            f" but none of these are real directories"
-        )
-        print(f"locating images in the following dirs: {valid_search_dirs}")
-        for sdir in valid_search_dirs:
-            for path in tqdm(os.listdir(sdir), file=sys.stdout):
-                path = Path(os.path.join(sdir, path))
-                if path.suffix[1:] in known_suffixes:
-                    raw_files.add(str(path))
-        return list(raw_files)
-
-    @staticmethod
-    def _locate_text_files(searchdir, textset_name, split):
-        searchdir = searchdir[0]
-        searchdir = os.path.join(searchdir, textset_name)
-        assert os.path.exists(searchdir)
-        text_files = []
-        suffixes = VisnLangDatasetAdapter._extensions
-        for datadir in [searchdir]:
-            for suffix in suffixes:
-                for path in Path(datadir).glob(
-                    f"**/*.{suffix}",
-                ):
-                    path = str(path)
-                    print(path, textset_name)
-                    if textset_name in path.lower():
-                        if split in path:
-                            text_files.append(path)
-
-        if not text_files:
-            return None
-        text_files = list(set(text_files))
-        return text_files
 
     @classmethod
     def extract(
@@ -259,14 +109,9 @@ class VisnLangDatasetAdapter(ds.Dataset, metaclass=ABCMeta):
 
         if searchdir is None:
             searchdir = config.datadirs
-            if isinstance(searchdir, str):
-                searchdir = [searchdir]
-        else:
-            if isinstance(searchdir, str):
-                searchdir = [searchdir]
 
         if savedir is None:
-            savedir = os.path.join(searchdir[-1], cls.__name__.lower())
+            savedir = os.path.join(searchdir, cls.__name__.lower())
         os.makedirs(savedir, exist_ok=True)
 
         print(f"searching for input files for splits: {splits}")
@@ -294,7 +139,7 @@ class VisnLangDatasetAdapter(ds.Dataset, metaclass=ABCMeta):
 
                 text_files = temp
 
-            features = VisnLangDatasetAdapter._check_features(cls.schema)
+            features = ds.Features({**cls.schema(**kwargs), **cls._base_features})
             if not supervised:
                 features.pop(vltk.score)
                 features.pop(vltk.label)
@@ -324,6 +169,7 @@ class VisnLangDatasetAdapter(ds.Dataset, metaclass=ABCMeta):
 
             # pre-checks
             print("writing rows to arrow dataset")
+            splitdict = {}
             for sub_batch_entries in utils.batcher(batch_entries, n=64):
                 flat_entry = None
                 for b in sub_batch_entries:
@@ -331,9 +177,9 @@ class VisnLangDatasetAdapter(ds.Dataset, metaclass=ABCMeta):
                         b.pop(vltk.score, None)
                         b.pop(vltk.label, None)
                     else:
-                        for l in b["label"]:
-                            label_dict.update([l])
-                    imgid2rows[b[VisnLangDatasetAdapter.img_key]].append(cur_row)
+                        for label in b["label"]:
+                            label_dict.update([label])
+                    imgid2rows[b[VisnLangDataset.img_key]].append(cur_row)
                     cur_row += 1
                     b = {k: [v] for k, v in b.items()}
 
@@ -354,122 +200,33 @@ class VisnLangDatasetAdapter(ds.Dataset, metaclass=ABCMeta):
                     batch = features.encode_batch(flat_entry)
                     writer.write_batch(batch)
 
-            dset = datasets.Dataset.from_buffer(buffer.getvalue())
-            VisnLangDatasetAdapter._custom_finalize(writer, cls)
-
             # misc.
-            dset = pickle.loads(pickle.dumps(dset))
             savefile = os.path.join(savedir, f"{split}.arrow")
-
-            # add extra metadata
-            extra_meta = {
-                "img_to_rows_map": imgid2rows,
+            meta_dict = {
+                "img_to_row_map": imgid2rows,
                 "answer_frequencies": dict(label_dict),
-                # "split": "" if input_split is None else split,
+                "split": split,
             }
-            table = set_metadata(dset._data, tbl_meta=extra_meta)
-
-            # define new writer
-            writer = ArrowWriter(
-                path=savefile, schema=table.schema, with_metadata=False
+            table, info, meta_dict = Adapter._save_dataset(
+                b, writer, savefile, meta_dict, split
             )
-
-            # save new table
-            writer.write_table(table)
-            e, b = VisnLangDatasetAdapter._custom_finalize(writer, close_stream=True)
-            print(f"Success! You wrote {e} entry(s) and {b >> 20} mb")
-            print(f"Located: {savedir}")
 
             # return class
             arrow_dset = cls(
                 arrow_table=table,
-                img_to_rows_map=imgid2rows,
-                info=dset.info,
-                answer_frequencies=dict(label_dict),
                 split=split,
+                info=info,
+                meta_dict=meta_dict,
             )
-            split_dict[split] = arrow_dset
+            splitdict[split] = arrow_dset
         return split_dict
 
-    @classmethod
-    def from_config(cls, config, splits=None):
-        if splits is None:
-            splits = config.train_split
-        if isinstance(splits, str):
-            splits = [splits]
-        else:
-            assert isinstance(splits, list)
-
-        datadirs = config.datadir
-        if isinstance(datadirs, str):
-            datadirs = [datadirs]
-        else:
-            assert isinstance(datadirs, list)
-
-        split_dict = {}
-        for split in splits:
-            text_path = VisnLangDatasetAdapter._locate_text_set(
-                datadirs=datadirs, split=split, textset_name=cls.__name__.lower()
-            )
-            mmap = pyarrow.memory_map(text_path)
-            f = pyarrow.ipc.open_stream(mmap)
-            pa_table = f.read_all()
-            assert "img_to_rows_map".encode("utf-8") in pa_table.schema.metadata.keys()
-            assert (
-                "answer_frequencies".encode("utf-8") in pa_table.schema.metadata.keys()
-            )
-            img_to_rows_map = pa_table.schema.metadata[
-                "img_to_rows_map".encode("utf-8")
-            ]
-            answer_frequencies = pa_table.schema.metadata[
-                "answer_frequencies".encode("utf-8")
-            ]
-            img_to_rows_map = json.loads(img_to_rows_map)
-            answer_frequencies = json.loads(answer_frequencies)
-
-            arrow_dset = cls(
-                arrow_table=pa_table,
-                img_to_rows_map=img_to_rows_map,
-                answer_frequencies=answer_frequencies,
-                split="" if split is None else split,
-            )
-            split_dict[split] = arrow_dset
-
-        return split_dict
-
-    @classmethod
-    def load(cls, path):
-        mmap = pyarrow.memory_map(path)
-        f = pyarrow.ipc.open_stream(mmap)
-        pa_table = f.read_all()
-        assert "img_to_rows_map".encode("utf-8") in pa_table.schema.metadata.keys()
-        assert "answer_frequencies".encode("utf-8") in pa_table.schema.metadata.keys()
-        img_to_rows_map = pa_table.schema.metadata["img_to_rows_map".encode("utf-8")]
-        answer_frequencies = pa_table.schema.metadata[
-            "answer_frequencies".encode("utf-8")
-        ]
-        img_to_rows_map = json.loads(img_to_rows_map)
-        answer_frequencies = json.loads(answer_frequencies)
-        arrow_dset = cls(
-            arrow_table=pa_table,
-            img_to_rows_map=img_to_rows_map,
-            answer_frequencies=answer_frequencies,
-            split="",
-        )
-        return arrow_dset
-
-    def get(self, img_id, min_freq=14):
-        small_dataset = self[self.img_to_rows_map[img_id]]
-        img_ids = set(small_dataset.pop(VisnLangDatasetAdapter.img_key))
+    def get(self, img_id):
+        small_dataset = self[self.img_to_row_map[img_id]]
+        img_ids = set(small_dataset.pop(vltk.imgid))
         assert len(img_ids) == 1, img_ids
-        img_id = next(iter(img_ids))
-        small_dataset[VisnLangDatasetAdapter.img_key] = img_id
+        small_dataset[vltk.imgid] = next(iter(img_ids))
         return small_dataset
-
-    def get_row(self, i):
-        x = self[i]
-        x[VisnLangDatasetAdapter.text_reference] = self.name
-        return x
 
     def text_iter(self):
         for i in range(len(self)):
@@ -484,40 +241,15 @@ class VisnLangDatasetAdapter(ds.Dataset, metaclass=ABCMeta):
             text_data.append(row)
         return text_data
 
-    def get_freq(self, label):
+    def get_frequency(self, label):
         return self.answer_frequencies[label]
-
-    def _get_pathes(self, datadirs, split, extractor=None, feat_type="arrow"):
-        assert feat_type in ("arrow", "raw")
-        if feat_type == "arrow":
-            assert extractor is not None
-            files = VisnLangDatasetAdapter._locate_arrow_files(
-                datadirs, self.data_info, extractor, split=split
-            )
-        else:
-            files = VisnLangDatasetAdapter._locate_raw_files(
-                datadirs, self.data_info, split=split
-            )
-        return files
-
-    def get_imgid_to_raw_path(self, datadirs, split):
-        files = self._get_pathes(datadirs, split=split, feat_type="raw")
-        imgid2path = {clean_imgid_default(Path(p).stem): p for p in files}
-        return imgid2path
-
-    def get_arrow_split(self, datadirs, split, extractor):
-        files = self._get_pathes(
-            datadirs, split=split, extractor=extractor, feat_type="arrow"
-        )
-        assert (
-            len(files) == 1
-        ), f"was expecting to find only one file, but found the following: {files}"
-
-        return files[0]
 
     @property
     def split(self):
-        return self._split
+        try:
+            return self._split
+        except AttributeError:
+            return None
 
     @property
     @abstractmethod
@@ -529,56 +261,17 @@ class VisnLangDatasetAdapter(ds.Dataset, metaclass=ABCMeta):
         pass
 
     @property
-    def name(self) -> str:
-        return type(self).__name__.lower()
-
-    @property
     def labels(self):
         return set(self.answer_frequencies.keys())
 
     @property
-    def num_labels(self):
+    def n_labels(self):
         return len(self.labels)
 
     @property
     def uniq_imgs(self):
-        return set(self._img_to_rows_map.keys())
-
-    @property
-    def img_to_rows_map(self):
-        return self._img_to_rows_map
+        return set(self._img_to_row_map.keys())
 
     @property
     def answer_frequencies(self):
         return self._answer_frequencies
-
-    @property
-    def raw_file_map(self):
-        return self._raw_map
-
-    @property
-    @abstractmethod
-    def schema(self):
-        return dict
-
-
-class VisnLangDatasetAdapters:
-    def __init__(self):
-        if "TEXTSETDICT" not in globals():
-            global TEXTSETDICT
-            TEXTSETDICT = get_classes(
-                VISIONLANG, ds.Dataset, pkg="vltk.adapters.visionlang"
-            )
-
-    @property
-    def dict(self):
-        return TEXTSETDICT
-
-    def avail(self):
-        return list(TEXTSETDICT.keys())
-
-    def get(self, name):
-        return TEXTSETDICT[name]
-
-    def add(self, dset):
-        TEXTSETDICT[dset.__name__.lower()] = dset

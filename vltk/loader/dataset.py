@@ -9,17 +9,21 @@ from copy import deepcopy
 
 import numpy
 import numpy as np
+import tokenizers
 import torch
 import vltk
 # disable logging from datasets
 from datasets.utils.logging import set_verbosity_error
 from PIL import Image
 from pycocotools import mask as Mask
-from tokenizers import BertWordPieceTokenizer
 from torch.utils.data import Dataset
 from vltk.inspection import collect_args_to_func
 from vltk.processing import data as data_proc
 from vltk.processing.image import Pipeline
+
+TOKENIZERS = {
+    m[0]: m[1] for m in inspect.getmembers(sys.modules["tokenizers"], inspect.isclass)
+}
 
 rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
 resource.setrlimit(resource.RLIMIT_NOFILE, (6144, rlimit[1]))
@@ -144,7 +148,7 @@ class VisionLanguageDataset(Dataset):
         self.annotationdict = annotationdict
         self.config = config
         self.is_train = is_train
-        self.tokenizer = BertWordPieceTokenizer(VOCABPATH, lowercase=True)
+        self.tokenizer = TOKENIZERS[config.tokenizer](VOCABPATH, lowercase=True)
         self.tokenizer.add_special_tokens(self.special_tokens)
         self.tokenizer.enable_truncation(max_length=config.sent_length)
         self.tokenizer.enable_padding(length=config.sent_length)

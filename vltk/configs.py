@@ -7,12 +7,6 @@ from vltk.memory import get_most_free_gpu, get_nvidia_gpu_memory
 from vltk.processing.image import Image
 
 
-class ViTConfig(config.Config):
-    from_transformers: bool = False
-    vit_variant: Union[str, None] = "ViT-B_16"
-    ckp_name_or_path: str = ""
-
-
 class ModelConfig(config.Config):
     checkpoint = None
     freeze_layers = None
@@ -93,20 +87,16 @@ class DataConfig(config.Config):
     text_processors: Union[None, List[str], str] = ["one_hot_label"]
     image_processors: Union[None, List[str], str] = []
     label_processor: Union[None, str] = "one_hot_label"
-    label_preprocessor: str = "label_default"
     labels: Union[None, str] = None
     eval_datasets = None
     train_datasets = None
     rand_feats: Union[None, tuple] = None
     eval_batch_size = 32
     train_batch_size = 64
-    min_label_frequency = 9
     extractor: Union[None, str] = "frcnn"
     textfile_extensions: Union[List[str], str] = ["json", "jsonl"]
     datadir: str = "/playpen1/home/avmendoz/data"
     img_first: bool = False
-    cache_batch: str = "batch.temp"
-    overwrite_cache_batch: bool = False
     shuffle: bool = True
     num_workers: int = 8
     drop_last: bool = True
@@ -122,11 +112,11 @@ class DataConfig(config.Config):
     num_attrs: int = 400
     num_objects: int = 1600
     ignore_id: int = -100
-    word_mask_rate: float = 0.15
-    feature_mask_rate: float = 0.15
-    random_feature_rate: float = 0.10
-    random_word_rate: float = 0.10
-    sentence_match_rate: float = 0.50
+    # word_mask_rate: float = 0.15 # these all belong to text preporcessors. change
+    # feature_mask_rate: float = 0.15
+    # random_feature_rate: float = 0.10
+    # random_word_rate: float = 0.10
+    # sentence_match_rate: float = 0.50
     truncate_sentence: bool = True
     return_token_type_ids: bool = True
     add_special_tokens: bool = True
@@ -137,7 +127,7 @@ class DataConfig(config.Config):
     visual_dim: int = 2048
     max_detections: str = 36
     annotations: bool = True
-    tokenizer: None
+    tokenizer: "BertWordPeiceTokenizer"
 
     # for image processing stuff
     size = 768
@@ -170,7 +160,7 @@ class ProcessorConfig(config.Config):
             self._overwritten[f] = v
 
     def build(self):
-        from torchvision import transforms
+        from torchvision.transforms import transforms
 
         _image = Image()
         kwargs = self.to_dict()
