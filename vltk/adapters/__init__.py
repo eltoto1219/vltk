@@ -16,6 +16,15 @@ class Adapters:
     def dict(self):
         return
 
+    def is_visnlang(self, adapter):
+        return isinstance(adapter, VisnLangDataset)
+
+    def is_visn(self, adapter):
+        return isinstance(adapter, VisnDataset)
+
+    def is_extraction(self, adapter):
+        return isinstance(adapter, VisnExtraction)
+
     def avail(self):
         return list(ADAPTERDICT.keys())
 

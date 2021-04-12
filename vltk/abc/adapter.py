@@ -20,6 +20,8 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
     _extensions = ["json", "jsonl"]
     _batch_size = 32
     _base_schema = {vltk.imgid: Features.imgid}
+    _is_annotation = False
+    _is_feature = False
 
     def __init__(
         self,
@@ -107,7 +109,8 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
         if annodir is not None:
             searchdir = os.path.join(searchdir, annodir)
             if not os.path.isdir(searchdir):
-                return searchdir, None
+                os.makedirs(searchdir, exist_ok=True)
+            return searchdir, None
         final_paths = []
         valid_splits = []
         for splt in splits:
@@ -131,7 +134,9 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
         return savepath
 
     @staticmethod
-    def _iter_files(searchdirs, valid_splits):
+    def _iter_files(searchdirs, valid_splits=None):
+        if isinstance(searchdirs, str):
+            searchdirs = [searchdirs]
         for s in searchdirs:
             for f in os.listdir(s):
                 file = Path(os.path.join(s, f))
@@ -180,7 +185,11 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
         pa_table = f.read_all()
         meta_dict = {}
         for n in meta_names:
-            assert n.encode("utf-8") in pa_table.schema.metadata.keys()
+            assert (
+                n.encode("utf-8") in pa_table.schema.metadata.keys()
+            ), f"""
+            The key {n} is not in the arrow table's metadata: {pa_table.schema.metadata.keys()}
+            """
             data_dump = pa_table.schema.metadata[n.encode("utf-8")]
             try:
                 data = json.loads(data_dump)
@@ -202,14 +211,26 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
 
     @classmethod
     def load(cls, path, split=None, dataset_name=None):
-        if dataset_name is not None:
-            path = os.path.join(path, dataset_name)
         meta_names = cls._meta_names
         if ".arrow" in path:
             (pa_table, meta_dict, path) = Adapter._load_one_arrow(path, meta_names)
             return cls(arrow_table=pa_table, split=split, meta_dict=meta_dict)
+        # to return visual features
+        if dataset_name is not None:
+            path = os.path.join(path, dataset_name)
+        path = os.path.join(path, cls.__name__.lower())
+        if cls._is_annotation:
+            path = os.path.join(
+                path, f"{vltk.ANNOTATION_DIR}/{vltk.ANNOTATION_DIR}.arrow"
+            )
+            (pa_table, meta_dict, path) = Adapter._load_one_arrow(path, meta_names)
+            return cls(arrow_table=pa_table, split=split, meta_dict=meta_dict)
         elif split is not None:
-            path = os.path.join(path, split)
+            path = os.path.join(path, f"{split}.arrow")
+            # if cls._is_feature:
+            #     path = os.path.join(path, f"{split}.arrow")
+            # else:
+            #     path = os.path.join(path, split)
             (pa_table, meta_dict, path) = Adapter._load_one_arrow(path, meta_names)
             return cls(arrow_table=pa_table, split=split, meta_dict=meta_dict)
         else:

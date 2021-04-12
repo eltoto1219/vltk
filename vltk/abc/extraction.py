@@ -22,8 +22,13 @@ def clean_imgid_default(imgid):
 class VisnExtraction(Adapter):
     _meta_names = [
         "img_to_row_map",
-        "processor",
+        "model_config",
+        "img_to_row_map",
+        "dataset",
+        "processor_args",
     ]
+    _is_feature = True
+    _batch_size = 128
 
     default_processor = None
     model_config = None
@@ -52,7 +57,7 @@ class VisnExtraction(Adapter):
 
     @property
     def dataset(self):
-        return self._dataset
+        return self._dataset.decode()
 
     @property
     def config(self):
@@ -156,7 +161,7 @@ class VisnExtraction(Adapter):
         batch_size = cls._batch_size
         cur_size = 0
         cur_batch = None
-        files = set(cls._iter_files(searchdirs, valid_splits, img_format))
+        files = set(cls._iter_files(searchdirs))
         total_files = len(files)
         for i, path in tqdm(
             enumerate(files),

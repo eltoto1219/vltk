@@ -13,6 +13,7 @@ from datasets import ArrowWriter
 from tqdm import tqdm
 from vltk import utils
 from vltk.abc.adapter import Adapter
+from vltk.inspection import collect_args_to_func
 from vltk.processing.label import Label
 
 _labelproc = Label()
@@ -27,6 +28,7 @@ class VisnLangDataset(Adapter):
         vltk.score: ds.Sequence(length=-1, feature=ds.Value("float32")),
     }
     _meta_names = ["answer_frequencies", "img_to_row_map"]
+    _batch_size = 1028
 
     @staticmethod
     def _check_features(schema):
@@ -59,6 +61,29 @@ class VisnLangDataset(Adapter):
                     labels.append(lab)
                     scores.append(score)
                 return labels, scores
+
+    @staticmethod
+    def _locate_text_files(searchdir, textset_name, split):
+        if isinstance(searchdir, list):
+            searchdir = searchdir[0]
+        searchdir = os.path.join(searchdir, textset_name)
+        assert os.path.exists(searchdir)
+        text_files = []
+        suffixes = VisnLangDataset._extensions
+        for datadir in [searchdir]:
+            for suffix in suffixes:
+                for path in Path(datadir).glob(
+                    f"**/*.{suffix}",
+                ):
+                    path = str(path)
+                    if textset_name in path.lower():
+                        if split in path:
+                            text_files.append(path)
+
+        if not text_files:
+            return None
+        text_files = list(set(text_files))
+        return text_files
 
     @staticmethod
     def _locate_text_set(datadir, textset_name, split):
@@ -139,7 +164,9 @@ class VisnLangDataset(Adapter):
 
                 text_files = temp
 
-            features = ds.Features({**cls.schema(**kwargs), **cls._base_features})
+            schema_dict = collect_args_to_func(cls.schema, kwargs=kwargs)
+            features = ds.Features({**cls.schema(**schema_dict), **cls._base_features})
+            # features = ds.Features({**cls.schema(**kwargs), **cls._base_features})
             if not supervised:
                 features.pop(vltk.score)
                 features.pop(vltk.label)
@@ -179,7 +206,7 @@ class VisnLangDataset(Adapter):
                     else:
                         for label in b["label"]:
                             label_dict.update([label])
-                    imgid2rows[b[VisnLangDataset.img_key]].append(cur_row)
+                    imgid2rows[b[vltk.imgid]].append(cur_row)
                     cur_row += 1
                     b = {k: [v] for k, v in b.items()}
 
@@ -208,7 +235,7 @@ class VisnLangDataset(Adapter):
                 "split": split,
             }
             table, info, meta_dict = Adapter._save_dataset(
-                b, writer, savefile, meta_dict, split
+                buffer, writer, savefile, meta_dict, split
             )
 
             # return class

@@ -11,17 +11,19 @@ from datasets import ArrowWriter
 from tqdm import tqdm
 from vltk import ANNOTATION_DIR
 from vltk.abc.adapter import Adapter
+from vltk.inspection import collect_args_to_func
 from vltk.processing.label import clean_imgid_default
 from vltk.utils import set_metadata
 
 
 class VisnDataset(Adapter):
-    _batch_size = 10
+    _batch_size = 1028
     _base_features = {
         vltk.imgid: ds.Value("string"),
         vltk.label: ds.Sequence(length=-1, feature=ds.Value("string")),
     }
-    _meta_names = {"imge_to_row_map", "object_frequencies"}
+    _meta_names = {"img_to_row_map", "object_frequencies"}
+    _is_annotation = True
 
     @classmethod
     def filepath(cls, imgid, datadir, split):
@@ -43,7 +45,8 @@ class VisnDataset(Adapter):
         **kwargs,
     ):
 
-        feature_dict = {**cls.schema(**kwargs), **cls._base_features}
+        schema_dict = collect_args_to_func(cls.schema, kwargs=kwargs)
+        feature_dict = {**cls.schema(**schema_dict), **cls._base_features}
         # lets work on doing the annotations first
         total_annos = {}
         searchdir, _ = cls._get_valid_search_pathes(
@@ -53,11 +56,11 @@ class VisnDataset(Adapter):
         # get into right format
         json_files = []
         temp_splits = []
-        print("loading annotation")
+        print("loading annotations...")
         for anno_file in tqdm(files):
             split = None
             for spl in vltk.SPLITALIASES:
-                if spl in anno_file:
+                if spl in str(anno_file):
                     split = spl
                     break
             temp_splits.append(split)
@@ -74,12 +77,13 @@ class VisnDataset(Adapter):
         writer, buffer, imgid2row, object_dict = cls._write_batches(
             total_annos, feature_dict, cls._batch_size
         )
-        print("saving ...")
         if savedir is None:
             savedir = searchdir
 
         extra_meta = {"img_to_row_map": imgid2row, "object_frequencies": object_dict}
         (table, meta_dict) = cls._write_data(writer, buffer, savedir, extra_meta)
+        if table is None:
+            return None
         return cls(arrow_table=table, meta_dict=meta_dict)
 
     @staticmethod
@@ -130,7 +134,7 @@ class VisnDataset(Adapter):
         value = buffer.getvalue()
         if value.size == 0:
             print("WARNING: no data saved")
-            return
+            return (None, None)
             # do something
         dset = ds.Dataset.from_buffer(value)
         try:
