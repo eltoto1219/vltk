@@ -224,7 +224,7 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
 
     @abstractmethod
     def forward(*args, **kwargs):
-        raise Exception("child forward is not being called")
+        raise Exception("child forward method is not being called")
 
     @abstractmethod
     def schema(*args, **kwargs):

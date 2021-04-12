@@ -1,12 +1,8 @@
-import os
 from collections import Counter, defaultdict
 
 import vltk
-from vltk import Features, compat
-from vltk.abc.extraction import VizExtractionAdapter, VizExtractionAdapters
-from vltk.abc.visnadapter import VisnDatasetAdapter, VisnDatasetAdapters
-from vltk.abc.visnlangadatper import (VisnLangDatasetAdapter,
-                                      VisnLangDatasetAdapters)
+from vltk import Features, adapters, compat
+from vltk.adapters import Adapters
 from vltk.configs import DataConfig, ProcessorConfig
 from vltk.loader.builder import init_datasets
 from vltk.metrics import soft_score
@@ -15,7 +11,7 @@ from vltk.processing.label import clean_imgid_default
 
 
 # Visual Adatper
-class FRCNN(VizExtractionAdapter):
+class FRCNN(adapters.VisnExtraction):
 
     default_processor = ProcessorConfig(
         **{
@@ -63,11 +59,15 @@ class FRCNN(VizExtractionAdapter):
 
 
 # Vision Datasets
-class Coco2014(VisnDatasetAdapter):
+class Coco2014(adapters.VisnDataset):
+    def imgid_to_filename(imgid, split):
+        year = 2014 if split != "test" else 2015
+        return f"{split}/COCO_{split}{year}_{str((12 - len(imgid)) * 0)}{imgid}.jpg"
+
     def schema():
         return {vltk.box: Features.box, vltk.segmentation: Features.segmentation}
 
-    def forward(json_files, **kwargs):
+    def forward(json_files, splits, **kwargs):
 
         total_annos = {}
         id_to_cat = {}
@@ -115,22 +115,27 @@ class Coco2014(VisnDatasetAdapter):
         return [{vltk.imgid: img_id, **entry} for img_id, entry in total_annos.items()]
 
 
-class VisualGenome(VisnDatasetAdapter):
+class VisualGenome(adatpers.VisnDataset):
+    def imgid_to_filename(imgid, split):
+        return f"{split}/{imgid}.jpg"
+
     def schema():
         return {}
 
-    def forward(json_files, **kwargs):
+    def forward(json_files, splits, **kwargs):
         return {}
 
 
 # Vision-Language Datasets
-class VQA(VisnLangDatasetAdapter):
+class VQA(adatpers.VisnLangDataset):
     data_info = {
         "val": {"coco2014": ["val"]},
         "train": {"coco2014": ["train"]},
         "test": {"coco2014": ["test"]},
     }
-    schema = {"qid": Features.string}
+
+    def schema():
+        return {"qid": Features.string}
 
     def forward(json_files, split, **kwargs):
         min_label_frequency = kwargs.get("min_label_frequency")
@@ -177,17 +182,17 @@ class VQA(VisnLangDatasetAdapter):
             entry[vltk.text] = entry.pop("question")
             entry["qid"] = str(entry.pop("question_id"))
             try:
-                entry[VisnLangDatasetAdapter.label_key] = qid2answers[entry["qid"]]
+                entry[vltk.label_key] = qid2answers[entry["qid"]]
                 labels = {
                     l: s
-                    for l, s in entry[VisnLangDatasetAdapter.label_key].items()
+                    for l, s in entry[vltk.label_key].items()
                     if label_frequencies[l] > min_label_frequency
                 }
                 if not labels:
                     skipped += 1
                     continue
 
-                labels, scores = VisnLangDatasetAdapter._label_handler(labels)
+                labels, scores = VisnLangDataset._label_handler(labels)
                 entry[vltk.score] = scores
                 entry[vltk.label] = labels
             except KeyError:
@@ -198,7 +203,7 @@ class VQA(VisnLangDatasetAdapter):
         return batch_entries
 
 
-class GQA(VisnLangDatasetAdapter):
+class GQA(adapters.VisnLangDataset):
     data_info = {
         "dev": {"coco2014": ["test"]},
         "train": {"visualgenome": ["train"]},
@@ -206,7 +211,9 @@ class GQA(VisnLangDatasetAdapter):
         "test": {"coco2014": ["test"]},
         "testdev": {"coco2014": ["val"]},
     }
-    schema = {}
+
+    def schema():
+        return {}
 
     def forward(json_files, split, **kwargs):
         skipped = 0
@@ -260,15 +267,7 @@ if __name__ == "__main__":
     # vqa = VQA.extract(datadir)
     # gqa = GQA.extract(datadir)
     # add adapters
-    Vizlang = VisnLangDatasetAdapters()
-    Viz = VisnDatasetAdapters()
-    Extract = VizExtractionAdapters()
-    Vizlang.add(VQA)
-    Vizlang.add(GQA)
-    Viz.add(Coco2014)
-    Viz.add(VisualGenome)
-    Extract.add(FRCNN)
-
+    Adapters().add(VQA, GQA, Coco2014, VisualGenome, FRCNN)
     # superset datasets
     # define config for dataset
     config = DataConfig(
