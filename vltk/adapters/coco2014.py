@@ -4,13 +4,13 @@ from collections import defaultdict
 import datasets as ds
 import vltk
 from tqdm import tqdm
-from vltk.abc.visnadapter import VisnDatasetAdapter
+from vltk.adapters import VisnDataset
 from vltk.processing.label import clean_imgid_default
 
 # ignore 'iscrowd' because it used rle
 
 
-class Coco2014(VisnDatasetAdapter):
+class Coco2014(VisnDataset):
     @staticmethod
     def default_features(**kwargs):
         return {

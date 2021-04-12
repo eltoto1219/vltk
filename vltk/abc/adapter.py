@@ -230,7 +230,7 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
     def schema(*args, **kwargs):
         return dict
 
-    @abstractmethod
     @property
-    def meta_names():
+    @abstractmethod
+    def _meta_names():
         return List

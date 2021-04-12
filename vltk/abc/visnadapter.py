@@ -10,7 +10,7 @@ import vltk
 from datasets import ArrowWriter
 from tqdm import tqdm
 from vltk import ANNOTATION_DIR
-from vltk.absc import Adapter
+from vltk.abc.adapter import Adapter
 from vltk.processing.label import clean_imgid_default
 from vltk.utils import set_metadata
 

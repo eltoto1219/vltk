@@ -12,7 +12,7 @@ import vltk
 from datasets import ArrowWriter
 from tqdm import tqdm
 from vltk import utils
-from vltk.absc import Adapter
+from vltk.abc.adapter import Adapter
 from vltk.processing.label import Label
 
 _labelproc = Label()

@@ -1,6 +1,6 @@
 import vltk
 from datasets import Dataset
-from vltk.abc.extraction import VinExtraction
+from vltk.abc.extraction import VisnExtraction
 from vltk.abc.visnadapter import VisnDataset
 from vltk.abc.visnlangadatper import VisnLangDataset
 from vltk.inspection import get_classes
@@ -22,5 +22,6 @@ class Adapters:
     def get(self, name):
         return ADAPTERDICT[name]
 
-    def add(self, dset):
-        ADAPTERDICT[dset.__name__.lower()] = dset
+    def add(self, *args):
+        for dset in args:
+            ADAPTERDICT[dset.__name__.lower()] = dset

@@ -1,11 +1,11 @@
 import vltk
 from vltk import Features, compat
-from vltk.abc.extraction import VizExtractionAdapter
+from vltk.adapters import VisnExtraction
 from vltk.configs import ProcessorConfig
 from vltk.modeling.frcnn import FRCNN as FasterRCNN
 
 
-class FRCNN(VizExtractionAdapter):
+class FRCNN(VisnExtraction):
 
     default_processor = ProcessorConfig(
         **{

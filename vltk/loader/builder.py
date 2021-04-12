@@ -2,13 +2,10 @@ import json
 from collections import defaultdict
 
 from vltk import SPLITALIASES, VDATA, VLDATA
-from vltk.abc.extraction import VizExtractionAdapters
-from vltk.abc.visnadapter import VisnDatasetAdapters
-from vltk.abc.visnlangadatper import VisnLangDatasetAdapters
+from vltk.adapters import Adapters
 from vltk.loader.loader import VisionLanguageLoader, VisionLoader
 
-_visnlangdatasetadapters = VisnLangDatasetAdapters()
-_visndatasetadapters = VisnDatasetAdapters()
+_adapters = Adapters()
 
 
 def init_datasets(config):
@@ -106,10 +103,11 @@ def parse_datasets(config):
         ds = ds.lower()
         split = split.lower()
         splits = split_handler(split)
-        if ds in _visndatasetadapters.avail():
+        # TODO: will need to change this
+        if ds in _adapters.avail():
             all_img = True
             load_visndatasetadapters[ds].update(splits)
-        if ds in _visnlangdatasetadapters.avail():
+        if ds in _adapters.avail():
             all_vl = True
             load_visnlangdatasetadapters[ds].update(splits)
     for ds, split in train:
@@ -136,9 +134,7 @@ def load_vl(to_load, train_ds, eval_ds, config):
         splits = split_handler(to_load[name])  # list looks like ['trainval', 'dev']
         for split in splits:
             # add visnlangdatasetadapter first
-            visnlangdatasetadapter = _visnlangdatasetadapters.get(name).from_config(
-                config, splits=split
-            )[split]
+            visnlangdatasetadapter = _adapters.get(name).load(config, splits=split)
             for l in sorted(visnlangdatasetadapter.labels):
                 if l not in answer_to_id:
                     answer_to_id[l] = answer_id
@@ -157,7 +153,7 @@ def load_vl(to_load, train_ds, eval_ds, config):
                 # function in visndatasetadapter that: given datadir + optional split + optional
                 # extractor feats + annotation bool will return
                 # the desired path
-                is_annotations = _visndatasetadapters.get(is_name).load(
+                is_annotations = _adapters.get(is_name).load(
                     config.datadir, annotations=True
                 )
                 loaded_annotations[is_name] = is_annotations
@@ -173,12 +169,12 @@ def load_vl(to_load, train_ds, eval_ds, config):
             if config.extractor is not None:
                 # this is if we want to get pre-computed features
                 extractor = config.extractor
-                is_data = _visndatasetadapters.get(is_name).load(
+                is_data = _adapters.get(is_name).load(
                     config.datadir, extractor=extractor, split=is_split
                 )
             else:
                 # this is if we want to get raw features (in the form {id: raw file})
-                is_data = _visndatasetadapters.get(is_name).load_imgid2path(
+                is_data = _adapters.get(is_name).load_imgid2path(
                     config.datadir, split=split
                 )
                 # print(is_data)
@@ -217,9 +213,7 @@ def load_v(to_load, train_ds, eval_ds, config):
     object_id = 0
     for name in sorted(set(to_load.keys())):
         splits = split_handler(to_load[name])  # list looks like ['trainval', 'dev']
-        annotations = _visndatasetadapters.get(name).load(
-            config.datadirs[-1], annotations=True
-        )
+        annotations = _adapters.get(name).load(config.datadirs[-1], annotations=True)
         loaded_annotations[name] = annotations
         for split in splits:
             imgids2pathes = _visndatasetadapters.get(name).load_imgid2path(

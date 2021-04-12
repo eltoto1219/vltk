@@ -23,7 +23,7 @@ class FRCNN(adapters.VisnExtraction):
             "sdev": [1.0, 1.0, 1.0],
         }
     )
-    model_config = compat.Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
+    # model_config = compat.Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
     weights = "unc-nlp/frcnn-vg-finetuned"
     model = FasterRCNN
 
@@ -62,7 +62,7 @@ class FRCNN(adapters.VisnExtraction):
 class Coco2014(adapters.VisnDataset):
     def imgid_to_filename(imgid, split):
         year = 2014 if split != "test" else 2015
-        return f"{split}/COCO_{split}{year}_{str((12 - len(imgid)) * 0)}{imgid}.jpg"
+        return f"COCO_{split}{year}_{str((12 - len(imgid)) * 0)}{imgid}.jpg"
 
     def schema():
         return {vltk.box: Features.box, vltk.segmentation: Features.segmentation}
@@ -115,9 +115,9 @@ class Coco2014(adapters.VisnDataset):
         return [{vltk.imgid: img_id, **entry} for img_id, entry in total_annos.items()]
 
 
-class VisualGenome(adatpers.VisnDataset):
+class VisualGenome(adapters.VisnDataset):
     def imgid_to_filename(imgid, split):
-        return f"{split}/{imgid}.jpg"
+        return f"{imgid}.jpg"
 
     def schema():
         return {}
@@ -127,7 +127,7 @@ class VisualGenome(adatpers.VisnDataset):
 
 
 # Vision-Language Datasets
-class VQA(adatpers.VisnLangDataset):
+class VQA(adapters.VisnLangDataset):
     data_info = {
         "val": {"coco2014": ["val"]},
         "train": {"coco2014": ["train"]},
@@ -192,7 +192,7 @@ class VQA(adatpers.VisnLangDataset):
                     skipped += 1
                     continue
 
-                labels, scores = VisnLangDataset._label_handler(labels)
+                labels, scores = adapters.VisnLangDataset._label_handler(labels)
                 entry[vltk.score] = scores
                 entry[vltk.label] = labels
             except KeyError:
@@ -270,23 +270,23 @@ if __name__ == "__main__":
     Adapters().add(VQA, GQA, Coco2014, VisualGenome, FRCNN)
     # superset datasets
     # define config for dataset
-    config = DataConfig(
-        # choose which dataset and dataset split for train and eval
-        train_datasets=[["gqa", "train"], ["vqa", "trainval"]],
-        eval_datasets=["gqa", "testdev"],
-        # choose which tokenizer to use
-        tokenizer="BertWordPeice",
-        # choose which feature extractor to use
-        extractor="frcnn",
-        datadir=datadir,
-        train_batch_size=1,
-        eval_batch_size=1,
-        img_first=True,
-    )
-    # use config to create dataset
-    (train, val), _, answer_to_id, object_to_id = init_datasets(config)
-    train_loader = train[1]
-    for x in train_loader:
-        print(x.keys())
-        break
-    # first entry in the dataset
+    # config = DataConfig(
+    #     # choose which dataset and dataset split for train and eval
+    #     train_datasets=[["gqa", "train"], ["vqa", "trainval"]],
+    #     eval_datasets=["gqa", "testdev"],
+    #     # choose which tokenizer to use
+    #     tokenizer="BertWordPeice",
+    #     # choose which feature extractor to use
+    #     extractor="frcnn",
+    #     datadir=datadir,
+    #     train_batch_size=1,
+    #     eval_batch_size=1,
+    #     img_first=True,
+    # )
+    # # use config to create dataset
+    # (train, val), _, answer_to_id, object_to_id = init_datasets(config)
+    # train_loader = train[1]
+    # for x in train_loader:
+    #     print(x.keys())
+    #     break
+    # # first entry in the dataset
