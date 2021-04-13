@@ -70,7 +70,8 @@ class VisnDataset(Adapter):
                 anno_data = json.load(open(str(anno_file)))
                 json_files.append((str(anno_file), anno_data))
 
-        total_annos = cls.forward(json_files, temp_splits, **kwargs)
+        forward_dict = collect_args_to_func(cls.forward, kwargs=kwargs)
+        total_annos = cls.forward(json_files, temp_splits, **forward_dict)
 
         # now write
         print("writing to Datasets/Arrow object")

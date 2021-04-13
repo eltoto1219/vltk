@@ -12,6 +12,7 @@ from datasets import ArrowWriter
 from tqdm import tqdm
 from vltk.abc.adapter import Adapter
 from vltk.configs import ProcessorConfig
+from vltk.inspection import collect_args_to_func
 from vltk.processing.image import get_rawsize, get_scale, get_size
 
 
@@ -215,11 +216,9 @@ class VisnExtraction(Adapter):
             entry[vltk.scale] = get_scale(processor)
             entry[vltk.rawsize] = get_rawsize(processor)
             # now do model forward
-            output_dict = cls.forward(
-                model=model,
-                entry=entry,
-                **kwargs,
-            )
+
+            forward_dict = collect_args_to_func(cls.forward, kwargs=kwargs)
+            output_dict = cls.forward(model=model, entry=entry, **forward_dict)
             assert isinstance(
                 output_dict, dict
             ), "model outputs should be in dict format"

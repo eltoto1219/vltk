@@ -1,5 +1,4 @@
 import inspect
-
 # note if we do not immport a pacakage correctly in this class, no loops or exps will be present
 import json
 import math
@@ -12,10 +11,8 @@ from copy import deepcopy
 
 import numpy
 import numpy as np
-import tokenizers
 import torch
 import vltk
-
 # disable logging from datasets
 from datasets.utils.logging import set_verbosity_error
 from PIL import Image
@@ -25,6 +22,7 @@ from vltk.inspection import collect_args_to_func
 from vltk.processing import data as data_proc
 from vltk.processing.image import Pipeline
 
+__import__("tokenizers")
 TOKENIZERS = {
     m[0]: m[1] for m in inspect.getmembers(sys.modules["tokenizers"], inspect.isclass)
 }
@@ -152,7 +150,12 @@ class VisionLanguageDataset(Dataset):
         self.annotationdict = annotationdict
         self.config = config
         self.is_train = is_train
-        self.tokenizer = TOKENIZERS[config.tokenizer](VOCABPATH, lowercase=True)
+        try:
+            self.tokenizer = TOKENIZERS[config.tokenizer](VOCABPATH, lowercase=True)
+        except KeyError:
+            raise Exception(
+                f"{config.tokenizer} not available. Try one of: {TOKENIZERS.keys()}"
+            )
         self.tokenizer.add_special_tokens(self.special_tokens)
         self.tokenizer.enable_truncation(max_length=config.sent_length)
         self.tokenizer.enable_padding(length=config.sent_length)
@@ -344,7 +347,6 @@ class VisionLanguageDataset(Dataset):
         ]
 
     def _handle_image(self, entry):
-        img_id = entry[vltk.imgid]
         proc_args = {"config": self.config}
         if self.config.rand_feats is not None:
             feat_shape = tuple(self.config.rand_feats)
@@ -409,7 +411,7 @@ class VisionLanguageDataset(Dataset):
         img_id = self.uniq_imgs[i]
         ts_name, ts_split = self.img2visnlangdatasetadapter[img_id]
         visnlangdatasetadapter = self.visnlangdatasetadapterdict[ts_name][ts_split]
-        idxs = visnlangdatasetadapter.img_to_rows_map[img_id]
+        idxs = visnlangdatasetadapter.img_to_row_map[img_id]
         small_visnlangdatasetadapter = visnlangdatasetadapter.select(idxs)
         img_text_dict = self._map(small_visnlangdatasetadapter)
 
@@ -498,26 +500,27 @@ class VisionLanguageDataset(Dataset):
             batch[f] = flattened
 
     @staticmethod
-    def transpose_img2txt(batch, img_keys, device=None, max_size=36):
+    def transpose(batch, device=None, max_size=36):
         if isinstance(device, list):
             device = device[0]
         # first we resize image according to how many examples that we need
         n_sents_per_img = [len(i) for i in batch["input_ids"]]
-        for img_key in img_keys:
-            assert img_key in batch, f"{img_key} not in {list(batch.keys())}"
-            imgs = torch.cat(
-                [
-                    i.unsqueeze(0).expand(min(n, max_size), *i.shape)
-                    for i, n in zip(batch.pop(img_key), n_sents_per_img)
-                ],
-                dim=0,
-            )
-            batch[img_key] = imgs
-            if device is not None:
-                batch[img_key] = batch[img_key].to(device)
+        for img_key, v in batch.keys():
+            if not isinstance(v, list):
+                assert img_key in batch, f"{img_key} not in {list(batch.keys())}"
+                imgs = torch.cat(
+                    [
+                        i.unsqueeze(0).expand(min(n, max_size), *i.shape)
+                        for i, n in zip(batch.pop(img_key), n_sents_per_img)
+                    ],
+                    dim=0,
+                )
+                batch[img_key] = imgs
+                if device is not None:
+                    batch[img_key] = batch[img_key].to(device)
         # then we convert the other things in the dataset to torch tensors if we can
         for k in batch:
-            if k not in img_keys:
+            if isinstance(v, list):
                 if isinstance(batch[k][0], torch.Tensor):
                     batch[k] = torch.cat(
                         [

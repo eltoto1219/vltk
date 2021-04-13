@@ -81,8 +81,8 @@ def init_datasets(config):
 
 
 def parse_datasets(config):
-    load_visnlangdatasetadapters = defaultdict(set)
-    load_visndatasetadapters = defaultdict(set)
+    load_visnlangdatasets = defaultdict(set)
+    load_visndatasets = defaultdict(set)
     train_ds = defaultdict(set)
     eval_ds = defaultdict(set)
     train = config.train_datasets
@@ -104,12 +104,12 @@ def parse_datasets(config):
         split = split.lower()
         splits = split_handler(split)
         # TODO: will need to change this
-        if ds in _adapters.avail():
-            all_img = True
-            load_visndatasetadapters[ds].update(splits)
-        if ds in _adapters.avail():
+        if _adapters.is_visnlang(ds):
             all_vl = True
-            load_visnlangdatasetadapters[ds].update(splits)
+            load_visnlangdatasets[ds].update(splits)
+        if _adapters.is_visn(ds):
+            load_visndatasets[ds].update(splits)
+            all_img = True
     for ds, split in train:
         train_ds[ds].update(split_handler(split))
     for ds, split in test:
@@ -117,11 +117,12 @@ def parse_datasets(config):
 
     assert not (all_vl and all_img), "cannot specify mixture of VL and Vision datasets"
     datasets_type = VDATA if all_img else VLDATA
-    to_load = load_visndatasetadapters if all_img else load_visnlangdatasetadapters
+    to_load = load_visndatasets if all_img else load_visnlangdatasets
     return train_ds, eval_ds, to_load, datasets_type
 
 
 def load_vl(to_load, train_ds, eval_ds, config):
+    datadir = config.datadir
     loaded_eval = defaultdict(dict)  # will be datasetk
     loaded_train = defaultdict(dict)  # will be datasetk
     loaded_visndatasetadapters = defaultdict(dict)
@@ -134,7 +135,7 @@ def load_vl(to_load, train_ds, eval_ds, config):
         splits = split_handler(to_load[name])  # list looks like ['trainval', 'dev']
         for split in splits:
             # add visnlangdatasetadapter first
-            visnlangdatasetadapter = _adapters.get(name).load(config, splits=split)
+            visnlangdatasetadapter = _adapters.get(name).load(datadir, split=split)
             for l in sorted(visnlangdatasetadapter.labels):
                 if l not in answer_to_id:
                     answer_to_id[l] = answer_id
@@ -153,9 +154,11 @@ def load_vl(to_load, train_ds, eval_ds, config):
                 # function in visndatasetadapter that: given datadir + optional split + optional
                 # extractor feats + annotation bool will return
                 # the desired path
-                is_annotations = _adapters.get(is_name).load(
-                    config.datadir, annotations=True
-                )
+                try:
+                    is_annotations = _adapters.get(is_name).load(datadir)
+                except Exception:
+                    print(f"Warning: No Annotations for {is_name}")
+                    is_annotations = _adapters.get(is_name)
                 loaded_annotations[is_name] = is_annotations
                 for l in sorted(visnlangdatasetadapter.labels):
                     if l not in object_to_id:
@@ -168,9 +171,8 @@ def load_vl(to_load, train_ds, eval_ds, config):
                 continue
             if config.extractor is not None:
                 # this is if we want to get pre-computed features
-                extractor = config.extractor
-                is_data = _adapters.get(is_name).load(
-                    config.datadir, extractor=extractor, split=is_split
+                is_data = _adapters.get(config.extractor).load(
+                    datadir, split=is_split, dataset_name=is_name
                 )
             else:
                 # this is if we want to get raw features (in the form {id: raw file})
@@ -216,7 +218,7 @@ def load_v(to_load, train_ds, eval_ds, config):
         annotations = _adapters.get(name).load(config.datadirs[-1], annotations=True)
         loaded_annotations[name] = annotations
         for split in splits:
-            imgids2pathes = _visndatasetadapters.get(name).load_imgid2path(
+            imgids2pathes = _adapters.get(name).load_imgid2path(
                 config.datadirs[-1], split
             )
             for l in sorted(annotations.labels):

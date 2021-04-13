@@ -190,9 +190,9 @@ class VisnLangDataset(Adapter):
 
             # custom forward from user
             print("begin extraction")
-            batch_entries = cls.forward(
-                text_data, split, label_preprocessor=label_preprocessor, **kwargs
-            )
+
+            forward_dict = collect_args_to_func(cls.forward, kwargs=kwargs)
+            batch_entries = cls.forward(text_data, split, **forward_dict)
 
             # pre-checks
             print("writing rows to arrow dataset")

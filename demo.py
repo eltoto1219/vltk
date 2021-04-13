@@ -7,7 +7,7 @@ from vltk.configs import DataConfig, ProcessorConfig
 from vltk.loader.builder import init_datasets
 from vltk.metrics import soft_score
 from vltk.modeling.frcnn import FRCNN as FasterRCNN
-from vltk.processing.label import clean_imgid_default
+from vltk.processing.label import clean_imgid_default, label_default
 
 
 # Visual Adatper
@@ -26,6 +26,7 @@ class FRCNN(adapters.VisnExtraction):
     # model_config = compat.Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
     weights = "unc-nlp/frcnn-vg-finetuned"
     model = FasterRCNN
+    model_config = compat.Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
 
     def schema(max_detections=36, visual_dim=2048):
         return {
@@ -35,7 +36,7 @@ class FRCNN(adapters.VisnExtraction):
             vltk.boxtensor: Features.boxtensor(max_detections),
         }
 
-    def forward(model, entry, **kwargs):
+    def forward(model, entry):
 
         size = entry["size"]
         scale_hw = entry["scale"]
@@ -67,7 +68,7 @@ class Coco2014(adapters.VisnDataset):
     def schema():
         return {vltk.box: Features.box, vltk.segmentation: Features.segmentation}
 
-    def forward(json_files, splits, **kwargs):
+    def forward(json_files, splits):
 
         total_annos = {}
         id_to_cat = {}
@@ -122,7 +123,7 @@ class VisualGenome(adapters.VisnDataset):
     def schema():
         return {}
 
-    def forward(json_files, splits, **kwargs):
+    def forward(json_files, splits):
         return {}
 
 
@@ -137,32 +138,25 @@ class VQA(adapters.VisnLangDataset):
     def schema():
         return {"qid": Features.string}
 
-    def forward(json_files, split, **kwargs):
-        min_label_frequency = kwargs.get("min_label_frequency")
+    def forward(json_files, split, min_label_frequency=9):
         batch_entries = []
         all_questions = []
         qid2answers = {}
         label_frequencies = Counter()
-        label_preprocessor = kwargs.get("label_preprocessor", None)
-        if label_preprocessor is None:
-
-            def label_preprocessor(x):
-                return x
-
         for x in json_files:
             if "questions" in x:
                 all_questions.extend(x["questions"])
             else:
                 annotations = x["annotations"]
                 accepted_answers = {
-                    label_preprocessor(anno["multiple_choice_answer"])
+                    label_default(anno["multiple_choice_answer"])
                     for anno in annotations
                 }
                 for anno in annotations:
                     qid = str(anno["question_id"])
                     answers = anno["answers"]
                     label_frequencies.update(
-                        [label_preprocessor(anno["multiple_choice_answer"])]
+                        [label_default(anno["multiple_choice_answer"])]
                     )
                     answer_counter = Counter()
                     for ans_dict in answers:
@@ -170,7 +164,7 @@ class VQA(adapters.VisnLangDataset):
                         if ans not in accepted_answers:
                             pass
                         else:
-                            ans = label_preprocessor(ans)
+                            ans = label_default(ans)
                             answer_counter.update([ans])
                     qid2answers[qid] = {
                         k: soft_score(v) for k, v in answer_counter.items()
@@ -182,10 +176,10 @@ class VQA(adapters.VisnLangDataset):
             entry[vltk.text] = entry.pop("question")
             entry["qid"] = str(entry.pop("question_id"))
             try:
-                entry[vltk.label_key] = qid2answers[entry["qid"]]
+                entry[vltk.label] = qid2answers[entry["qid"]]
                 labels = {
                     l: s
-                    for l, s in entry[vltk.label_key].items()
+                    for l, s in entry[vltk.label].items()
                     if label_frequencies[l] > min_label_frequency
                 }
                 if not labels:
@@ -199,7 +193,6 @@ class VQA(adapters.VisnLangDataset):
                 pass
 
             batch_entries.append(entry)
-        print(f"SKIPPEd {skipped} entries")
         return batch_entries
 
 
@@ -215,21 +208,15 @@ class GQA(adapters.VisnLangDataset):
     def schema():
         return {}
 
-    def forward(json_files, split, **kwargs):
+    def forward(json_files, split, min_label_frequency=2):
         skipped = 0
-        min_label_frequency = kwargs.get("min_label_frequency", 2)
-        label_preprocessor = kwargs.get("label_preprocessor", None)
         label_frequencies = Counter()
         batch_entries = []
-        if label_preprocessor is None:
-
-            def label_preprocessor(x):
-                return x
 
         for t in json_files:
             for i, (k, v) in enumerate(t.items()):
                 if "answer" in v:
-                    answer = label_preprocessor(v["answer"])
+                    answer = label_default(v["answer"])
                     label_frequencies.update([answer])
 
             for i, (k, v) in enumerate(t.items()):
@@ -239,7 +226,7 @@ class GQA(adapters.VisnLangDataset):
                     skipped += 1
                     continue
                 else:
-                    answer = label_preprocessor(v["answer"])
+                    answer = label_default(v["answer"])
 
                 text = v["question"]
                 img_id = v["imageId"].lstrip("n")
@@ -252,7 +239,6 @@ class GQA(adapters.VisnLangDataset):
 
                 batch_entries.append(entry)
 
-        print(f"SKIPPEd {skipped} entries")
         return batch_entries
 
 
@@ -261,32 +247,39 @@ if __name__ == "__main__":
     datadir = "/home/eltoto/demodata"
     # create datasets
     # cocofeats = FRCNN.extract(datadir, dataset_name="coco2014")
+    # feats = FRCNN.load("/home/eltoto/demodata/coco2014/frcnn/val.arrow")
+    # feats = FRCNN.load("/home/eltoto/demodata/", dataset_name="coco2014", split="val")
     # vgfeats = FRCNN.extract(datadir, dataset_name="visualgenome")
     # coco2014 = Coco2014.extract(datadir)
+    # annos = coco2014 = Coco2014.load(datadir)
+    # print(annos)
     # visualgenome = VisualGenome.extract(datadir)
     # vqa = VQA.extract(datadir)
     # gqa = GQA.extract(datadir)
+    # gqa = GQA.load(datadir, split="train")
+    # print(gqa)
     # add adapters
     Adapters().add(VQA, GQA, Coco2014, VisualGenome, FRCNN)
+    # print(Adapters().avail())
     # superset datasets
     # define config for dataset
-    # config = DataConfig(
-    #     # choose which dataset and dataset split for train and eval
-    #     train_datasets=[["gqa", "train"], ["vqa", "trainval"]],
-    #     eval_datasets=["gqa", "testdev"],
-    #     # choose which tokenizer to use
-    #     tokenizer="BertWordPeice",
-    #     # choose which feature extractor to use
-    #     extractor="frcnn",
-    #     datadir=datadir,
-    #     train_batch_size=1,
-    #     eval_batch_size=1,
-    #     img_first=True,
-    # )
+    config = DataConfig(
+        # choose which dataset and dataset split for train and eval
+        train_datasets=[["gqa", "train"], ["vqa", "trainval"]],
+        eval_datasets=["gqa", "testdev"],
+        # choose which tokenizer to use
+        tokenizer="BertWordPieceTokenizer",
+        # choose which feature extractor to use
+        extractor="frcnn",
+        datadir=datadir,
+        train_batch_size=1,
+        eval_batch_size=1,
+        img_first=True,
+    )
     # # use config to create dataset
-    # (train, val), _, answer_to_id, object_to_id = init_datasets(config)
-    # train_loader = train[1]
-    # for x in train_loader:
-    #     print(x.keys())
-    #     break
-    # # first entry in the dataset
+    (train, val), _, answer_to_id, object_to_id = init_datasets(config)
+    train_loader = train[1]
+    for x in train_loader:
+        print(x)
+        break
+    # first entry in the dataset

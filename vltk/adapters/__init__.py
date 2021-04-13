@@ -17,13 +17,19 @@ class Adapters:
         return
 
     def is_visnlang(self, adapter):
-        return isinstance(adapter, VisnLangDataset)
+        assert adapter in self.avail(), f"adapter {adapter} not is not available"
+        adapter_class = self.get(adapter)
+        return adapter_class.__bases__[0] == VisnLangDataset
 
     def is_visn(self, adapter):
-        return isinstance(adapter, VisnDataset)
+        assert adapter in self.avail(), f"adapter {adapter} not is not available"
+        adapter_class = self.get(adapter)
+        return adapter_class.__bases__[0] == VisnDataset
 
     def is_extraction(self, adapter):
-        return isinstance(adapter, VisnExtraction)
+        assert adapter in self.avail(), f"adapter {adapter} not is not available"
+        adapter_class = self.get(adapter)
+        return adapter_class.__bases__[0] == VisnExtraction
 
     def avail(self):
         return list(ADAPTERDICT.keys())

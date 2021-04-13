@@ -2,9 +2,6 @@ tests
 vltk
 vltk/abc
 vltk/adapters/
-vltk/adapters/extraction
-vltk/adapters/vision
-vltk/adapters/visionlang
 vltk/legacy
 vltk/modeling
 vltk/modeling/configs

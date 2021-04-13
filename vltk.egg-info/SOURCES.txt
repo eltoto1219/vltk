@@ -28,6 +28,7 @@ vltk.egg-info/entry_points.txt
 vltk.egg-info/requires.txt
 vltk.egg-info/top_level.txt
 vltk/abc/__init__.py
+vltk/abc/adapter.py
 vltk/abc/checkpoint.py
 vltk/abc/complex.py
 vltk/abc/config.py
@@ -37,13 +38,10 @@ vltk/abc/simple.py
 vltk/abc/visnadapter.py
 vltk/abc/visnlangadatper.py
 vltk/adapters/__init__.py
-vltk/adapters/extraction/__init__.py
-vltk/adapters/extraction/frcnn.py
-vltk/adapters/vision/__init__.py
-vltk/adapters/vision/coco2014.py
-vltk/adapters/visionlang/__init__.py
-vltk/adapters/visionlang/gqa.py
-vltk/adapters/visionlang/vqa.py
+vltk/adapters/coco2014.py
+vltk/adapters/frcnn.py
+vltk/adapters/gqa.py
+vltk/adapters/vqa.py
 vltk/legacy/__init__.py
 vltk/legacy/legacy_train.py
 vltk/legacy/processing.py
