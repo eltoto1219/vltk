@@ -215,12 +215,10 @@ def load_v(to_load, train_ds, eval_ds, config):
     object_id = 0
     for name in sorted(set(to_load.keys())):
         splits = split_handler(to_load[name])  # list looks like ['trainval', 'dev']
-        annotations = _adapters.get(name).load(config.datadirs[-1], annotations=True)
+        annotations = _adapters.get(name).load(config.datadir)
         loaded_annotations[name] = annotations
         for split in splits:
-            imgids2pathes = _adapters.get(name).load_imgid2path(
-                config.datadirs[-1], split
-            )
+            imgids2pathes = _adapters.get(name).load_imgid2path(config.datadir, split)
             for l in sorted(annotations.labels):
                 if l not in object_to_id:
                     object_to_id[l] = object_id

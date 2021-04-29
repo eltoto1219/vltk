@@ -14,12 +14,14 @@ score = "score"
 label = "label"
 text = "text"
 score = "score"
-image = "image"
+img = "image"
 filepath = "filepath"
 features = "features"
 split = "split"
 scale = "scale"
 boxtensor = "boxtensor"
+area = "area"
+size = "size"
 
 
 SPLITALIASES = {

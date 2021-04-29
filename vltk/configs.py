@@ -3,7 +3,6 @@ from typing import List, Union
 
 from vltk.abc import config
 from vltk.inspection import get_args
-from vltk.memory import get_most_free_gpu, get_nvidia_gpu_memory
 from vltk.processing.image import Image
 
 
@@ -85,7 +84,7 @@ class FinetuneConfig(config.Config):
 class DataConfig(config.Config):
     objects_file: Union[str, None] = None
     text_processors: Union[None, List[str], str] = ["one_hot_label"]
-    image_processors: Union[None, List[str], str] = []
+    image: Union[config.Config] = None
     label_processor: Union[None, str] = "one_hot_label"
     labels: Union[None, str] = None
     eval_datasets = None
@@ -129,25 +128,11 @@ class DataConfig(config.Config):
     annotations: bool = True
     tokenizer = "BertWordPeiceTokenizer"
 
-    # for image processing stuff
-    size = 768
-    mode = "bicubic"
-    scale = "standard"
-    gpu = None
-    pad_value = 0
-    std = None
-    mean = None
-    inplace = True
-    resize = True
-    normalize = True
-    aspect_ratio = True
-    pad = True
-
     def __init__(self, finetune=True, **kwargs):
         super().__init__(**kwargs)
         self.text_processors = Config.handle_iterables(self.text_processors)
-        self.image_processors = Config.handle_iterables(self.image_processors)
         self.textfile_extensions = Config.handle_iterables(self.textfile_extensions)
+        self.image = ProcessorConfig(**kwargs.get("image", {}))
         # raise Exception(self.eval_datasets, self.train_datasets)
 
 

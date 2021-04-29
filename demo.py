@@ -265,12 +265,14 @@ if __name__ == "__main__":
     # define config for dataset
     config = DataConfig(
         # choose which dataset and dataset split for train and eval
-        train_datasets=[["gqa", "train"], ["vqa", "trainval"]],
-        eval_datasets=["gqa", "testdev"],
+        train_datasets=[
+            ["coco2014", "trainval"],
+        ],
+        # eval_datasets=["gqa", "testdev"],
         # choose which tokenizer to use
         tokenizer="BertWordPieceTokenizer",
         # choose which feature extractor to use
-        extractor="frcnn",
+        extractor=None,
         datadir=datadir,
         train_batch_size=1,
         eval_batch_size=1,

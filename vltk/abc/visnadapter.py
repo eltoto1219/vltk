@@ -31,10 +31,22 @@ class VisnDataset(Adapter):
         return os.path.join(datadir, cls.name, split, filename)
 
     @classmethod
-    def n_imgs(cls, datadir, split):
-        path = os.path.join(datadir, cls.name, split)
-        n_imgs = len(set(os.listdir(path)))
-        return n_imgs
+    def load_imgid2path(cls, datadir, split):
+        name = cls.__name__.lower()
+        path = os.path.join(datadir, name, split)
+        return VisnDataset.files(path)
+
+    @staticmethod
+    def files(path):
+        files = {}
+        if not os.path.isdir(path):
+            print(f"No path exists for: {path}")
+            return files
+        for i in os.listdir(path):
+            fp = os.path.join(path, i)
+            iid = clean_imgid_default(i.split(".")[0])
+            files[iid] = fp
+        return files
 
     @classmethod
     def extract(
@@ -179,6 +191,6 @@ class VisnDataset(Adapter):
     def schema(*args, **kwargs):
         return dict
 
-    @abstractmethod
-    def imgid_to_filename(imgid, split):
-        return str
+    # @abstractmethod
+    # def imgid_to_filename(imgid, split):
+    #     return str

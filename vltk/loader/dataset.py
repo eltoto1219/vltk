@@ -18,9 +18,8 @@ from datasets.utils.logging import set_verbosity_error
 from PIL import Image
 from pycocotools import mask as Mask
 from torch.utils.data import Dataset
-from vltk.inspection import collect_args_to_func
 from vltk.processing import data as data_proc
-from vltk.processing.image import Pipeline
+from vltk.processing.image import get_rawsize, get_scale, get_size
 
 __import__("tokenizers")
 TOKENIZERS = {
@@ -186,11 +185,11 @@ class VisionLanguageDataset(Dataset):
             is_name, is_split_dict = is_info
             # raise Exception(is_name)
             for k, imgset in is_split_dict.items():
-                # for split_name, imgset in self.visnlangdatasetadapterdict[is_name].items():
-                if isinstance(imgset, dict):
-                    img_ids = set(imgset.keys())
-                else:
+                try:
                     img_ids = set(imgset.imgids)
+                except Exception:
+                    img_ids = set(imgset.keys())
+
                 for img_id in img_ids:
                     self.img2visdatasetadapter[img_id] = (is_name, k)
                 self.uniq_imgs = self.uniq_imgs.union(img_ids)
@@ -228,15 +227,18 @@ class VisionLanguageDataset(Dataset):
         self.object_to_id = path_or_dict
 
     @property
-    def image_transforms(self):
-        return self._image_transforms
+    def image(self):
+        return getattr(self, "_image", None)
+
+    def _init_image_processor(self):
+        processor = self.config.image.build()
+        self._image = processor
 
     @property
     def annotations(self):
         return getattr(self, "_annotations", None)
 
     def _handle_annotations(self, img_id):
-        # TODO: I need to implement this function asap
         annotation_pointer = self.annotations
         if annotation_pointer is None:
             raise Exception
@@ -248,7 +250,7 @@ class VisionLanguageDataset(Dataset):
         for k, v in anno_dict.items():
             if (
                 k is vltk.label
-                or k is vltk.image
+                or k is vltk.img
                 or (isinstance(v, Iterable) and not isinstance(v[0], list))
             ):
                 continue
@@ -264,11 +266,6 @@ class VisionLanguageDataset(Dataset):
         annotations = list(annotationdict.values())
         raise Exception("HERE", annotations)
         self._annotations = CollatedSets(*annotations)
-
-    def _init_image_pipeline(self):
-        config_dict = self.config.to_dict()
-        func_dict = collect_args_to_func(Pipeline, config_dict)
-        self._image_transforms = Pipeline(**func_dict)
 
     def processor_args(self):
         max_rand_sents = 1 if not self.config.img_first else 32
@@ -350,15 +347,14 @@ class VisionLanguageDataset(Dataset):
         proc_args = {"config": self.config}
         if self.config.rand_feats is not None:
             feat_shape = tuple(self.config.rand_feats)
-            filepath = entry[vltk.image]
+            filepath = entry[vltk.img]
             entry[vltk.filepath] = filepath
             img = torch.rand(feat_shape)
-            entry[vltk.image] = img
-
+            entry[vltk.img] = img
         elif self.config.extractor is None:
             filepath = entry[vltk.filepath]
             entry[vltk.filepath] = filepath
-            entry[vltk.image] = self.image_transforms(filepath)
+            entry[vltk.img] = self.image(filepath)
         else:
             for k, v in entry.items():
                 if isinstance(v, Iterable):
@@ -372,14 +368,8 @@ class VisionLanguageDataset(Dataset):
             if vltk.features in entry:
                 proc_args["random_feat_func"] = self.random_feat
                 entry[vltk.features] = entry[vltk.features][: self.config.max_objects]
-        # if self.annotationdict is not None:
-        #     entry.update(self._handle_annotations(img_id))
-
-        # now we do other image processors
-        if self.config.image_processors is not None:
-            for proc in self.config.image_processors:
-                proc_func = _data_procecessors.get(proc)
-                proc_func(entry, **proc_args)
+        if self.annotationdict is not None:
+            entry.update(self._handle_annotations(entry[vltk.imgid]))
 
     def random_feat(self):
         rand_ind = random.randint(0, len(self.uniq_imgs) - 1)
@@ -542,6 +532,8 @@ class VisionLanguageDataset(Dataset):
 
 
 class VisionDataset(Dataset):
+    _supported = (vltk.segmentation, vltk.size, vltk.area, vltk.box)
+
     def __init__(
         self,
         config,
@@ -554,19 +546,18 @@ class VisionDataset(Dataset):
         # self.annotationdict = annotationdict
         self._init_annotation_dict(annotationdict)
         self.config = config
-        self._init_image_pipeline()
+        self._init_image_processor()
         self.visndatasetadapterdict = visndatasetadapterdict
         self.object_to_id = object_to_id
         self.img_id_to_path = {}
         self.n_imgs = 0
         # later if we need
-        self.imgid_info = {}
+        self.idx_to_imgid = {}
         for imgsetsplits in list(visndatasetadapterdict.values()):
             for imgids2files in imgsetsplits.values():
                 self.n_imgs += len(imgids2files)
-                # for imgid, filepath in imgids2files.items():
-                #    self.img_id_to_path
                 self.img_id_to_path.update(imgids2files)
+        self.imgids = tuple(self.img_id_to_path.keys())
 
     @property
     def batch_size(self):
@@ -576,8 +567,8 @@ class VisionDataset(Dataset):
             return self.config.train_batch_size
 
     @property
-    def image_transforms(self):
-        return self._image_transforms
+    def image(self):
+        return self._image
 
     @property
     def annotations(self):
@@ -590,109 +581,77 @@ class VisionDataset(Dataset):
             pass
         self.object_to_id = path_or_dict
 
-    def _handle_annotations(self, img_id, img_info, img):
-        skip_segmentation = False
-        cur_size = img_info[vltk.size]
-        if img_info is None:
-            skip_segmentation = True
-        else:
-            if vltk.rawsize not in img_info:
-                scale = (1.0, 1.0)
-            else:
-                raw_size = img_info[vltk.rawsize]
-                scale = cur_size[0] / raw_size[0], cur_size[1] / raw_size[1]
-        anno_dict = self.annotations.get(img_id)
-        word_labels = anno_dict[vltk.label]
-        labels = torch.Tensor([self.object_to_id[l] for l in word_labels])
-        anno_dict[vltk.label] = labels
-        for k, v in anno_dict.items():
-            if (
-                k is vltk.label
-                or k is vltk.image
-                or k == vltk.imgid
-                or isinstance(v, torch.Tensor)
-            ):
-                continue
-            elif k == vltk.segmentation and not skip_segmentation:
-                size = anno_dict[vltk.size]
-                try:
-                    segmentations = np.stack(
-                        [
-                            resize_binary_mask(seg_to_mask(s, *size), cur_size)
-                            for s in v
-                            if s
-                        ]
-                    )
-                except Exception:
-                    raise Exception(v)
-                values = torch.as_tensor(segmentations)
-
-            else:
-                if k == vltk.area or k == vltk.size:
-                    values = torch.tensor(v)
-
-                else:
-                    values = list(map(lambda x: torch.Tensor(x), v))
-                try:
-                    values = torch.stack(values, dim=0)
-                except Exception:
-                    pass
-                if k == vltk.box:
-                    values = rescale_box(values, scale)
-
-            anno_dict[k] = values
-
-        if skip_segmentation and vltk.segmentation in anno_dict:
-            anno_dict.pop(vltk.segmentation)
-
-        return anno_dict
-
     def _init_annotation_dict(self, annotationdict):
         if annotationdict is None:
-            raise Exception("HERE")
             self._annotations = None
-            return
-        annotations = list(annotationdict.values())
-        self._annotations = CollatedSets(*annotations)
+        else:
+            annotations = list(annotationdict.values())
+            self._annotations = CollatedSets(*annotations)
 
-    def _init_image_pipeline(self):
-        config_dict = self.config.to_dict()
-        func_dict = collect_args_to_func(Pipeline, config_dict)
-        self._image_transforms = Pipeline(**func_dict)
+    def _init_image_processor(self):
+        processor = self.config.image.build()
+        self._image = processor
 
     def _handle_image(self, entry):
         img_id = entry[vltk.imgid]
         filepath = self.img_id_to_path[img_id]
+        entry[vltk.filepath] = filepath
         if self.config.rand_feats is not None:
             feat_shape = tuple(self.config.rand_feats)
-            entry[vltk.filepath] = filepath
             img = torch.rand(feat_shape)
-            entry[vltk.filepath] = img
-            img_info = None
+            entry[vltk.img] = img
         else:
             entry[vltk.filepath] = filepath
-            transformed = self.image_transforms(filepath)
-            if isinstance(transformed, tuple):
-                img, img_info = transformed
-            else:
-                img, img_info = transformed, {}
-                size = transformed.shape[1:]
-                img_info[vltk.size] = size
-            for k, v in img_info.items():
-                entry[k] = torch.Tensor(v)
-            entry[vltk.image] = img
+            entry[vltk.img] = self.image(filepath)
 
-        if self.annotations is not None:
-            entry.update(self._handle_annotations(img_id, img_info, img))
+        entry[vltk.size] = get_size(self.image)
+        entry[vltk.scale] = get_scale(self.image)
+        entry[vltk.rawsize] = get_rawsize(self.image)
+
+    def _handle_annotations(self, entry):
+        img_id = entry[vltk.imgid]
+        skip_segmentation = True if vltk.size not in entry else False
+        # get annotations for image
+        entry.update(self.annotations.get(img_id))
+        if skip_segmentation and vltk.segmentation in entry:
+            entry.pop(vltk.segmentation)
+        # add annotation labels to image
+        word_labels = entry[vltk.label]
+        labels = torch.Tensor([self.object_to_id[l] for l in word_labels])
+        entry[vltk.label] = labels
+        # only loop through annotations processed by vltk
+        for k in self._supported:
+            if k not in entry:
+                continue
+            v = entry[k]
+            if k == vltk.segmentation and not skip_segmentation:
+                entry[k] = torch.tensor(
+                    list(
+                        map(
+                            lambda x: resize_binary_mask(
+                                seg_to_mask(x, *entry[vltk.rawsize]), entry[vltk.size]
+                            ),
+                            v,
+                        ),
+                    )
+                )
+            elif k == vltk.box:
+                values = torch.tensor(v)
+                values = rescale_box(values, entry[vltk.scale])
+                entry[k] = values
+
+        return entry
 
     def __len__(self):
-        if self.annotations is not None:
-            return len(self.annotations)
-        else:
-            return self.n_imgs
+        return self.n_imgs
 
     @torch.no_grad()
     def __getitem__(self, i):
-        anno_dict = self.annotations[i]
+        if len(self.imgids) == len(self.annotations):
+            anno_dict = self.annotations[i]
+        else:
+            anno_dict = self.annotations.get(self.imgids[i])
         self._handle_image(anno_dict)
+        if self.annotations is not None:
+            self._handle_annotations(anno_dict)
         return anno_dict
