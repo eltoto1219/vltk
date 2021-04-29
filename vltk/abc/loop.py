@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Union
 
 import torch
-from vltk import LOOPPATH, utils
+from vltk import LOOPPATH, 
 # from vltk.dataset import UniversalLoader
 from vltk.inspect import get_classes
 
@@ -204,14 +204,14 @@ class Loop(LoopIdentifier, ABC):
             if self.scaler is not None:
                 self.scaler.scale(loss).backward()
                 self.scaler.unscale_(self.optim)
-                torch.nn.utils.clip_grad_norm_(
+                torch.nn..clip_grad_norm_(
                     self.get_grad_params(), self.config.train.max_norm
                 )
                 self.scaler.step(self.optim)
                 self.scaler.update()
             else:
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(
+                torch.nn..clip_grad_norm_(
                     self.get_grad_params(), self.config.train.max_norm
                 )
                 self.optim.step()
@@ -239,7 +239,7 @@ class Loop(LoopIdentifier, ABC):
             self.toTrain()
         else:
             self.toEval()
-        with torch.no_grad() if not self.is_train else utils.dummy_context():
+        with torch.no_grad() if not self.is_train else .dummy_context():
             for batch in self.tqdm:
                 if self.is_train:
                     self.optim.zero_grad()

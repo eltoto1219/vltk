@@ -61,10 +61,6 @@ class FRCNN(adapters.VisnExtraction):
 
 # Vision Datasets
 class Coco2014(adapters.VisnDataset):
-    def imgid_to_filename(imgid, split):
-        year = 2014 if split != "test" else 2015
-        return f"COCO_{split}{year}_{str((12 - len(imgid)) * 0)}{imgid}.jpg"
-
     def schema():
         return {vltk.box: Features.box, vltk.segmentation: Features.segmentation}
 
@@ -117,14 +113,19 @@ class Coco2014(adapters.VisnDataset):
 
 
 class VisualGenome(adapters.VisnDataset):
-    def imgid_to_filename(imgid, split):
-        return f"{imgid}.jpg"
-
     def schema():
         return {}
 
     def forward(json_files, splits):
         return {}
+
+
+class CLEVR(adapters.VisnDataset):
+    def schema():
+        pass
+
+    def forward(json_files, splits):
+        pass
 
 
 # Vision-Language Datasets

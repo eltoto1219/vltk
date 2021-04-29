@@ -3,6 +3,9 @@ import os
 from setuptools import setup
 
 # common keys across library
+type_ids = "type_ids"
+input_ids = "input_ids"
+text_attention_mask = "text_attention_mask"
 rawsize = "rawsize"
 size = "size"
 segmentation = "segmentation"

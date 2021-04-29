@@ -18,7 +18,7 @@ import torch
 import torch.nn as nn
 from tqdm import tqdm
 from transformers import AdamW, get_linear_schedule_with_warmup
-from vltk import SIMPLEPATH, utils
+from vltk import SIMPLEPATH, 
 from vltk.abc.visndatasetadapter import VisnDatasetAdapters
 from vltk.abc.visnlangdatasetadapter import VisnLangDatasetAdapters
 # from vltk.dataset import UniversalLoader
@@ -315,7 +315,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
     @property
     def forward_context(self):
         if self.scaler is None:
-            return utils.dummy_context
+            return .dummy_context
         else:
             return torch.cuda.amp.autocast
 
@@ -597,7 +597,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
             self.toTrain()
         else:
             self.toEval()
-        with torch.no_grad() if not self.currently_training() else utils.dummy_context():
+        with torch.no_grad() if not self.currently_training() else .dummy_context():
             for inner_step, batch in enumerate(_tqdm):
                 if self.currently_training() and self.model_dict:
                     self.optim.zero_grad()
@@ -667,14 +667,14 @@ class SimpleExperiment(SimpleIdentifier, ABC):
             if self.scaler is not None:
                 self.scaler.scale(loss).backward()
                 self.scaler.unscale_(self.optim)
-                torch.nn.utils.clip_grad_norm_(
+                torch.nn..clip_grad_norm_(
                     self.get_grad_params(), self.config.train.max_norm
                 )
                 self.scaler.step(self.optim)
                 self.scaler.update()
             else:
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(
+                torch.nn..clip_grad_norm_(
                     self.get_grad_params(), self.config.train.max_norm
                 )
                 self.optim.step()
@@ -738,7 +738,7 @@ class SimpleExperiment(SimpleIdentifier, ABC):
 
     def toCuda(batch, device):
         # will retun batch, but is still in place)
-        return utils.change_device(batch, device)
+        return .change_device(batch, device)
 
     def init_grad(name, model):
         pass

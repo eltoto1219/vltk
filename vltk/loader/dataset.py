@@ -10,16 +10,14 @@ from collections.abc import Iterable
 from copy import deepcopy
 
 import numpy
-import numpy as np
 import torch
 import vltk
 # disable logging from datasets
 from datasets.utils.logging import set_verbosity_error
-from PIL import Image
-from pycocotools import mask as Mask
 from torch.utils.data import Dataset
-from vltk.processing import data as data_proc
-from vltk.processing.image import get_rawsize, get_scale, get_size
+from vltk.utils.adapters import Data as data_proc
+from vltk.utils.adatpers import (get_rawsize, get_scale, get_size, rescale_box,
+                                 resize_binary_mask, seg_to_mask)
 
 __import__("tokenizers")
 TOKENIZERS = {
@@ -40,40 +38,6 @@ TORCHCOLS = set()
 os.environ["TOKENIZERS_PARALLELISM"] = "False"
 
 _data_procecessors = data_proc.Data()
-
-
-def rescale_box(boxes, hw_scale):
-    # boxes = (n, (x, y, w, h))
-    # x = top left x position
-    # y = top left y position
-    h_scale = hw_scale[0]
-    w_scale = hw_scale[1]
-    y_centroids = (boxes[:, 1] - boxes[:, 3] / 2) * h_scale
-    x_centroids = (boxes[:, 0] + boxes[:, 2] / 2) * w_scale
-    boxes[:, 2] *= w_scale
-    boxes[:, 3] *= h_scale
-    boxes[:, 0] = x_centroids - boxes[:, 2] / 2  # scaled xs
-    boxes[:, 1] = y_centroids + boxes[:, 3] / 2  # scaled ys
-    return boxes
-
-
-def seg_to_mask(segmentation, h, w):
-    segmentation = Mask.decode(Mask.frPyObjects(segmentation, h, w))
-    if len(segmentation.shape) == 3:
-        segmentation = np.any(segmentation, axis=-1).astype(np.uint8)
-    return segmentation
-
-
-def resize_binary_mask(array, new_size):
-    image = Image.fromarray(array.astype(np.uint8) * 255)
-    image = image.resize(new_size)
-    return np.asarray(image).astype(np.bool_)
-
-
-def uncompress_mask(compressed, size):
-    mask = np.zeros(size, dtype=np.uint8)
-    mask[compressed[0], compressed[1]] = 1
-    return mask
 
 
 class CollatedSets:
@@ -292,10 +256,10 @@ class VisionLanguageDataset(Dataset):
                 TORCHCOLS.add("is_matched")
 
         encoded = tokenizer.encode(x.pop(vltk.text))
-        x.pop("img_id", None)
-        x["text_attention_mask"] = encoded.attention_mask
-        x["input_ids"] = encoded.ids
-        x["type_ids"] = encoded.type_ids
+        x.pop(vltk.imgid, None)
+        x[vltk.text_attention_mask] = encoded.attention_mask
+        x[vltk.input_ids] = encoded.ids
+        x[vltk.type_ids] = encoded.type_ids
 
         if vltk.label in x:
             label = x.pop(vltk.label)

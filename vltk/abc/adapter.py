@@ -12,7 +12,7 @@ import vltk
 from datasets import ArrowWriter, Dataset
 from vltk import Features
 from vltk.inspection import collect_args_to_func
-from vltk.utils import set_metadata
+from vltk.utils.base import set_metadata
 
 
 class Adapter(ds.Dataset, metaclass=ABCMeta):

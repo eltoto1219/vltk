@@ -22,7 +22,7 @@ import numpy as np
 import torch
 from vltk.configs import Config, ModelConfig, PathesConfig, TrainConfig
 from vltk.models.vit import VisionTransformer as VisionTransformerPytorch
-from vltk.utils import convert_jax_to_torch_weights
+from vltk. import convert_jax_to_torch_weights
 
 # CONFIGS, KNOWN_MODELS,
 

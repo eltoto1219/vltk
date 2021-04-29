@@ -7,7 +7,8 @@ from io import StringIO
 import torch
 from fire import Fire
 
-from vltk import commands, configs, utils
+from vltk import commands, configs
+from vltk.utils import base
 from vltk.abc.complex import ComplexExperiment, ComplexExperiments
 from vltk.abc.simple import SimpleExperiment, SimpleExperiments
 from vltk.inspect import get_classes
@@ -21,7 +22,7 @@ def crash_save():
     errorlog = STDERR.getvalue()
     config = globals()["config"]
     if config.email is not None:
-        utils.send_email(config.email, errorlog)
+        base.send_email(config.email, errorlog)
 
     # if "experiment" in globals():
     #     experiment = globals()["experiment"]
@@ -29,7 +30,7 @@ def crash_save():
     #         raise Exception("woot")
     #         save_on_crash = getattr(config, "save_on_crash", False)
     #         if config.email is not None:
-    #             utils.send_email(config.email, errorlog)
+    #             .send_email(config.email, errorlog)
     #         if save_on_crash:
     #             try:
     #                 experiment.save()
@@ -70,8 +71,8 @@ class Main(object):
         if not torch.cuda.is_available():
             kwargs["gpu"] = "cpu"
 
-        kwargs = utils.unflatten_dict(kwargs)
-        kwargs = utils.load_yaml(kwargs)
+        kwargs = .unflatten_dict(kwargs)
+        kwargs = .load_yaml(kwargs)
         self.flags = kwargs
         if self.flags is None:
             self.flags = {}

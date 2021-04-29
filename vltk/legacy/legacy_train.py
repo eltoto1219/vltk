@@ -66,8 +66,8 @@ def train(
             score = b["label"]
             right += (score.eq(pred.long())).sum()
             total += float(train_data.batch_size)
-            # torch.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
-            # norm = torch.nn.utils.clip_grad_norm_(model.parameters(), 0.25)
+            # torch.nn..clip_grad_norm_(model.parameters(), 5.0)
+            # norm = torch.nn..clip_grad_norm_(model.parameters(), 0.25)
             if warmup is not None:
                 warmup.step()
             optim.step()

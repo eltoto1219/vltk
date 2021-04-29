@@ -47,6 +47,7 @@ setup(
     packages=[
         "vltk",
         "tests",
+        "vltk/utils",
         "vltk/modeling",
         "vltk/modeling/configs",
         "vltk/adapters/",

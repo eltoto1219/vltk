@@ -11,10 +11,10 @@ import pyarrow
 import vltk
 from datasets import ArrowWriter
 from tqdm import tqdm
-from vltk import utils
 from vltk.abc.adapter import Adapter
 from vltk.inspection import collect_args_to_func
 from vltk.processing.label import Label
+from vltk.utils import base as utils
 
 _labelproc = Label()
 

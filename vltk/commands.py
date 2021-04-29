@@ -1,4 +1,4 @@
-from vltk import compat, utils
+from vltk import compat, 
 from vltk.abc.complex import ComplexExperiments
 from vltk.abc.visndatasetadapter import VisnDatasetAdapters
 from vltk.abc.simple import SimpleExperiments
@@ -14,13 +14,13 @@ def run_experiment(config, flags, name_or_exp, datasets):
     if config.print_config:
         print(config)
     if isinstance(name_or_exp, str):
-        utils.update_config_with_logdir(config, flags, name_or_exp, datasets)
+        .update_config_with_logdir(config, flags, name_or_exp, datasets)
         experiment = _complex_experiments.get(name_or_exp)(
             config=config, datasets=datasets
         )
         experiment()
     else:
-        utils.update_config_with_logdir(config, flags, name_or_exp.name, datasets)
+        .update_config_with_logdir(config, flags, name_or_exp.name, datasets)
         experiment = name_or_exp(config=config, datasets=datasets)
         experiment()
 
@@ -32,13 +32,13 @@ def run_simple_experiment(config, flags, name_or_exp, datasets):
     if config.print_config:
         print(config)
     if isinstance(name_or_exp, str):
-        utils.update_config_with_logdir(config, flags, name_or_exp, datasets)
+        .update_config_with_logdir(config, flags, name_or_exp, datasets)
         experiment = _simple_experiments.get(name_or_exp)(
             config=config, datasets=datasets
         )
         experiment()
     else:
-        utils.update_config_with_logdir(config, flags, name_or_exp.name, datasets)
+        .update_config_with_logdir(config, flags, name_or_exp.name, datasets)
         experiment = name_or_exp(config=config, datasets=datasets)
         experiment()
 

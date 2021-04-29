@@ -13,7 +13,7 @@ from vltk import ANNOTATION_DIR
 from vltk.abc.adapter import Adapter
 from vltk.inspection import collect_args_to_func
 from vltk.processing.label import clean_imgid_default
-from vltk.utils import set_metadata
+from vltk.utils.base import set_metadata
 
 
 class VisnDataset(Adapter):
