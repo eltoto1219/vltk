@@ -323,3 +323,29 @@ def check_device(batch):
         findtype=torch.Tensor,
         func=lambda x: (print(x.shape, x.device) if x is not None else x),
     )
+
+
+def get_list_primitive(ls):
+
+    if isinstance(ls, collections.Iterable) and not isinstance(ls, str):
+        return get_list_primitive(ls[0])
+    else:
+        return type(ls)
+
+
+def convertids_recursive(ls, objids):
+    # get deepest nested list
+    if (
+        isinstance(ls, collections.Iterable)
+        and not isinstance(ls, str)
+        and isinstance(ls[0], str)
+    ):
+        return torch.Tensor(list(map(lambda x: objids[x], ls)))
+    else:
+        for idx, item in enumerate(ls):
+            ls[idx] = convertids_recursive(ls)
+        try:
+            ls = torch.stack(ls)
+        except Exception:
+            pass
+        return ls

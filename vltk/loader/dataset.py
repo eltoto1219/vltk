@@ -15,9 +15,9 @@ import vltk
 # disable logging from datasets
 from datasets.utils.logging import set_verbosity_error
 from torch.utils.data import Dataset
-from vltk.utils.adapters import Data as data_proc
-from vltk.utils.adatpers import (get_rawsize, get_scale, get_size, rescale_box,
-                                 resize_binary_mask, seg_to_mask)
+from vltk.utils import base
+from vltk.utils.adapters import (Data, get_rawsize, get_scale, get_size,
+                                 rescale_box, resize_binary_mask, seg_to_mask)
 
 __import__("tokenizers")
 TOKENIZERS = {
@@ -37,10 +37,10 @@ global TORCHCOLS
 TORCHCOLS = set()
 os.environ["TOKENIZERS_PARALLELISM"] = "False"
 
-_data_procecessors = data_proc.Data()
+_data_procecessors = Data()
 
 
-class CollatedSets:
+class CollatedVLSets:
     def __init__(self, *args):
 
         self.args = args
@@ -50,38 +50,14 @@ class CollatedSets:
             self.range2listpos[range(start, len(a) + start)] = i
             start += len(a)
 
-    @property
-    def _is_visndatasetadapter(self):
-        if not hasattr(self, "__is_visndatasetadapter"):
-            if all(map(lambda x: hasattr(x, "get"), self.args)):
-                self.__is_visndatasetadapter = True
-            else:
-                self.__is_visndatasetadapter = False
-            return self.__is_visndatasetadapter
-        else:
-            return self.__is_visndatasetadapter
-
-    # TODO: figure out better solution if we start chaining idk lets say 10 datasets together
+    # TODO: better solution for more datasets
     def get(self, img_id):
-        if not self._is_visndatasetadapter:
-            raise Exception(
-                "Only use this method if the datasets within this object are purely vision"
-            )
-        for visndatasetadapter in self.args:
+        for adapter in self.args:
             try:
-                return visndatasetadapter.get(img_id)
+                return adapter.get(img_id)
             except KeyError:
                 pass
         raise Exception("image id not found in any  visndatasetadapter annotations")
-
-    def get_visnlangdatasetadapter_and_ind(self, x):
-        if x >= len(self):
-            raise IndexError(f"index {x} is out of range 0 to {len(self)}")
-        for rng in self.range2listpos:
-            if x in rng:
-                listpos = self.range2listpos[rng]
-                listind = x - rng.start
-                return self.args[listpos], listind
 
     def __getitem__(self, x):
         if x >= len(self):
@@ -97,6 +73,10 @@ class CollatedSets:
 
     def __iter__(self):
         return iter(map(lambda x: self[x], range(0, len(self))))
+
+
+class CollatedVisionSets(CollatedVLSets):
+    pass
 
 
 class VisionLanguageDataset(Dataset):
@@ -140,7 +120,7 @@ class VisionLanguageDataset(Dataset):
                 visnlangdatasetadapter = self.visnlangdatasetadapterdict[dset][split]
                 visnlangdatasetadapters.append(visnlangdatasetadapter)
                 self.visnlangdatasetadapterdict[dset][split] = visnlangdatasetadapter
-        self.datasets = CollatedSets(*visnlangdatasetadapters)
+        self.datasets = CollatedVLSets(*visnlangdatasetadapters)
         self.img2visnlangdatasetadapter = {}
         self.img2visdatasetadapter = {}
         self.uniq_imgs = set()
@@ -157,7 +137,6 @@ class VisionLanguageDataset(Dataset):
                 for img_id in img_ids:
                     self.img2visdatasetadapter[img_id] = (is_name, k)
                 self.uniq_imgs = self.uniq_imgs.union(img_ids)
-                # print("HI", imgset._img_to_row_map)
 
         all_ts_imgs = set()
         for ts_name, ts_splits in self.visnlangdatasetadapterdict.items():
@@ -229,7 +208,7 @@ class VisionLanguageDataset(Dataset):
             return
         annotations = list(annotationdict.values())
         raise Exception("HERE", annotations)
-        self._annotations = CollatedSets(*annotations)
+        self._annotations = CollatedVLSets(*annotations)
 
     def processor_args(self):
         max_rand_sents = 1 if not self.config.img_first else 32
@@ -550,7 +529,7 @@ class VisionDataset(Dataset):
             self._annotations = None
         else:
             annotations = list(annotationdict.values())
-            self._annotations = CollatedSets(*annotations)
+            self._annotations = CollatedVisionSets(*annotations)
 
     def _init_image_processor(self):
         processor = self.config.image.build()
@@ -579,10 +558,27 @@ class VisionDataset(Dataset):
         entry.update(self.annotations.get(img_id))
         if skip_segmentation and vltk.segmentation in entry:
             entry.pop(vltk.segmentation)
+        # TODO: need better solution for later, but now were dumping all string labels
+        # into the object to id dictionary
         # add annotation labels to image
-        word_labels = entry[vltk.label]
-        labels = torch.Tensor([self.object_to_id[l] for l in word_labels])
-        entry[vltk.label] = labels
+        if vltk.label in entry:
+            word_labels = entry[vltk.label]
+            labels = torch.Tensor([self.object_to_id[l] for l in word_labels])
+            entry[vltk.label] = labels
+
+        # we go through user-defined annoations first
+        for k, v in entry.items():
+            if k not in vltk.SUPPORTEDNAMES:
+                # take care of lists of strings
+                prim = base.get_list_primitive(v)
+                if prim == str:
+                    values = base.convertids_recursive(v, self.object_to_id)
+                    # try:
+                    #     values = torch.stack(values)
+                    # except Exception:
+                    #     pass
+                    entry[k] = values
+
         # only loop through annotations processed by vltk
         for k in self._supported:
             if k not in entry:

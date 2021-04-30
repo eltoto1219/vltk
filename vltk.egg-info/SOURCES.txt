@@ -56,4 +56,5 @@ vltk/processing/label.py
 vltk/processing/optim.py
 vltk/processing/sched.py
 vltk/utils/__init__.py
+vltk/utils/adapters.py
 vltk/utils/base.py

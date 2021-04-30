@@ -1,5 +1,5 @@
 from vltk import OPTIMPATH
-from vltk.inspect import import_funcs_from_file
+from vltk.inspection import import_funcs_from_file
 
 
 class Optim:

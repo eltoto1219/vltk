@@ -20,7 +20,6 @@ class VisnDataset(Adapter):
     _batch_size = 1028
     _base_features = {
         vltk.imgid: ds.Value("string"),
-        vltk.label: ds.Sequence(length=-1, feature=ds.Value("string")),
     }
     _meta_names = {"img_to_row_map", "object_frequencies"}
     _is_annotation = True
@@ -44,7 +43,7 @@ class VisnDataset(Adapter):
             return files
         for i in os.listdir(path):
             fp = os.path.join(path, i)
-            iid = clean_imgid_default(i.split(".")[0])
+            iid = i.split(".")[0]
             files[iid] = fp
         return files
 
@@ -54,6 +53,7 @@ class VisnDataset(Adapter):
         searchdir,
         savedir=None,
         data_format="jpg",
+        ignore_files=None,
         **kwargs,
     ):
 
@@ -70,6 +70,9 @@ class VisnDataset(Adapter):
         temp_splits = []
         print("loading annotations...")
         for anno_file in tqdm(files):
+            if ignore_files is not None and ignore_files in str(anno_file):
+                continue
+
             split = None
             for spl in vltk.SPLITALIASES:
                 if spl in str(anno_file):
@@ -110,10 +113,20 @@ class VisnDataset(Adapter):
         stream = pyarrow.output_stream(buffer)
         writer = ArrowWriter(features=features, stream=stream)
         n_files = len(annos)
+        # change feature types to classes isntead
         for i, entry in enumerate(annos):
             imgs_left = abs(i + 1 - n_files)
-            img_id = clean_imgid_default(entry[vltk.imgid])
-            object_dict.update(entry[vltk.label])
+            # leave uncleaned actually
+            img_id = entry[vltk.imgid]
+            # for now, we will do a temporary fix
+            if vltk.label in entry:
+                object_dict.update(entry[vltk.label])
+            else:
+                for k, v in entry.items():
+                    if isinstance(v, list) and all(
+                        map(lambda x: isinstance(x, str), v)
+                    ):
+                        object_dict.update(v)
             if img_id in imgid2row:
                 print(f"skipping {img_id}. Already written to table")
             imgid2row[img_id] = cur_row

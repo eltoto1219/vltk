@@ -2,6 +2,10 @@ import os
 
 from setuptools import setup
 
+"""
+ALL BOXES ARE EXPECTED TO GO IN: (X, Y, W, H) FORMAT
+"""
+
 # common keys across library
 type_ids = "type_ids"
 input_ids = "input_ids"
@@ -25,6 +29,31 @@ scale = "scale"
 boxtensor = "boxtensor"
 area = "area"
 size = "size"
+
+SUPPORTEDNAMES = {
+    type_ids,
+    input_ids,
+    text_attention_mask,
+    rawsize,
+    size,
+    segmentation,
+    box,
+    imgid,
+    label,
+    text,
+    score,
+    label,
+    text,
+    score,
+    img,
+    filepath,
+    features,
+    split,
+    scale,
+    boxtensor,
+    area,
+    size,
+}
 
 
 SPLITALIASES = {

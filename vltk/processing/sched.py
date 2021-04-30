@@ -1,5 +1,5 @@
 from vltk import SCHEDPATH
-from vltk.ispect import import_funcs_from_file
+from vltk.inspection import import_funcs_from_file
 
 
 class Sched:

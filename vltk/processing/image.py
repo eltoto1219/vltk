@@ -2,7 +2,6 @@ import inspect
 import sys
 from collections.abc import Iterable
 
-import numpy as np
 import torch
 import torch.nn.functional as F
 import torchvision.transforms.functional as FV
@@ -18,6 +17,16 @@ def get_scale(obj):
         if hasattr(t, "_scale"):
             scale = t._scale
     return scale
+
+
+def get_pad(obj):
+    if not hasattr(obj, "transforms"):
+        return None
+    pad = None
+    for t in obj.transforms:
+        if hasattr(t, "_pad"):
+            pad = t._pad
+    return pad
 
 
 def get_size(obj):
@@ -52,67 +61,99 @@ class ToPILImage(object):
             return FV.to_pil_image(filepath.byte(), self.mode)
 
 
-class ToTensor(object):
-    def __init__(self):
-        self._scale = torch.tensor([1.0, 1.0])
-        self._size = None
-        self._rawsize = None
-        pass
+class ToTensor(transforms.ToTensor):
+    _scale = torch.tensor([1.0, 1.0])
+    _size = None
+    _rawsize = None
 
-    def __call__(self, pilimg):
-        nump = np.array(pilimg)
-        if len(nump.shape) == 2:
-            try:
-                nump = np.expand_dims(nump, 0).repeat(3, 1, 1)
-            except TypeError:
-                # print(f"something is off about {nump, type(nump), nump.shape}")
-                nump = np.ones((600, 600, 3))
-        try:
-            tensor = torch.as_tensor(
-                nump.reshape(nump.shape[-1], *nump.shape[:2]), dtype=torch.float
-            ).float()
-            nump = np.array(tensor.shape)
-        except ValueError:
-            raise ValueError(
-                f"something wrong with the image tensor of shape: {nump.shape}"
-            )
-
+    def __call__(self, pil):
+        tensor = super().__call__(pil)
         self._rawsize = torch.tensor(tensor.shape[1:])
         self._size = torch.tensor(tensor.shape[1:])
-
         return tensor
 
 
-class Normalize(object):
-    def __init__(self, mean=None, std=None, inplace=False, scale="standard"):
-        self.mean = mean
-        self.std = std
-        self.scale = scale
-        self.inplace = inplace
-        self._std = None
-        self._mean = None
+# class ToTensor(object):
+#     def __init__(self):
+#         self._scale = torch.tensor([1.0, 1.0])
+#         self._size = None
+#         self._rawsize = None
+#         pass
+
+#     def __call__(self, pilimg):
+#         nump = np.array(pilimg)
+#         if len(nump.shape) == 2:
+#             try:
+#                 nump = np.expand_dims(nump, 0).repeat(3, 1, 1)
+#             except TypeError:
+#                 # print(f"something is off about {nump, type(nump), nump.shape}")
+#                 nump = np.ones((600, 600, 3))
+#         try:
+#             tensor = torch.as_tensor(
+#                 nump.reshape(nump.shape[-1], *nump.shape[:2]), dtype=torch.float
+#             ).float()
+#             nump = np.array(tensor.shape)
+#         except ValueError:
+#             raise ValueError(
+#                 f"something wrong with the image tensor of shape: {nump.shape}"
+#             )
+
+#         self._rawsize = torch.tensor(tensor.shape[1:])
+#         self._size = torch.tensor(tensor.shape[1:])
+
+#         return tensor
+
+
+# class Normalize(object):
+#     def __init__(self, mean=None, std=None, inplace=False, scale="standard"):
+#         self.mean = mean
+#         self.std = std
+#         self.scale = scale
+#         self.inplace = inplace
+#         self._std = None
+#         self._mean = None
+
+#     def __call__(self, tensor):
+#         # tensor must be: (C, H, W)
+#         if self.mean is None or self.std is None:
+#             if self.scale == "standard":
+#                 mean = tensor.mean(dim=(-1, -2))
+#                 std = torch.sqrt((tensor - mean.reshape(-1, 1, 1)) ** 2).mean(
+#                     dim=(-1, -2)
+#                 )
+#                 mean = mean.tolist()
+#                 std = std.tolist()
+#                 self._std = std
+#                 self._mean = mean
+#             else:
+#                 return tensor / 255
+#         else:
+#             mean = self.mean
+#             std = self.std
+
+#         return tensor
+# normalize = FV.normalize(tensor, mean, std, self.inplace)
+# return normalize
+
+
+class Normalize(transforms.Normalize):
+    _std = None
+    _mean = None
+
+    def __init__(self, mean=None, std=None, inplace=False):
+        super().__init__(mean, std, inplace)
 
     def __call__(self, tensor):
         # tensor must be: (C, H, W)
         if self.mean is None or self.std is None:
-            if self.scale == "standard":
-                mean = tensor.mean(dim=(-1, -2))
-                std = torch.sqrt((tensor - mean.reshape(-1, 1, 1)) ** 2).mean(
-                    dim=(-1, -2)
-                )
-                mean = mean.tolist()
-                std = std.tolist()
-                self._std = std
-                self._mean = mean
-            else:
-                return tensor / 255
+            mean = tensor.mean(dim=(-1, -2))
+            std = torch.sqrt((tensor - mean.reshape(-1, 1, 1)) ** 2).mean(dim=(-1, -2))
+            mean = mean.tolist()
+            std = std.tolist()
+            self._std = std
+            self._mean = mean
         else:
-            mean = self.mean
-            std = self.std
-
-        return tensor
-        # normalize = FV.normalize(tensor, mean, std, self.inplace)
-        # return normalize
+            return super().__call__(tensor)
 
 
 class ResizeTensor(object):
@@ -185,53 +226,38 @@ class ResizeTensor(object):
             return tensor
 
 
-class Pad(object):
-    def __init__(self, size=768, pad_value=0.0):
-        assert isinstance(size, int) or (isinstance(size, Iterable) and len(size) == 2)
-        if isinstance(size, int):
-            max_size = size
-        else:
-            max_size = max(size)
-        self.size = size
-        self.pad_value = pad_value
-        self.max_size = max_size
-        self._size = None
+# class Pad(object):
+#     def __init__(self, size=768, pad_value=0.0):
+#         assert isinstance(size, int) or (isinstance(size, Iterable) and len(size) == 2)
+#         if isinstance(size, int):
+#             max_size = size
+#         else:
+#             max_size = max(size)
+#         self.size = size
+#         self.pad_value = pad_value
+#         self.max_size = max_size
+#         self._size = None
+
+#     @torch.no_grad()
+#     def __call__(self, tensor):
+#         C, H, W = tensor.shape
+#         max_size = self.max_size
+#         tensor = F.pad(tensor, [0, max_size - W, 0, max_size - H], value=self.pad_value)
+#         self._size = torch.tensor(tensor.shape[1:])
+#         return tensor
+
+
+class Pad(transforms.Pad):
+    # need to implement the amount that the image is padded such that I can resize the
+    # binary mask as needed
+    _size = None
+    _pad = None
 
     @torch.no_grad()
     def __call__(self, tensor):
-        C, H, W = tensor.shape
-        max_size = self.max_size
-        tensor = F.pad(tensor, [0, max_size - W, 0, max_size - H], value=self.pad_value)
+        tensor = super().__call__(tensor)
         self._size = torch.tensor(tensor.shape[1:])
         return tensor
-
-
-def Pipeline(
-    size=768,
-    mode="bicubic",
-    scale="standard",
-    gpu=None,
-    pad_value=0,
-    std=None,
-    mean=None,
-    inplace=True,
-    pad=True,
-    resize=True,
-    normalize=True,
-    **kwargs,
-):
-    process = [ToPILImage(), ToTensor()]
-
-    if resize:
-        process.append(ResizeTensor(size=size, mode=mode, gpu=gpu))
-
-    if normalize:
-        process.append(Normalize(mean=mean, std=std, inplace=inplace, scale=scale))
-
-    if not isinstance(size, int) and min(size) != max(size) and pad:
-        process.append(Pad(size=size, pad_value=pad_value))
-
-    return transforms.Compose(process)
 
 
 class Image:

@@ -1,10 +1,11 @@
 import numpy as np
+import scipy
 from pycocotools import mask as coco_mask
-from vlkt.processing.data import Data
-from vlkt.processing.image import Image, get_rawsize, get_scale, get_size
-from vlkt.processing.label import Label
-from vlkt.processing.optim import Optim
-from vlkt.processing.sched import Sched
+from vltk.processing.data import Data
+from vltk.processing.image import Image, get_rawsize, get_scale, get_size
+from vltk.processing.label import Label
+from vltk.processing.optim import Optim
+from vltk.processing.sched import Sched
 
 
 def rescale_box(boxes, hw_scale):
@@ -30,13 +31,45 @@ def seg_to_mask(segmentation, h, w):
     return segmentation
 
 
-def resize_binary_mask(array, new_size):
-    image = Image.fromarray(array.astype(np.uint8) * 255)
-    image = image.resize(new_size)
-    return np.asarray(image).astype(np.bool_)
+def resize_binary_mask(array, img_size, pad_size=None):
+    img_size = tuple(img_size.tolist())
+    if array.shape != img_size:
+
+        raise Exception(array.shape)
+        return bilinear_interpolate(array, *img_size)
+        # need to implement
+    else:
+        return array
 
 
 def uncompress_mask(compressed, size):
     mask = np.zeros(size, dtype=np.uint8)
     mask[compressed[0], compressed[1]] = 1
     return mask
+
+
+def bilinear_interpolate(im, x, y):
+    x = np.asarray(x)
+    y = np.asarray(y)
+
+    x0 = np.floor(x).astype(int)
+    x1 = x0 + 1
+    y0 = np.floor(y).astype(int)
+    y1 = y0 + 1
+
+    x0 = np.clip(x0, 0, im.shape[1] - 1)
+    x1 = np.clip(x1, 0, im.shape[1] - 1)
+    y0 = np.clip(y0, 0, im.shape[0] - 1)
+    y1 = np.clip(y1, 0, im.shape[0] - 1)
+
+    Ia = im[y0, x0]
+    Ib = im[y1, x0]
+    Ic = im[y0, x1]
+    Id = im[y1, x1]
+
+    wa = (x1 - x) * (y1 - y)
+    wb = (x1 - x) * (y - y0)
+    wc = (x - x0) * (y1 - y)
+    wd = (x - x0) * (y - y0)
+
+    return wa * Ia + wb * Ib + wc * Ic + wd * Id

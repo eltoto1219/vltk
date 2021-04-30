@@ -19,7 +19,7 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
 
     _extensions = ["json", "jsonl"]
     _batch_size = 32
-    _base_schema = {vltk.imgid: Features.imgid}
+    _base_schema = {vltk.imgid: Features.Imgid}
     _is_annotation = False
     _is_feature = False
 
