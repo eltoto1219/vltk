@@ -73,6 +73,7 @@ if __name__ == "__main__":
     # clevrref = CLEVRREF.extract(datadir, ignore_files="exp")
     print(Adapters().avail())
 
+    # TODO: make sure visnlang adapters are being added
     Adapters().add(CLEVRREF)
     # define config for dataset
     config = DataConfig(
