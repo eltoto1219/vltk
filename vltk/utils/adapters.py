@@ -1,11 +1,20 @@
+import json
+import os
+
 import numpy as np
-import scipy
 from pycocotools import mask as coco_mask
 from vltk.processing.data import Data
-from vltk.processing.image import Image, get_rawsize, get_scale, get_size
+from vltk.processing.image import (Image, get_pad, get_rawsize, get_scale,
+                                   get_size)
 from vltk.processing.label import Label
 from vltk.processing.optim import Optim
 from vltk.processing.sched import Sched
+
+PATH = os.path.join(
+    os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "libdata"
+)
+ANS_CONVERT = json.load(open(os.path.join(PATH, "convert_answers.json")))
+CONTRACTION_CONVERT = json.load(open(os.path.join(PATH, "convert_answers.json")))
 
 
 def rescale_box(boxes, hw_scale):
@@ -73,3 +82,40 @@ def bilinear_interpolate(im, x, y):
     wd = (x - x0) * (y - y0)
 
     return wa * Ia + wb * Ib + wc * Ic + wd * Id
+
+
+def clean_label(ans):
+    if len(ans) == 0:
+        return ""
+    ans = ans.lower()
+    ans = ans.replace(",", "")
+    if ans[-1] == ".":
+        ans = ans[:-1].strip()
+    if ans.startswith("a "):
+        ans = ans[2:].strip()
+    if ans.startswith("an "):
+        ans = ans[3:].strip()
+    if ans.startswith("the "):
+        ans = ans[4:].strip()
+    ans = " ".join(
+        [
+            CONTRACTION_CONVERT[a] if a in CONTRACTION_CONVERT else a
+            for a in ans.split(" ")
+        ]
+    )
+    if ans in ANS_CONVERT:
+        ans = ANS_CONVERT[ans]
+    return ans
+
+
+def soft_score(occurences):
+    if occurences == 0:
+        return 0
+    elif occurences == 1:
+        return 0.3
+    elif occurences == 2:
+        return 0.6
+    elif occurences == 3:
+        return 0.9
+    else:
+        return 1

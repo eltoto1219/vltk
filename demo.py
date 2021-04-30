@@ -260,6 +260,7 @@ if __name__ == "__main__":
     # gqa = GQA.load(datadir, split="train")
     # print(gqa)
     # add adapters
+    raise Exception(Adapters().avail())
     Adapters().add(VQA, GQA, Coco2014, VisualGenome, FRCNN)
     # print(Adapters().avail())
     # superset datasets

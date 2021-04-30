@@ -1,12 +1,12 @@
 import vltk
-from vltk import Features, adapters, compat
+from vltk import Features, compat
+from vltk.adapters import VisnExtraction
 from vltk.configs import ProcessorConfig
 from vltk.modeling.frcnn import FRCNN as FasterRCNN
 
 
-class FRCNN(adapters.VisnExtraction):
+class FRCNN(VisnExtraction):
 
-    # TODO: currently, this image preprocessing config is not correct
     default_processor = ProcessorConfig(
         **{
             "transforms": ["ToPILImage", "ToTensor", "ResizeTensor", "Normalize"],
@@ -20,17 +20,16 @@ class FRCNN(adapters.VisnExtraction):
     # model_config = compat.Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
     weights = "unc-nlp/frcnn-vg-finetuned"
     model = FasterRCNN
-    model_config = compat.Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
 
     def schema(max_detections=36, visual_dim=2048):
         return {
             "attr_ids": Features.ids,
             "object_ids": Features.ids,
             vltk.features: Features.features(max_detections, visual_dim),
-            vltk.boxtensor: Features.boxtensor(max_detections),
+            vltk.box: Features.boxtensor(max_detections),
         }
 
-    def forward(model, entry):
+    def forward(model, entry, **kwargs):
 
         size = entry["size"]
         scale_hw = entry["scale"]
@@ -48,6 +47,15 @@ class FRCNN(adapters.VisnExtraction):
         return {
             "object_ids": model_out["obj_ids"],
             "attr_ids": model_out["attr_ids"],
-            vltk.boxtensor: model_out["normalized_boxes"],
+            vltk.box: model_out["normalized_boxes"],
             vltk.features: model_out["roi_features"],
         }
+
+
+if __name__ == "__main__":
+    # dataset = FRCNN.extract("/home/eltoto/vltk/tests/visualgenome")
+    dataset = FRCNN.load("/home/eltoto/vltk/tests/visualgenome", split="train")
+    entry = dataset.get(dataset.imgids[1])
+    for k, v in entry.items():
+        print(k, type(v))
+    print(dataset)

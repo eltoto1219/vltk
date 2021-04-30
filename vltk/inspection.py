@@ -66,12 +66,11 @@ def get_classes(path_or_dir_name, cls_defintion=None, pkg=None):
                     mod = importlib.import_module(npkg)
                     mod = inspect.getmembers(mod, inspect.isclass)
                 for t in mod:
-
                     if cls_defintion in inspect.getmro(t[-1]):
                         # print(t[-1].__abstractmethods__)
                         if not inspect.isabstract(t[-1]):
                             try:
-                                classes[t[-1].name] = t[-1]
+                                classes[t[-1].__name__.lower()] = t[-1]
                             except AttributeError:
                                 classes[t[-1].__name__.lower()] = t[-1]
             except ModuleNotFoundError:
