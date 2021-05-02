@@ -152,7 +152,12 @@ class ProcessorConfig(config.Config):
         transformlist = kwargs.pop("transforms")
         funcs = []
         for t in transformlist:
+            name = t
             t = _image.get(t)
+            if name == "Lambda":
+                assert hasattr(self, "lambd"), "Lambda transform requires a lambd arg"
+                funcs.append(t(self.lambd))
+                continue
             args = get_args(t, kwargs)
             if args is None:
                 funcs.append(t())

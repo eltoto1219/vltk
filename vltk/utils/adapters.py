@@ -3,6 +3,7 @@ import os
 
 import numpy as np
 from pycocotools import mask as coco_mask
+from skimage import measure
 from vltk.processing.data import Data
 from vltk.processing.image import (Image, get_pad, get_rawsize, get_scale,
                                    get_size)
@@ -15,6 +16,34 @@ PATH = os.path.join(
 )
 ANS_CONVERT = json.load(open(os.path.join(PATH, "convert_answers.json")))
 CONTRACTION_CONVERT = json.load(open(os.path.join(PATH, "convert_answers.json")))
+
+
+def imagepoints_to_polygon(points):
+    img = imagepoints_to_mask(points)
+    polygon = mask_to_polygon(img)
+    return polygon
+
+
+# source: https://github.com/ksrath0re/clevr-refplus-rec/
+def imagepoints_to_mask(points):
+    img = []
+    cur = 0
+    for num in points:
+        num = int(num)
+        img += [cur] * num
+        cur = 1 - cur
+    img = np.asarray(img).reshape((320, 480))
+    return img
+
+
+def mask_to_polygon(mask):
+    contours = measure.find_contours(mask, 0.5)
+    seg = []
+    for contour in contours:
+        contour = np.flip(contour, axis=1)
+        segmentation = contour.ravel().tolist()
+        seg.append(segmentation)
+    return seg
 
 
 def rescale_box(boxes, hw_scale):

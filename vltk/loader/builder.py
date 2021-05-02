@@ -17,7 +17,7 @@ def init_datasets(config):
     if datasets_type == VLDATA:
         out_dict = load_vl(to_load, train_ds, eval_ds, config)
         train = out_dict["train"]
-        test = out_dict["eval"]
+        evalutation = out_dict["eval"]
         annos = out_dict["annotations"]
         visndatasetadapters = out_dict["visndatasetadapters"]
         answer_to_id = out_dict["answers"]
@@ -33,10 +33,11 @@ def init_datasets(config):
                 object_to_id=object_to_id,
                 is_train=True,
             )
-        if test:
+
+        if evalutation:
             eval_loader = VisionLanguageLoader(
                 config,
-                visnlangdatasetadapterdict=train,
+                visnlangdatasetadapterdict=evalutation,
                 visndatasetadapterdict=visndatasetadapters,
                 annotationdict=annos,
                 answer_to_id=answer_to_id,
@@ -48,7 +49,7 @@ def init_datasets(config):
         out_dict = load_v(to_load, train_ds, eval_ds, config)
         # if is_train is false
         train = out_dict["train"]
-        test = out_dict["eval"]
+        evalutation = out_dict["eval"]
         object_to_id = out_dict["objects"]
         annotations = out_dict["annotations"]
 
@@ -56,28 +57,30 @@ def init_datasets(config):
             train_loader = VisionLoader(
                 config,
                 visndatasetadapterdict=train,
-                annotationdict=annotations,
+                annotationdict={k: v for k, v in annotations.items() if k in train_ds},
                 object_to_id=object_to_id,
                 is_train=True,
             )
-        if test:
+        if evalutation:
             eval_loader = VisionLoader(
                 config,
-                visndatasetadapterdict=test,
-                annotationdict=annotations,
+                visndatasetadapterdict=evalutation,
+                annotationdict={k: v for k, v in annotations.items() if k in eval_ds},
                 object_to_id=object_to_id,
                 is_train=False,
             )
 
-    loaders = {
-        "train": train_loader if train_loader is not None else None,
-        "eval": eval_loader if eval_loader is not None else None,
-    }
-    loaders = [(k, v) for k, v in loaders.items()]
-    any_train = any(map(lambda x: x == "train", [k for k in loaders]))
-    loaders = sorted(loaders, key=lambda x: x[0], reverse=True)
+    # loaders = {
+    # "train": train_loader if train_loader is not None else None,
+    # "eval": eval_loader if eval_loader is not None else None,
+    # }
+    # loaders = [(k, v) for k, v in loaders.items()]
+    # any_train = any(map(lambda x: x == "train", [k for k in loaders]))
+    # loaders = sorted(loaders, key=lambda x: x[0], reverse=True)
+    train_loader = train_loader if train_loader is not None else None
+    eval_loader = eval_loader if eval_loader is not None else None
 
-    return loaders, any_train, answer_to_id, object_to_id
+    return train_loader, eval_loader
 
 
 def parse_datasets(config):

@@ -1,10 +1,14 @@
 from collections import defaultdict
 
+import numpy as np
 import vltk
+from matplotlib import pyplot as plt
+from pycocotools import mask as coco_mask
 from tqdm import tqdm
 from vltk import Features, adapters
 from vltk.adapters import Adapters
 from vltk.configs import DataConfig
+from vltk.utils.adapters import imagepoints_to_polygon
 
 
 # data source: https://github.com/ccvl/clevr-refplus-dataset-gen
@@ -47,11 +51,12 @@ class CLEVRREF(adapters.VisnDataset):
                     materials.append(obj["material"])
                     sizes.append(obj["size"])
                     try:
-                        seg = list(eval(seg))
+
+                        seg = imagepoints_to_polygon(seg.split(","))
                     except Exception:
                         continue
 
-                    segmentations.append([seg])
+                    segmentations.append(seg)
 
                 entries[imgid] = {
                     vltk.segmentation: segmentations,
@@ -70,7 +75,7 @@ if __name__ == "__main__":
     # set datadir
     datadir = "/home/eltoto/demodata"
     # create datasets
-    # clevrref = CLEVRREF.extract(datadir, ignore_files="exp")
+    clevrref = CLEVRREF.extract(datadir, ignore_files="exp")
     print(Adapters().avail())
 
     # TODO: make sure visnlang adapters are being added
