@@ -12,6 +12,7 @@ collect = 1000
 
 
 # data source: https://github.com/ccvl/clevr-refplus-dataset-gen
+# https://cs.jhu.edu/~cxliu/data/clevr_ref+_1.0.zip
 class CLEVRREF(adapters.VisnDataset):
     def schema():
         return {
