@@ -1,21 +1,21 @@
+import gc
 from collections import defaultdict
 
-import numpy as np
 import vltk
-from matplotlib import pyplot as plt
-from pycocotools import mask as coco_mask
 from tqdm import tqdm
 from vltk import Features, adapters
 from vltk.adapters import Adapters
 from vltk.configs import DataConfig
 from vltk.utils.adapters import imagepoints_to_polygon
 
+collect = 1000
+
 
 # data source: https://github.com/ccvl/clevr-refplus-dataset-gen
 class CLEVRREF(adapters.VisnDataset):
     def schema():
         return {
-            vltk.segmentation: Features.Segmentation,
+            vltk.points: Features.Points,
             "colors": Features.StringList,
             "shapes": Features.StringList,
             "sizes": Features.StringList,
@@ -29,7 +29,7 @@ class CLEVRREF(adapters.VisnDataset):
         for filepath, js in json_files:
             if "scene" not in filepath:
                 continue
-            for scene in tqdm(js["scenes"]):
+            for i, scene in enumerate(tqdm(js["scenes"])):
                 img_filename = scene["image_filename"]
                 imgid = img_filename.split(".")[0]
                 colors = []
@@ -37,7 +37,7 @@ class CLEVRREF(adapters.VisnDataset):
                 materials = []
                 sizes = []
                 boxes = []
-                segmentations = []
+                points = []
                 for idx, (obj, bbox, seg) in enumerate(
                     zip(
                         scene["objects"],
@@ -52,14 +52,14 @@ class CLEVRREF(adapters.VisnDataset):
                     sizes.append(obj["size"])
                     try:
 
-                        seg = imagepoints_to_polygon(seg.split(","))
+                        seg = seg.split(",")
                     except Exception:
                         continue
 
-                    segmentations.append(seg)
+                    points.append(seg)
 
                 entries[imgid] = {
-                    vltk.segmentation: segmentations,
+                    vltk.points: points,
                     "colors": colors,
                     "shapes": shapes,
                     "materials": materials,
@@ -67,6 +67,8 @@ class CLEVRREF(adapters.VisnDataset):
                     vltk.box: boxes,
                     vltk.imgid: imgid,
                 }
+                if i % collect == 0:
+                    gc.collect()
 
         return [v for v in entries.values()]
 
@@ -75,7 +77,7 @@ if __name__ == "__main__":
     # set datadir
     datadir = "/home/eltoto/demodata"
     # create datasets
-    clevrref = CLEVRREF.extract(datadir, ignore_files="exp")
+    # clevrref = CLEVRREF.extract(datadir, ignore_files="exp")
     print(Adapters().avail())
 
     # TODO: make sure visnlang adapters are being added

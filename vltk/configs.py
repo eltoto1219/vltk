@@ -92,7 +92,7 @@ class DataConfig(config.Config):
     rand_feats: Union[None, tuple] = None
     eval_batch_size = 32
     train_batch_size = 64
-    extractor: Union[None, str] = "frcnn"
+    extractor: Union[None, str] = None
     textfile_extensions: Union[List[str], str] = ["json", "jsonl"]
     datadir: str = "/playpen1/home/avmendoz/data"
     img_first: bool = False

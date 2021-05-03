@@ -2,6 +2,8 @@ import json
 import os
 
 import numpy as np
+import torch
+import torchvision.transforms.functional as FV
 from pycocotools import mask as coco_mask
 from skimage import measure
 from vltk.processing.data import Data
@@ -25,14 +27,24 @@ def imagepoints_to_polygon(points):
 
 
 # source: https://github.com/ksrath0re/clevr-refplus-rec/
-def imagepoints_to_mask(points):
+def imagepoints_to_mask(points, size):
+    # raise Exception(points)
+    # npimg = []
     img = []
     cur = 0
     for num in points:
+        # if cur == 0:
+        #     part = np.zeros(int(num))
+        # else:
+        #     part = np.concatenate((part, np.ones(int(num))))
+        # npimg.append(part)
         num = int(num)
         img += [cur] * num
         cur = 1 - cur
-    img = np.asarray(img).reshape((320, 480))
+    img = torch.tensor(img).reshape(tuple(size.tolist()))
+    # npimg = np.stack(npimg)
+    # raise Exception(part.shape)
+    # part = part.reshape(tuple(size.tolist()))
     return img
 
 
@@ -69,13 +81,18 @@ def seg_to_mask(segmentation, h, w):
     return segmentation
 
 
-def resize_binary_mask(array, img_size, pad_size=None):
-    img_size = tuple(img_size.tolist())
-    if array.shape != img_size:
+# def resize_mask(mask, transforms_dict):
+#     if "Resize" in transforms_dict:
+#         return transforms_dict["Resize"](mask)
+#     else:
+#         return mask
 
-        raise Exception(array.shape)
-        return bilinear_interpolate(array, *img_size)
-        # need to implement
+
+def resize_binary_mask(array, img_size, pad_size=None):
+    img_size = (img_size[0], img_size[1])
+    if array.shape != img_size:
+        array = FV.resize(array.unsqueeze(0), img_size).squeeze(0)
+        return array
     else:
         return array
 
@@ -84,33 +101,6 @@ def uncompress_mask(compressed, size):
     mask = np.zeros(size, dtype=np.uint8)
     mask[compressed[0], compressed[1]] = 1
     return mask
-
-
-def bilinear_interpolate(im, x, y):
-    x = np.asarray(x)
-    y = np.asarray(y)
-
-    x0 = np.floor(x).astype(int)
-    x1 = x0 + 1
-    y0 = np.floor(y).astype(int)
-    y1 = y0 + 1
-
-    x0 = np.clip(x0, 0, im.shape[1] - 1)
-    x1 = np.clip(x1, 0, im.shape[1] - 1)
-    y0 = np.clip(y0, 0, im.shape[0] - 1)
-    y1 = np.clip(y1, 0, im.shape[0] - 1)
-
-    Ia = im[y0, x0]
-    Ib = im[y1, x0]
-    Ic = im[y0, x1]
-    Id = im[y1, x1]
-
-    wa = (x1 - x) * (y1 - y)
-    wb = (x1 - x) * (y - y0)
-    wc = (x - x0) * (y1 - y)
-    wd = (x - x0) * (y - y0)
-
-    return wa * Ia + wb * Ib + wc * Ic + wd * Id
 
 
 def clean_label(ans):

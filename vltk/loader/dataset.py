@@ -17,7 +17,8 @@ from datasets.utils.logging import set_verbosity_error
 from torch.utils.data import Dataset
 from vltk.utils import base
 from vltk.utils.adapters import (Data, get_rawsize, get_scale, get_size,
-                                 rescale_box, resize_binary_mask, seg_to_mask)
+                                 imagepoints_to_mask, rescale_box,
+                                 resize_binary_mask, seg_to_mask)
 
 __import__("tokenizers")
 TOKENIZERS = {
@@ -475,7 +476,7 @@ class VisionLanguageDataset(Dataset):
 
 
 class VisionDataset(Dataset):
-    _supported = (vltk.segmentation, vltk.size, vltk.area, vltk.box)
+    _supported = (vltk.polygons, vltk.size, vltk.area, vltk.box, vltk.points)
 
     def __init__(
         self,
@@ -532,8 +533,14 @@ class VisionDataset(Dataset):
             self._annotations = CollatedVisionSets(*annotations)
 
     def _init_image_processor(self):
-        processor = self.config.image.build()
-        self._image = processor
+        if self.config.extractor is None:
+            processor = self.config.image.build()
+            self._image = processor
+            self._transforms = self._image.transforms
+
+    @property
+    def transforms(self):
+        return {t.__class__.__name__: t for t in self._transforms}
 
     def _handle_image(self, entry):
         img_id = entry[vltk.imgid]
@@ -556,8 +563,10 @@ class VisionDataset(Dataset):
         skip_segmentation = True if vltk.size not in entry else False
         # get annotations for image
         entry.update(self.annotations.get(img_id))
-        if skip_segmentation and vltk.segmentation in entry:
-            entry.pop(vltk.segmentation)
+        if skip_segmentation and vltk.polygons in entry:
+            entry.pop(vltk.polygons)
+        if skip_segmentation and vltk.points in entry:
+            entry.pop(vltk.points)
         # TODO: need better solution for later, but now were dumping all string labels
         # into the object to id dictionary
         # add annotation labels to image
@@ -573,10 +582,6 @@ class VisionDataset(Dataset):
                 prim = base.get_list_primitive(v)
                 if prim == str:
                     values = base.convertids_recursive(v, self.object_to_id)
-                    # try:
-                    #     values = torch.stack(values)
-                    # except Exception:
-                    #     pass
                     entry[k] = values
 
         # only loop through annotations processed by vltk
@@ -584,8 +589,8 @@ class VisionDataset(Dataset):
             if k not in entry:
                 continue
             v = entry[k]
-            if k == vltk.segmentation and not skip_segmentation:
-                entry[k] = torch.tensor(
+            if k == vltk.polygons and not skip_segmentation:
+                entry[vltk.segmentation] = torch.tensor(
                     list(
                         map(
                             lambda x: resize_binary_mask(
@@ -595,6 +600,25 @@ class VisionDataset(Dataset):
                         ),
                     )
                 )
+                entry.pop(k)
+            elif k == vltk.points:
+
+                # s = time.time()
+                entry[vltk.segmentation] = torch.stack(
+                    list(
+                        map(
+                            lambda x: resize_binary_mask(
+                                imagepoints_to_mask(x, entry[vltk.rawsize]),
+                                torch.as_tensor(entry[vltk.size]),
+                            ),
+                            v,
+                        )
+                    )
+                )
+                # print(time.time() - s)
+                entry.pop(k)
+                # raise Exception(entry[vltk.img].shape)
+
             elif k == vltk.box:
                 values = torch.tensor(v)
                 values = rescale_box(values, entry[vltk.scale])

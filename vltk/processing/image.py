@@ -49,27 +49,28 @@ def get_rawsize(obj):
     return size
 
 
-class ToPILImage(object):
+class FromFile(object):
     def __init__(self, mode=None):
         self.mode = mode
         pass
 
     def __call__(self, filepath):
         if isinstance(filepath, str):
-            return PImage.open(filepath)
+            return PImage.open(filepath).convert("RGB")
         else:
-            return FV.to_pil_image(filepath.byte(), self.mode)
+            img = FV.to_pil_image(filepath.byte(), self.mode).convert("RGB")
+            return img
 
 
 class ToTensor(transforms.ToTensor):
     _scale = torch.tensor([1.0, 1.0])
-    _size = None
+    # _size = None
     _rawsize = None
 
     def __call__(self, pil):
         tensor = super().__call__(pil)
         self._rawsize = torch.tensor(tensor.shape[1:])
-        self._size = torch.tensor(tensor.shape[1:])
+        # self._size = torch.tensor(tensor.shape[1:])
         return tensor
 
 
@@ -247,6 +248,15 @@ class ResizeTensor(object):
 #         return tensor
 
 
+class Resize(transforms.Resize):
+    _size = None
+
+    def __call__(self, tensor):
+        tensor = super().__call__(tensor)
+        self._size = tensor.shape[1:]
+        return tensor
+
+
 class Pad(transforms.Pad):
     # need to implement the amount that the image is padded such that I can resize the
     # binary mask as needed
@@ -271,9 +281,10 @@ class Image:
                 )
             }
             IMAGEPROCDICT["ToTensor"] = ToTensor
-            IMAGEPROCDICT["ToPILImage"] = ToPILImage
+            IMAGEPROCDICT["FromFile"] = FromFile
             IMAGEPROCDICT["Pad"] = Pad
             IMAGEPROCDICT["ResizeTensor"] = ResizeTensor
+            IMAGEPROCDICT["Resize"] = Resize
             IMAGEPROCDICT["Normalize"] = Normalize
 
     def avail(self):
