@@ -6,6 +6,9 @@ from setuptools import setup
 ALL BOXES ARE EXPECTED TO GO IN: (X, Y, W, H) FORMAT
 """
 
+
+# special deliminator
+delim = "^"
 # common keys across library
 type_ids = "type_ids"
 input_ids = "input_ids"

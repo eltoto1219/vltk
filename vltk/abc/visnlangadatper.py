@@ -11,6 +11,7 @@ import pyarrow
 import vltk
 from datasets import ArrowWriter
 from tqdm import tqdm
+from vltk import Features
 from vltk.abc.adapter import Adapter
 from vltk.inspection import collect_args_to_func
 from vltk.processing.label import Label
@@ -22,13 +23,23 @@ _labelproc = Label()
 class VisnLangDataset(Adapter):
     _extensions = ["json", "jsonl"]
     _base_features = {
-        vltk.imgid: ds.Value("string"),
-        vltk.text: ds.Value("string"),
-        vltk.label: ds.Sequence(length=-1, feature=ds.Value("string")),
+        vltk.imgid: Features.String,
+        vltk.text: Features.String,
+        vltk.label: Features.StringList,
         vltk.score: ds.Sequence(length=-1, feature=ds.Value("float32")),
     }
     _meta_names = ["answer_frequencies", "img_to_row_map"]
     _batch_size = 1028
+
+    @staticmethod
+    def adjust_imgid(img_id, dataset_name=None, split_name=None):
+        """
+        Sometimes the image IDS provided in Vision-Language datasets do not map to the
+        actual image ID in the reffered vision dataset. If that is the case, implementing
+        this optional function will adjust the image id in aims to appropriately mactch
+        the corresponging dataset
+        """
+        return img_id
 
     @staticmethod
     def _check_features(schema):
@@ -182,11 +193,12 @@ class VisnLangDataset(Adapter):
             else:
                 writer = ArrowWriter(features=features, stream=stream)
             # load data
-            text_data = []
+            text_data = {}
             print(f"loading json files from: {text_files}")
             for t in tqdm(text_files):
                 data = utils.try_load_json(t)
-                text_data.extend(data)
+
+                text_data[t] = data
 
             # custom forward from user
             print("begin extraction")
@@ -200,6 +212,14 @@ class VisnLangDataset(Adapter):
             for sub_batch_entries in utils.batcher(batch_entries, n=64):
                 flat_entry = None
                 for b in sub_batch_entries:
+                    # apply adjust image id functio  here
+                    vision_dataset_name_and_split = cls.data_info[split]
+                    vdset_name = next(iter(vision_dataset_name_and_split.keys()))
+                    vdset_split = next(iter(vision_dataset_name_and_split.values()))
+                    b[vltk.imgid] = cls.adjust_imgid(
+                        b[vltk.imgid], vdset_name, vdset_split
+                    )
+
                     if not supervised or split == "test":
                         b.pop(vltk.score, None)
                         b.pop(vltk.label, None)
@@ -248,12 +268,12 @@ class VisnLangDataset(Adapter):
             splitdict[split] = arrow_dset
         return split_dict
 
-    def get(self, img_id):
-        small_dataset = self[self.img_to_row_map[img_id]]
-        img_ids = set(small_dataset.pop(vltk.imgid))
-        assert len(img_ids) == 1, img_ids
-        small_dataset[vltk.imgid] = next(iter(img_ids))
-        return small_dataset
+    # def get(self, img_id):
+    #     small_dataset = self[self.img_to_row_map[img_id]]
+    #     img_ids = set(small_dataset.pop(vltk.imgid))
+    #     assert len(img_ids) == 1, img_ids
+    #     small_dataset[vltk.imgid] = next(iter(img_ids))
+    #     return small_dataset
 
     def text_iter(self):
         for i in range(len(self)):

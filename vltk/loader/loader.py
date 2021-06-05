@@ -3,7 +3,8 @@ from typing import Dict, List
 
 import torch
 from torch.utils.data import DataLoader
-from vltk.loader.dataset import VisionDataset, VisionLanguageDataset
+from vltk.loader.visndataset import VisionDataset
+from vltk.loader.visnlangdataset import VisionLanguageDataset
 
 
 def collate(
@@ -14,8 +15,10 @@ def collate(
     keys = deepcopy(list(columns[0].keys()))
     for k in keys:
         try:
+
             batch[k] = torch.stack([i.get(k) for i in columns if i is not None])
         except Exception:
+
             batch[k] = [i.get(k, "") for i in columns if i is not None]
 
     return batch

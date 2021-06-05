@@ -33,7 +33,10 @@ class Adapters:
         return list(ADAPTERDICT.keys())
 
     def get(self, name):
-        return ADAPTERDICT[name]
+        try:
+            return ADAPTERDICT[name]
+        except KeyError:
+            raise Exception(f"{name} not available from {self.avail()}")
 
     def add(self, *args):
         for dset in args:

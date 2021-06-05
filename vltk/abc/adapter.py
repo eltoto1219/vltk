@@ -1,8 +1,10 @@
+import itertools
 import json
 import logging as logger
 import os
 import pickle
 from abc import ABCMeta, abstractmethod
+from collections import defaultdict
 from pathlib import Path
 from typing import List
 
@@ -53,11 +55,52 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
     def has(self, img_id):
         return img_id in self.img_to_row_map
 
-    def get(self, img_id):
-        return self[self.img_to_row_map[img_id]]
+    def get(self, img_id, return_dataset=False):
+        if not return_dataset:
+            return self[self.img_to_row_map[img_id]]
+        else:
+            idxs = self.img_to_row_map[img_id]
+            assert isinstance(idxs, list)
+            return self.select(idxs)
+
+    def get_idx(self, img_id):
+        return self.img_to_row_map[img_id]
 
     def shuffle(self):
         raise NotImplementedError
+
+    def imgid_filter(self, imgids, is_visnlang=True):
+        remaining = set(self.imgids).intersection(imgids)
+
+        if is_visnlang:
+            # TODO: this could be really slow, i will have to time it later
+            idx_groups = dict(
+                map(lambda imgid: (imgid, self.get_idx(imgid)), remaining)
+            )
+            new_map = defaultdict(list)
+            idx = 0
+            idx_set = []
+            for imgid, idxs in idx_groups.items():
+                idx_set.extend(idxs)
+                new_map[imgid] = list(map(lambda x: x[0] + idx, enumerate(idxs)))
+                idx += len(idxs)
+            # raise Exception(new_map, idx_set)
+        else:
+            idx_set = list(
+                itertools.chain(*(map(lambda idx: self.get_idx(idx), remaining)))
+            )
+        filtered_self = self.select(idx_set)
+        setattr(filtered_self, "img_to_row_map", self.img_to_row_map)
+        setattr(filtered_self, "get", self.get)
+        if is_visnlang:
+            setattr(filtered_self, "data_info", self.data_info)
+            setattr(filtered_self, "_img_to_row_map", new_map)
+            # setattr(filtered_self, "_img_to_row_map", new_map)
+        else:
+            setattr(filtered_self, "_img_to_row_map", dict(zip(remaining, idx_set)))
+            setattr(filtered_self, "check_imgid_alignment", self.check_imgid_alignment)
+
+        return filtered_self
 
     @property
     def img_to_row_map(self):

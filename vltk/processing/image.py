@@ -64,13 +64,13 @@ class FromFile(object):
 
 class ToTensor(transforms.ToTensor):
     _scale = torch.tensor([1.0, 1.0])
-    # _size = None
+    _size = None
     _rawsize = None
 
     def __call__(self, pil):
         tensor = super().__call__(pil)
         self._rawsize = torch.tensor(tensor.shape[1:])
-        # self._size = torch.tensor(tensor.shape[1:])
+        self._size = self._rawsize
         return tensor
 
 

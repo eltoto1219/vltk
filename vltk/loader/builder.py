@@ -163,7 +163,8 @@ def load_vl(to_load, train_ds, eval_ds, config):
                     print(f"Warning: No Annotations for {is_name}")
                     is_annotations = _adapters.get(is_name)
                 loaded_annotations[is_name] = is_annotations
-                for l in sorted(visnlangdatasetadapter.labels):
+
+                for l in sorted(is_annotations.labels):
                     if l not in object_to_id:
                         object_to_id[l] = object_id
                         object_id += 1

@@ -137,7 +137,7 @@ class DataConfig(config.Config):
 
 
 class ProcessorConfig(config.Config):
-    transforms: List = ["ToPILImage", "ToTensor"]
+    transforms: List = ["FromFile", "ToTensor"]
 
     def __init__(self, **kwargs):
         for f, v in kwargs.items():

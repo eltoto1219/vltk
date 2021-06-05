@@ -33,17 +33,23 @@ class VisnDataset(Adapter):
     def load_imgid2path(cls, datadir, split):
         name = cls.__name__.lower()
         path = os.path.join(datadir, name, split)
-        return VisnDataset.files(path)
+        return VisnDataset.files(path, name)
 
     @staticmethod
-    def files(path):
+    def files(path, name):
         files = {}
         if not os.path.isdir(path):
             print(f"No path exists for: {path}")
             return files
         for i in os.listdir(path):
             fp = os.path.join(path, i)
+            # TODO: confirm if I still want to prepend dataset name later
+            # okay, so we will only add the dataset name if it is not already present
+            # actually, lets not worry about this until we run into this issue
             iid = i.split(".")[0]
+            # if name.casefold() not in iid.casefold():
+            #     iid = f'{name}{vltk.delim}{i.split(".")[0]}'
+            # iid = i.split(".")[0]
             files[iid] = fp
         return files
 
@@ -66,7 +72,7 @@ class VisnDataset(Adapter):
         )
         files = cls._iter_files(searchdir)
         # get into right format
-        json_files = []
+        json_files = {}
         temp_splits = []
         print("loading annotations...")
         for anno_file in tqdm(files):
@@ -83,7 +89,7 @@ class VisnDataset(Adapter):
                 continue
             if "caption" not in str(anno_file) and "question" not in str(anno_file):
                 anno_data = json.load(open(str(anno_file)))
-                json_files.append((str(anno_file), anno_data))
+                json_files[str(anno_file)] = anno_data
 
         forward_dict = collect_args_to_func(cls.forward, kwargs=kwargs)
         total_annos = cls.forward(json_files, temp_splits, **forward_dict)
@@ -91,7 +97,7 @@ class VisnDataset(Adapter):
         # now write
         print("writing to Datasets/Arrow object")
         writer, buffer, imgid2row, object_dict = cls._write_batches(
-            total_annos, feature_dict, cls._batch_size
+            total_annos, feature_dict, cls._batch_size, cls.__name__.lower()
         )
         if savedir is None:
             savedir = searchdir
@@ -103,7 +109,8 @@ class VisnDataset(Adapter):
         return cls(arrow_table=table, meta_dict=meta_dict)
 
     @staticmethod
-    def _write_batches(annos, feature_dict, batch_size):
+    def _write_batches(annos, feature_dict, batch_size, name):
+        # name refers to the dataset (class) name
         object_dict = Counter()
         features = ds.Features(feature_dict)
         imgid2row = {}
@@ -117,6 +124,9 @@ class VisnDataset(Adapter):
         for i, entry in enumerate(annos):
             imgs_left = abs(i + 1 - n_files)
             # leave uncleaned actually
+            """here"""
+            # entry[vltk.imgid] = f"{name}{vltk.delim}{entry[vltk.imgid]}"
+
             img_id = entry[vltk.imgid]
             # for now, we will do a temporary fix
             if vltk.label in entry:

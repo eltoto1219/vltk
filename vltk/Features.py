@@ -4,11 +4,19 @@ Box = ds.Sequence(
     length=-1, feature=ds.Sequence(length=-1, feature=ds.Value("float32"))
 )
 
-Polygons = (
-    ds.Sequence(length=-1, feature=ds.Sequence(length=-1, feature=ds.Value("float32"))),
+Polygons = ds.Sequence(
+    length=-1,
+    feature=ds.Sequence(
+        length=-1, feature=ds.Sequence(length=-1, feature=ds.Value("float32"))
+    ),
 )
 
-Points = (ds.Sequence(length=-1, feature=ds.Value("float32")),)
+RLE = ds.Sequence(
+    length=-1, feature=ds.Sequence(length=-1, feature=ds.Value("float32"))
+)
+
+
+Points = ds.Sequence(length=-1, feature=ds.Value("float32"))
 
 FloatList = ds.Sequence(length=-1, feature=ds.Value("float32"))
 
