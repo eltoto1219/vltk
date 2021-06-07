@@ -30,12 +30,16 @@ class Config:
 
     def __iter__(self):
         for k in set(self.__class__.__dict__.keys()).union(set(self.__dict__.keys())):
-            if k[0] != "_" and not callable(getattr(self, k)):
+            if k[0] != "_" and (
+                hasattr(getattr(self, k), "_identify") or not callable(getattr(self, k))
+            ):
                 yield k, getattr(self, k)
 
     def __str__(self):
         # or, i could have simply done a yaml dumps
         string = ""
+        for k, v in self:
+            print(k, v)
         for k, v in self:
             if hasattr(v, "_identify"):
                 string += f"{k}:\n"
@@ -43,6 +47,9 @@ class Config:
             else:
                 string += f"{k}:{v}\n"
         return string[:-1]
+
+    def __repr__(self):
+        return self.__str__()
 
     @staticmethod
     def parse(arg):

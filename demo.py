@@ -1,18 +1,18 @@
-from collections import Counter, defaultdict
+from collections import Counter
 
 import vltk
 from vltk import Features, adapters, compat
 from vltk.adapters import Adapters
-from vltk.configs import DataConfig, ProcessorConfig
-from vltk.loader.builder import init_datasets
+from vltk.configs import DataConfig, LangConfig, VisionConfig
+from vltk.loader import build
 from vltk.modeling.frcnn import FRCNN as FasterRCNN
-from vltk.processing.label import clean_imgid_default, label_default
+from vltk.processing.label import label_default
 
 
 # Visual Adatper
 class FRCNN(adapters.VisnExtraction):
 
-    default_processor = ProcessorConfig(
+    default_processor = VisionConfig(
         **{
             "transforms": ["FromFile", "ToTensor", "ResizeTensor", "Normalize"],
             "size": (800, 1333),
@@ -22,7 +22,6 @@ class FRCNN(adapters.VisnExtraction):
             "sdev": [1.0, 1.0, 1.0],
         }
     )
-    # model_config = compat.Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
     weights = "unc-nlp/frcnn-vg-finetuned"
     model = FasterRCNN
     model_config = compat.Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
@@ -148,13 +147,11 @@ if __name__ == "__main__":
     # superset datasets
     # define config for dataset
     config = DataConfig(
+        lang=LangConfig(tokenizer="BertWordPieceTokenizer"),
         # choose which dataset and dataset split for train and eval
-        train_datasets=[
-            ["vqa", "trainval"],
-        ],
+        train_datasets=[["vqa", "trainval"], ["gqa", "train"]],
         # eval_datasets=["gqa", "testdev"],
         # choose which tokenizer to use
-        tokenizer="BertWordPieceTokenizer",
         # choose which feature extractor to use
         extractor=None,
         datadir=datadir,
@@ -162,8 +159,8 @@ if __name__ == "__main__":
         eval_batch_size=2,
         img_first=True,
     )
-    # # use config to create dataset
-    train_loader, val_loader = init_datasets(config)
+
+    train_loader, val_loader = build(config)
     for x in train_loader:
         print(x)
         break

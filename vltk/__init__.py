@@ -10,13 +10,16 @@ ALL BOXES ARE EXPECTED TO GO IN: (X, Y, W, H) FORMAT
 # special deliminator
 delim = "^"
 # common keys across library
+n_objects = "objects"
+objects = "objects"
 type_ids = "type_ids"
 input_ids = "input_ids"
 text_attention_mask = "text_attention_mask"
 rawsize = "rawsize"
+padsize = "padsize"
 size = "size"
 polygons = "poly"
-points = "points"
+RLE = "RLE"
 segmentation = "segmentation"
 box = "box"
 imgid = "imgid"

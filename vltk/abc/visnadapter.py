@@ -24,6 +24,15 @@ class VisnDataset(Adapter):
     _meta_names = {"img_to_row_map", "object_frequencies"}
     _is_annotation = True
 
+    @staticmethod
+    def adjust_imgid(img_id, dataset_name=None):
+        """
+        Sometimes the image IDS provided in Vision datasets are repeated in different datasets. If that is the case, implementing
+        this optional function will adjust the image id in aims to appropriately mactch
+        the corresponging dataset try prepending the dataset name
+        """
+        return img_id
+
     @classmethod
     def filepath(cls, imgid, datadir, split):
         filename = cls.imgid_to_filename(imgid, split)
@@ -127,6 +136,12 @@ class VisnDataset(Adapter):
             """here"""
             # entry[vltk.imgid] = f"{name}{vltk.delim}{entry[vltk.imgid]}"
 
+            # vdset_name = next(iter(vision_dataset_name_and_split.keys()))
+            # vdset_split = next(iter(vision_dataset_name_and_split.values()))
+            entry[vltk.imgid] = VisnDataset.adjust_imgid(
+                entry[vltk.imgid],
+                name,
+            )
             img_id = entry[vltk.imgid]
             # for now, we will do a temporary fix
             if vltk.label in entry:

@@ -89,9 +89,12 @@ def seg_to_mask(segmentation, h, w):
 
 
 def resize_binary_mask(array, img_size, pad_size=None):
+    if not isinstance(array, torch.Tensor):
+        array = torch.from_numpy(array)
+
     img_size = (img_size[0], img_size[1])
     if array.shape != img_size:
-        array = FV.resize(array.unsqueeze(0), img_size).squeeze(0)
+        array = torch.as_tensor(FV.resize(array.unsqueeze(0), img_size).squeeze(0))
         return array
     else:
         return array

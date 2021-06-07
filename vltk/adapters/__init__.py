@@ -1,5 +1,4 @@
 import vltk
-from datasets import Dataset
 from vltk.abc.adapter import Adapter
 from vltk.abc.extraction import VisnExtraction
 from vltk.abc.visnadapter import VisnDataset

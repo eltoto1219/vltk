@@ -33,9 +33,10 @@ def get_size(obj):
     if not hasattr(obj, "transforms"):
         return None
     size = None
-    for t in obj.transforms:
+    for t in reversed(obj.transforms):
         if hasattr(t, "_size"):
             size = t._size
+            break
     return size
 
 
@@ -253,7 +254,7 @@ class Resize(transforms.Resize):
 
     def __call__(self, tensor):
         tensor = super().__call__(tensor)
-        self._size = tensor.shape[1:]
+        self._size = torch.tensor(list(tensor.shape[1:]))
         return tensor
 
 

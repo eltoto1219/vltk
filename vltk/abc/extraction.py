@@ -11,7 +11,7 @@ import vltk
 from datasets import ArrowWriter
 from tqdm import tqdm
 from vltk.abc.adapter import Adapter
-from vltk.configs import ProcessorConfig
+from vltk.configs import VisionConfig
 from vltk.inspection import collect_args_to_func
 from vltk.processing.image import get_rawsize, get_scale, get_size
 
@@ -90,7 +90,7 @@ class VisnExtraction(Adapter):
             processor = config.build()
         elif config is None:
             if default_processor is None:
-                processor_class = ProcessorConfig()
+                processor_class = VisionConfig()
                 processor = processor_class.build()
             else:
                 processor_class = default_processor

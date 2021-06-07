@@ -104,7 +104,7 @@ class LangDataset(BaseDataset):
 
         if vltk.label in x:
             label = x.pop(vltk.label)
-            if label != config.ignore_id:
+            if label != config.lang.ignore_id:
                 lids = []
                 for l in label:
                     lid = answer_to_id[l]

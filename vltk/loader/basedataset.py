@@ -2,10 +2,11 @@ import inspect
 import os
 import resource
 import sys
+from abc import ABCMeta
 
+from datasets import Dataset
 # disable logging from datasets
 from datasets.utils.logging import set_verbosity_error
-from torch.utils.data import Dataset
 from vltk.utils.adapters import Data
 
 # note if we do not immport a pacakage correctly in this class, no loops or exps will be present
@@ -173,17 +174,22 @@ class CollatedVisionSets:
         self.range2listpos = {}
         start = 0
         for i, a in enumerate(args):
+            if isinstance(a, ABCMeta):
+                continue
             self.range2listpos[range(start, len(a) + start)] = i
             start += len(a)
 
     # TODO: better solution for more datasets
     def get(self, img_id):
         for adapter in self.args:
+            # if not isinstance(adapter, Dataset):
             try:
                 return adapter.get(img_id)
-            except KeyError:
-                pass
-        raise Exception("image id not found in any  visndatasetadapter annotations")
+            except Exception:
+                continue
+        return {}
+
+        # raise Exception("image id not found in any  visndatasetadapter annotations")
 
     def __getitem__(self, x):
         if x >= len(self):
@@ -192,7 +198,7 @@ class CollatedVisionSets:
             if x in rng:
                 listpos = self.range2listpos[rng]
                 listind = x - rng.start
-                return self.args[listpos][listind]
+                return self.args[listpos][listind], self.args[listpos].__name__.lower()
 
     def __len__(self):
         return sum(map(lambda x: len(x), self.args))
@@ -218,3 +224,11 @@ class BaseDataset(Dataset):
             return self.config.eval_batch_size
         else:
             return self.config.train_batch_size
+
+    def _update_placeholders(self, entry):
+        raise NotImplementedError
+        # if self.all_same_keys:
+        #     return
+        # entry_keys =
+        # placeholders = self.placeholders
+        # entry_keys

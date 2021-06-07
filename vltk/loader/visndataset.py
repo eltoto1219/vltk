@@ -8,6 +8,7 @@ import sys
 import torch
 import vltk
 from datasets.utils.logging import set_verbosity_error
+from torch.nn.utils.rnn import pad_sequence
 # disable logging from datasets
 from vltk.loader.basedataset import BaseDataset, CollatedVisionSets
 from vltk.utils import base
@@ -37,7 +38,7 @@ _data_procecessors = Data()
 
 
 class VisionDataset(BaseDataset):
-    _supported = (vltk.polygons, vltk.size, vltk.area, vltk.box, vltk.points)
+    _supported = (vltk.polygons, vltk.size, vltk.area, vltk.box, vltk.RLE)
 
     def __init__(
         self,
@@ -46,10 +47,11 @@ class VisionDataset(BaseDataset):
         annotationdict=None,
         object_to_id=None,
         is_train=False,
+        all_same_keys=True,
     ):
         self.is_train = is_train
         # self.annotationdict = annotationdict
-        self._init_annotation_dict(annotationdict)
+        self._init_annotation_dict(config, annotationdict)
         self.config = config
         self._init_image_processor(config)
         self.visndatasetadapterdict = visndatasetadapterdict
@@ -63,6 +65,7 @@ class VisionDataset(BaseDataset):
                 self.n_imgs += len(imgids2files)
                 self.img_id_to_path.update(imgids2files)
         self.imgids = tuple(self.img_id_to_path.keys())
+        self.all_same_keys = all_same_keys
 
     @property
     def image(self):
@@ -79,8 +82,8 @@ class VisionDataset(BaseDataset):
             pass
         self.object_to_id = path_or_dict
 
-    def _init_annotation_dict(self, annotationdict):
-        if annotationdict is None:
+    def _init_annotation_dict(self, config, annotationdict):
+        if annotationdict is None or config.ignore_annotations:
             self._annotations = None
         else:
             annotations = list(annotationdict.values())
@@ -88,7 +91,7 @@ class VisionDataset(BaseDataset):
 
     def _init_image_processor(self, config):
         if config.extractor is None:
-            processor = config.image.build()
+            processor = config.visn.build()
             self._image = processor
             self._transforms = self._image.transforms
 
@@ -108,7 +111,10 @@ class VisionDataset(BaseDataset):
             img = torch.rand(feat_shape)
             entry[vltk.img] = img
         else:
-            entry[vltk.filepath] = filepath
+            if not self.config.ignore_filepath:
+                entry[vltk.filepath] = filepath
+            else:
+                entry.pop(vltk.filepath)
             entry[vltk.img] = self.image(filepath)
 
         entry[vltk.size] = get_size(self.image)
@@ -121,26 +127,43 @@ class VisionDataset(BaseDataset):
 
     def _handle_annotations(self, entry):
         img_id = entry[vltk.imgid]
-        skip_segmentation = True if vltk.size not in entry else False
+        skip_segmentation = (
+            True
+            if vltk.size not in entry and not self.config.ignore_segmentation
+            else False
+        )
         # get annotations for image
         entry.update(self.annotations.get(img_id))
         if skip_segmentation and vltk.polygons in entry:
             entry.pop(vltk.polygons)
-        if skip_segmentation and vltk.points in entry:
-            entry.pop(vltk.points)
+        if skip_segmentation and vltk.RLE in entry:
+            entry.pop(vltk.RLE)
         # TODO: need better solution for later, but now were dumping all string labels
         # into the object to id dictionary
         # add annotation labels to image
         if vltk.label in entry:
             word_labels = entry[vltk.label]
-            labels = torch.Tensor([self.object_to_id[l] for l in word_labels])
+            labels = torch.Tensor(self.answer_to_id[word_labels])
             entry[vltk.label] = labels
+        if vltk.objects in entry:
+            word_labels = entry[vltk.objects]
+            if len(word_labels) < self.config.max_objects:
+                n_objects = len(word_labels)
+                entry[vltk.n_objects] = torch.Tensor(n_objects)
+                word_labels += [""] * (self.config.max_objects - n_objects)
+            else:
+                word_labels = word_labels[: self.config.max_objects]
+            labels = torch.Tensor([self.object_to_id[l] for l in word_labels])
+            entry[vltk.objects] = labels
 
         # we go through user-defined annoations first
         for k, v in entry.items():
-            if k not in vltk.SUPPORTEDNAMES:
+            if k not in vltk.SUPPORTEDNAMES and k != vltk.objects:
                 # take care of lists of strings
-                prim = base.get_list_primitive(v)
+                try:
+                    prim = base.get_list_primitive(v)
+                except Exception:
+                    raise Exception(k, v)
                 if prim == str:
                     values = base.convertids_recursive(v, self.object_to_id)
                     entry[k] = values
@@ -154,40 +177,56 @@ class VisionDataset(BaseDataset):
                 size = entry[vltk.size]
                 if vltk.rawsize not in entry:
                     rawsize = size
-                entry[vltk.segmentation] = torch.tensor(
+                else:
+                    rawsize = entry[vltk.rawsize]
+                segs = torch.stack(
                     list(
                         map(
                             lambda x: resize_binary_mask(
                                 seg_to_mask(x, *rawsize), size
                             ),
-                            v,
+                            entry.pop(k),
                         ),
                     )
                 )
-                entry.pop(k)
-            elif k == vltk.points:
+
+                segs = segs[: min(len(segs), self.config.max_objects)]
+                segs = torch.nn.functional.pad(
+                    segs,
+                    (0, 0, 0, 0, 0, self.config.max_objects - len(segs)),
+                )
+                entry[vltk.segmentation] = segs
+            elif k == vltk.RLE and not skip_segmentation:
 
                 # s = time.time()
-                entry[vltk.segmentation] = torch.stack(
+                segs = torch.stack(
                     list(
                         map(
                             lambda x: resize_binary_mask(
                                 imagepoints_to_mask(x, entry[vltk.rawsize]),
                                 torch.as_tensor(entry[vltk.size]),
                             ),
-                            v,
+                            entry.pop(k),
                         )
                     )
                 )
-                # print(time.time() - s)
-                entry.pop(k)
-                # raise Exception(entry[vltk.img].shape)
+                segs = segs[: min(len(segs), self.config.max_objects)]
+                segs = torch.nn.functional.pad(
+                    segs,
+                    (0, 0, 0, 0, 0, self.config.max_objects - len(segs)),
+                )
+                entry[vltk.segmentation] = segs
 
             elif k == vltk.box:
                 values = torch.tensor(v)
-                # raise Exception(entry)
+                values = values[: min(len(values), self.config.max_objects)]
+
                 if vltk.scale in entry:
                     values = rescale_box(values, entry[vltk.scale])
+                values = torch.nn.functional.pad(
+                    values,
+                    (0, 0, 0, self.config.max_objects - len(values)),
+                )
                 entry[k] = values
 
         return entry
@@ -198,10 +237,14 @@ class VisionDataset(BaseDataset):
     @torch.no_grad()
     def __getitem__(self, i):
         if len(self.imgids) == len(self.annotations):
-            anno_dict = self.annotations[i]
+            anno_dict, anno_dataset = self.annotations[i]
         else:
             anno_dict = self.annotations.get(self.imgids[i])
         anno_dict = self._handle_image(anno_dict)
         if self.annotations is not None:
-            self._handle_annotations(anno_dict)
+            anno_dict = self._handle_annotations(anno_dict)
         return anno_dict
+        # if not self.all_same_keys:
+        #     return anno_dict
+        # else:
+        #     return {anno_dataset: anno_dict}

@@ -9,7 +9,7 @@ class Coco2014(adapters.VisnDataset):
         return {
             vltk.box: Features.Box,
             vltk.polygons: Features.Polygons,
-            vltk.label: Features.StringList,
+            vltk.objects: Features.StringList,
         }
 
     def forward(json_files, splits):
@@ -53,13 +53,13 @@ class Coco2014(adapters.VisnDataset):
                 img_data = total_annos.get(img_id, None)
                 if img_data is None:
                     img_entry = defaultdict(list)
-                    img_entry[vltk.label].append(category_id)
+                    img_entry[vltk.objects].append(category_id)
                     img_entry[vltk.box].append(bbox)
                     img_entry[vltk.polygons].append(seg_mask)
                     total_annos[img_id] = img_entry
                 else:
                     total_annos[img_id][vltk.box].append(bbox)
-                    total_annos[img_id][vltk.label].append(category_id)
+                    total_annos[img_id][vltk.objects].append(category_id)
                     total_annos[img_id][vltk.polygons].append(seg_mask)
 
         return [{vltk.imgid: img_id, **entry} for img_id, entry in total_annos.items()]

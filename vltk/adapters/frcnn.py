@@ -1,13 +1,13 @@
 import vltk
 from vltk import Features, adapters, compat
-from vltk.configs import ProcessorConfig
+from vltk.configs import VisionConfig
 from vltk.modeling.frcnn import FRCNN as FasterRCNN
 
 
 class FRCNN(adapters.VisnExtraction):
 
     # TODO: currently, this image preprocessing config is not correct
-    default_processor = ProcessorConfig(
+    default_processor = VisionConfig(
         **{
             "transforms": ["ToPILImage", "ToTensor", "ResizeTensor", "Normalize"],
             "size": (800, 1333),

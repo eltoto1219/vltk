@@ -6,7 +6,6 @@ from tqdm import tqdm
 from vltk import Features, adapters
 from vltk.adapters import Adapters
 from vltk.configs import DataConfig
-from vltk.utils.adapters import imagepoints_to_polygon
 
 collect = 1000
 
@@ -16,7 +15,7 @@ collect = 1000
 class CLEVRREF(adapters.VisnDataset):
     def schema():
         return {
-            vltk.points: Features.Points,
+            vltk.RLE: Features.RLE,
             "colors": Features.StringList,
             "shapes": Features.StringList,
             "sizes": Features.StringList,
@@ -60,7 +59,7 @@ class CLEVRREF(adapters.VisnDataset):
                     points.append(seg)
 
                 entries[imgid] = {
-                    vltk.points: points,
+                    vltk.RLE: points,
                     "colors": colors,
                     "shapes": shapes,
                     "materials": materials,

@@ -130,10 +130,10 @@ def load_vl(to_load, train_ds, eval_ds, config):
     loaded_train = defaultdict(dict)  # will be datasetk
     loaded_visndatasetadapters = defaultdict(dict)
     loaded_annotations = defaultdict(dict)
-    answer_to_id = {}
-    object_to_id = {}
-    answer_id = 0
-    object_id = 0
+    answer_to_id = {"": 0}
+    object_to_id = {"": 0}
+    answer_id = 1
+    object_id = 1
     for name in sorted(set(to_load.keys())):
         splits = split_handler(to_load[name])  # list looks like ['trainval', 'dev']
         for split in splits:
@@ -153,7 +153,7 @@ def load_vl(to_load, train_ds, eval_ds, config):
             is_name = is_name[0]
             is_split = is_split[0][0]
             # first check to see if we want annotations
-            if config.annotations and is_name not in loaded_annotations:
+            if not config.ignore_annotations and is_name not in loaded_annotations:
                 # function in visndatasetadapter that: given datadir + optional split + optional
                 # extractor feats + annotation bool will return
                 # the desired path
@@ -164,10 +164,16 @@ def load_vl(to_load, train_ds, eval_ds, config):
                     is_annotations = _adapters.get(is_name)
                 loaded_annotations[is_name] = is_annotations
 
-                for l in sorted(is_annotations.labels):
-                    if l not in object_to_id:
-                        object_to_id[l] = object_id
-                        object_id += 1
+                # try:
+                #     [l for l in is_annotations.labels]
+                # except Exception:
+                #     raise Exception(is_annotations, "here")
+
+                if not isinstance(is_annotations.labels, property):
+                    for l in sorted(is_annotations.labels):
+                        if l not in object_to_id:
+                            object_to_id[l] = object_id
+                            object_id += 1
             if (
                 is_name in loaded_visndatasetadapters[is_name]
                 and is_split in loaded_visndatasetadapters[is_name]

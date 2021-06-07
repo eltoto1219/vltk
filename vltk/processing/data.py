@@ -24,7 +24,7 @@ class Data:
 
 
 def one_hot_label(cur_entry, **kwargs):
-    config = kwargs.get("config")
+    config = kwargs.get("config").lang
 
     label = cur_entry.get(vltk.label, None)
     score = cur_entry.get(vltk.score, None)

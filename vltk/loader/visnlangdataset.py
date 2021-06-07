@@ -46,6 +46,7 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
         answer_to_id=None,
         object_to_id=None,
         is_train=False,
+        all_same_keys=True,
     ):
         # ======
         # checking/setting respective adatpers
@@ -88,34 +89,25 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
         # ======
         # set some other properties
         self.config = config
+        self.all_same_keys = all_same_keys
         self.is_train = is_train
         self.answer_to_id = answer_to_id
         self.object_to_id = object_to_id
         self.uniq_labels = set(answer_to_id.keys())
         splits = self._check_uniq_splits()
         self.splits = splits
+        self.placeholders = {}
         # ======
 
         # ======
         # do tokenizer stuff
-        self._init_tokenizer(config)
-
+        self._init_tokenizer(config.lang)
         # ======
 
         # ======
         # prepare image processing components borrowed from visndataset.py
-        self._init_annotation_dict(annotationdict)
+        self._init_annotation_dict(config, annotationdict)
         self._init_image_processor(config)
-        # self.object_to_id = object_to_id
-        # self.img_id_to_path = {}
-        # self.n_imgs = 0
-        # # later if we need
-        # self.idx_to_imgid = {}
-        # for imgsetsplits in list(visndatasetadapterdict.values()):
-        #     for imgids2files in imgsetsplits.values():
-        #         self.n_imgs += len(imgids2files)
-        #         self.img_id_to_path.update(imgids2files)
-        # self.imgids = tuple(self.img_id_to_path.keys())
         # ======
 
         """
@@ -347,9 +339,14 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
             anno_dict = self._handle_image(img_info_dict)
             if self.annotations is not None:
                 anno_dict.update(self.annotations.get(img_id))
-                self._handle_annotations(anno_dict)
+                anno_dict = self._handle_annotations(anno_dict)
+
             entry = {**text_info, **anno_dict}
             return entry
+            # if not self.all_same_keys:
+            #     return entry
+            # else:
+            #     return {visnset_name: entry}
         else:
             # lets allow this to be the default
             text_info, img_id = self._do_map_text_first(i)
@@ -377,5 +374,10 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
             if self.annotations is not None:
                 anno_dict.update(self.annotations.get(img_id))
                 self._handle_annotations(anno_dict)
+
             entry = {**text_info, **anno_dict}
             return entry
+            # if not self.all_same_keys:
+            #     return entry
+            # else:
+            #     return {langset_name: entry}
