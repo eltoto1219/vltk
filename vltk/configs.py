@@ -95,7 +95,8 @@ class FinetuneConfig(config.Config):
 
 
 class LangConfig(config.Config):
-    tokenizer = "BertWordPieceTokenizer"
+    vocab_file_or_name: Union[None, str] = None
+    tokenizer: Union[str, object] = "BertWordPieceTokenizer"
     word_mask_rate: float = 0.15  # these all belong to text preporcessors. change
     feature_mask_rate: float = 0.15
     random_feature_rate: float = 0.10
@@ -107,11 +108,15 @@ class LangConfig(config.Config):
     return_tensors: str = "pt"
     return_attention_mask: bool = True
     ignore_id: int = -100
-    sent_length: int = 20
+    max_seq_length: int = 36
+    max_visual_seq_length: int = 128
+    lowercase: bool = False
+    pad_direction: str = "right"
 
 
 class VisionConfig(config.Config):
     transforms: List = ["FromFile", "ToTensor", "Resize"]
+    grayscale: bool = False
     size: tuple = (256, 256)
 
     def __init__(self, **kwargs):

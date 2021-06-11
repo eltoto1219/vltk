@@ -33,10 +33,9 @@ def get_size(obj):
     if not hasattr(obj, "transforms"):
         return None
     size = None
-    for t in reversed(obj.transforms):
+    for t in obj.transforms:
         if hasattr(t, "_size"):
             size = t._size
-            break
     return size
 
 
@@ -51,13 +50,17 @@ def get_rawsize(obj):
 
 
 class FromFile(object):
-    def __init__(self, mode=None):
+    def __init__(self, mode=None, grayscale=False):
         self.mode = mode
+        self.grayscale = grayscale
         pass
 
     def __call__(self, filepath):
         if isinstance(filepath, str):
-            return PImage.open(filepath).convert("RGB")
+            if not self.grayscale:
+                return PImage.open(filepath).convert("RGB")
+            else:
+                return PImage.open(filepath).convert("L")
         else:
             img = FV.to_pil_image(filepath.byte(), self.mode).convert("RGB")
             return img
@@ -251,10 +254,24 @@ class ResizeTensor(object):
 
 class Resize(transforms.Resize):
     _size = None
+    _rawsize = None
+    _scale = None
+
+    def __scale(self):
+        if self._size is not None and self._rawsize is not None:
+            with torch.no_grad():
+                return torch.tensor(
+                    [self._size[0] / self._rawsize[0], self._size[1] / self._rawsize[1]]
+                )
+        else:
+            return None
 
     def __call__(self, tensor):
+        self._rawsize = torch.tensor(list(tensor.shape[1:]))
         tensor = super().__call__(tensor)
         self._size = torch.tensor(list(tensor.shape[1:]))
+        self._scale = self.__scale()
+
         return tensor
 
 

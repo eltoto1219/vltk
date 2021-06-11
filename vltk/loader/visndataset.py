@@ -4,6 +4,7 @@ import json
 import os
 import resource
 import sys
+from itertools import chain
 
 import torch
 import vltk
@@ -38,7 +39,18 @@ _data_procecessors = Data()
 
 
 class VisionDataset(BaseDataset):
-    _supported = (vltk.polygons, vltk.size, vltk.area, vltk.box, vltk.RLE)
+    _supported = (
+        vltk.text,
+        vltk.polygons,
+        vltk.size,
+        vltk.area,
+        vltk.box,
+        vltk.RLE,
+        vltk.tokenbox,
+    )
+    _padding = {vltk.box: [0, 0, 0, 0]}
+    _sep = {vltk.box: torch.tensor([[1000, 1000, 1000, 1000]])}
+    _cls = {vltk.box: torch.tensor([[0, 0, 0, 0]])}
 
     def __init__(
         self,
@@ -48,7 +60,12 @@ class VisionDataset(BaseDataset):
         object_to_id=None,
         is_train=False,
         all_same_keys=True,
+        tokenizer_in_visn_dataset=False,
     ):
+
+        self.tokenizer_in_visn_dataset = tokenizer_in_visn_dataset
+        if tokenizer_in_visn_dataset:
+            self._init_tokenizer(config)
         self.is_train = is_train
         # self.annotationdict = annotationdict
         self._init_annotation_dict(config, annotationdict)
@@ -125,7 +142,8 @@ class VisionDataset(BaseDataset):
             entry[vltk.scale] = get_scale(self.image)
         return entry
 
-    def _handle_annotations(self, entry):
+    @torch.no_grad()
+    def _handle_annotations(self, entry, replace_keys=None, extra_features=None):
         img_id = entry[vltk.imgid]
         skip_segmentation = (
             True
@@ -217,17 +235,106 @@ class VisionDataset(BaseDataset):
                 )
                 entry[vltk.segmentation] = segs
 
-            elif k == vltk.box:
+            elif k == vltk.box or k == vltk.tokenbox:
+                values = v
+                if k == vltk.box:
+                    values = values[: min(len(values), self.config.max_objects)]
+                else:
+                    values = values[
+                        : min(len(values), self.config.lang.max_visual_seq_length - 1)
+                    ]
                 values = torch.tensor(v)
-                values = values[: min(len(values), self.config.max_objects)]
 
                 if vltk.scale in entry:
                     values = rescale_box(values, entry[vltk.scale])
-                values = torch.nn.functional.pad(
-                    values,
-                    (0, 0, 0, self.config.max_objects - len(values)),
-                )
+                if k == vltk.tokenbox:
+                    values = torch.nn.functional.pad(
+                        values,
+                        (
+                            0,
+                            0,
+                            0,
+                            (self.config.lang.max_visual_seq_length - 1) - len(values),
+                        ),
+                    )
+                    values = torch.cat((values, self._sep[vltk.box]), dim=0)
+                else:
+                    values = torch.nn.functional.pad(
+                        values,
+                        (0, 0, 0, self.config.max_objects - len(values)),
+                    )
                 entry[k] = values
+            elif k == vltk.text:
+                if not self.from_transformers:
+                    self.disable_padding()
+                    text = list(
+                        map(
+                            lambda x: x.ids,
+                            self.tokenizer.encode_batch(
+                                entry.pop(k), add_special_tokens=False
+                            ),
+                        )
+                    )
+                    self.enable_padding()
+                else:
+                    text = self.tokenizer(
+                        entry.pop(k),
+                        add_special_tokens=False,
+                        return_attention_mask=False,
+                    )["input_ids"]
+                # I will always ensure tokenbox comes after entry
+                if extra_features is not None and vltk.span in extra_features:
+                    spans = [
+                        list(chain(*map(lambda x: [x[0]] * len(x[1]), zip(span, text))))
+                        for span in extra_features.pop(vltk.span)
+                    ]
+                    spans = torch.tensor(
+                        list(
+                            map(
+                                lambda x: x[
+                                    : min(
+                                        self.config.lang.max_visual_seq_length, len(x)
+                                    )
+                                ]
+                                + [0]
+                                * (
+                                    self.config.lang.max_visual_seq_length
+                                    - min(
+                                        self.config.lang.max_visual_seq_length, len(x)
+                                    )
+                                ),
+                                spans,
+                            )
+                        )
+                    )
+                    entry[vltk.span] = spans
+
+                if vltk.tokenbox in entry:
+                    entry[vltk.tokenbox] = list(
+                        chain(
+                            *map(
+                                lambda x: [x[0]] * len(x[1]),
+                                zip(entry.get(vltk.tokenbox), text),
+                            )
+                        )
+                    )
+
+                text = list(chain(*text))[
+                    : min(len(text), self.config.lang.max_visual_seq_length - 1)
+                ]
+                if not self.from_transformers:
+                    text += [self.tokenizer.token_to_id(self.tokenizer.sep_token)]
+                else:
+                    text += [
+                        self.tokenizer.convert_tokens_to_ids(self.tokenizer.sep_token)
+                    ]
+                text += [0] * (self.config.lang.max_visual_seq_length - len(text))
+                entry[k] = torch.tensor(text)
+
+        if replace_keys is not None:
+            for r in replace_keys:
+                if r in entry:
+                    entry[vltk.VLOVERLAP[r]] = entry[r]
 
         return entry
 

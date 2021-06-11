@@ -10,10 +10,12 @@ ALL BOXES ARE EXPECTED TO GO IN: (X, Y, W, H) FORMAT
 # special deliminator
 delim = "^"
 # common keys across library
-n_objects = "objects"
+span = "span"
+n_objects = "n_objects"
 objects = "objects"
 type_ids = "type_ids"
 input_ids = "input_ids"
+tokenbox = "tokenbox"
 text_attention_mask = "text_attention_mask"
 rawsize = "rawsize"
 padsize = "padsize"
@@ -27,8 +29,6 @@ label = "label"
 text = "text"
 score = "score"
 label = "label"
-text = "text"
-score = "score"
 img = "image"
 filepath = "filepath"
 features = "features"
@@ -37,6 +37,13 @@ scale = "scale"
 boxtensor = "boxtensor"
 area = "area"
 size = "size"
+qid = "qid"
+
+VLOVERLAP = {
+    text: "vtext",
+    label: "vlabel",
+    score: "vscore",
+}
 
 SUPPORTEDNAMES = {
     type_ids,

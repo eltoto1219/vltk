@@ -1,32 +1,42 @@
-# from vltk.compat import Config
-# from vltk.configs import Config
-# from vltk.loop.lxmert import Lxmert
+if __name__ == "__main__":
+    import inspect
+    import os
+    import sys
 
-# c = Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
-# print(c)
+    import tokenizers
+    import transformers
+    from transformers import RobertaTokenizerFast
 
-# EvalLxmert = Lxmert.eval_instance("eval_lxmert")
-# config = Config()
-# test = EvalLxmert(config=config, datasets="gqa", model_dict=None, extra_modules=None)
+    VOCABPATH = os.path.abspath(
+        os.path.join(os.path.dirname(__file__), "libdata/bert-base-uncased-vocab.txt")
+    ).replace("loader/", "")
 
-# print(dir(EvalLxmert))
-# print(EvalLxmert.is_train)
-# print(EvalLxmert.name)
+    TOKENIZERS = {
+        m[0]: m[1]
+        for m in inspect.getmembers(sys.modules["tokenizers"], inspect.isclass)
+        if "Tokenizer" in m[0]
+    }
+    # FAST = {
+    #     m[0]: m[1]
+    #     for m in inspect.getmembers(sys.modules["transformers"], inspect.isclass)
+    #     if "FastTokenizer" in m[0]
+    # }
 
+    bwpt = TOKENIZERS["ByteLevelBPETokenizer"](VOCABPATH)
+    # uspt = TOKENIZERS["SentencePieceUnigramTokenizer"]()
+    # bwpt.add_special_tokens(["[UNK]"])
 
-# from transformers import LxmertModel
+    sent = "Hello, World! my name is Antonio Mendoza. I was born in 01/12/2000. Don't underestimate VLTK"
+    # print(sent)
+    # encoding = bwpt.encode(sent)  # _batch(sent)
+    encoding = bwpt.encode(sent)
+    print(encoding)
 
-# import vltk.loop.data
-# from modeling.configs import Get
-# from vltk.decorators import get_duration
-# from vltk.visndatasetadapter.frcnn import FRCNNSet
-
-# lxmert = models.get_model("lxmertforquestionanswering")
-# config = Config().data
-# add_label_processsor("foo", lambda x: x)
-# VQAset.extract(config=config, split="trainval", label_processor="foo")
-
-# print(get_features("foo"))
-import vltk
-
-vltk.imgid
+    # print(dir(bwpt))
+    # print("ids")
+    # # print(encoding.ids)
+    # print([e.ids for e in encoding])
+    # print("offsets")
+    # print(encoding.offsets)
+    # print("tokens")
+    # print([bwpt.id_to_token(w) for w in encoding.ids])

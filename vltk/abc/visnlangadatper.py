@@ -25,8 +25,7 @@ class VisnLangDataset(Adapter):
     _base_features = {
         vltk.imgid: Features.String,
         vltk.text: Features.String,
-        vltk.label: Features.StringList,
-        vltk.score: ds.Sequence(length=-1, feature=ds.Value("float32")),
+        # vltk.score: ds.Sequence(length=-1, feature=ds.Value("float32")),
     }
     _meta_names = ["answer_frequencies", "img_to_row_map"]
     _batch_size = 1028
@@ -203,6 +202,7 @@ class VisnLangDataset(Adapter):
             # custom forward from user
             print("begin extraction")
 
+            kwargs["datadir"] = searchdir
             forward_dict = collect_args_to_func(cls.forward, kwargs=kwargs)
             batch_entries = cls.forward(text_data, split, **forward_dict)
 
@@ -220,7 +220,7 @@ class VisnLangDataset(Adapter):
                         b[vltk.imgid], vdset_name, vdset_split
                     )
 
-                    if not supervised or split == "test":
+                    if not supervised or split == "test" or vltk.label not in b:
                         b.pop(vltk.score, None)
                         b.pop(vltk.label, None)
                     else:

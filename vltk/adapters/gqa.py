@@ -15,7 +15,9 @@ class GQA(adapters.VisnLangDataset):
     }
 
     def schema():
-        return {}
+        return {
+            vltk.label: Features.StringList,
+        }
 
     def forward(json_files, split, min_label_frequency=2):
         skipped = 0

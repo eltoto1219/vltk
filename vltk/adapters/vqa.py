@@ -14,8 +14,8 @@ class VQA(adapters.VisnLangDataset):
     }
 
     def schema():
-        # img id, label, and score are assumed to be default features
-        return {"qid": Features.String}
+        # img id and score are assumed to be default features
+        return {vltk.qid: Features.String, vltk.label: Features.StringList}
 
     def adjust_imgid(imgid, vdset_name, vdset_split):
         # length of COCO ids are are always length 12

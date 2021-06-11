@@ -18,7 +18,9 @@ from vltk.utils.adapters import Data
 
 __import__("tokenizers")
 TOKENIZERS = {
-    m[0]: m[1] for m in inspect.getmembers(sys.modules["tokenizers"], inspect.isclass)
+    m[0]: m[1]
+    for m in inspect.getmembers(sys.modules["tokenizers"], inspect.isclass)
+    if "Tokenizer" in m[0]
 }
 
 rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
@@ -30,8 +32,6 @@ VOCABPATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "libdata/bert-base-uncased-vocab.txt")
 ).replace("loader/", "")
 TOKENIZEDKEY = "encoded"
-global TORCHCOLS
-TORCHCOLS = set()
 os.environ["TOKENIZERS_PARALLELISM"] = "False"
 
 _data_procecessors = Data()
@@ -50,21 +50,6 @@ class LangDataset(BaseDataset):
         VisionDataset + LangDataset while I perform this refactoring
         """
 
-    def _init_tokenizer(self, config):
-        try:
-            self.tokenizer = TOKENIZERS[config.tokenizer](VOCABPATH, lowercase=True)
-        except KeyError:
-            raise Exception(
-                f"{config.tokenizer} not available. Try one of: {TOKENIZERS.keys()}"
-            )
-        self.tokenizer.add_special_tokens(self.special_tokens)
-        self.tokenizer.enable_truncation(max_length=config.sent_length)
-        self.tokenizer.enable_padding(length=config.sent_length)
-        special_ids = set([self.tokenizer.token_to_id(t) for t in self.special_tokens])
-        self.special_ids = deepcopy(special_ids)
-        all_ids = tuple(i[1] for i in self.tokenizer.get_vocab().items())
-        self.all_ids = all_ids
-
     def update_labels(self, path_or_dict):
         if isinstance(path_or_dict, str):
             path_or_dict = json.load(open(path_or_dict))
@@ -73,7 +58,7 @@ class LangDataset(BaseDataset):
         self.answer_to_id = path_or_dict
         self.uniq_labels = set(path_or_dict.keys())
 
-    def processor_args(self):
+    def lang_processor_args(self):
         max_rand_sents = 1 if not self.config.img_first else 32
         return {
             "tokenizer": self.tokenizer,
@@ -86,7 +71,7 @@ class LangDataset(BaseDataset):
         }
 
     @staticmethod
-    def text_map_function(x, proc_args):
+    def text_map_function(x, proc_args, from_transformers=False):
         config = proc_args.get("config")
         tokenizer = proc_args.get("tokenizer")
         answer_to_id = proc_args.get("answer_to_id")
@@ -96,14 +81,27 @@ class LangDataset(BaseDataset):
                 proc_func = _data_procecessors.get("matched_sentence_modeling")
                 x = proc_func(x, **proc_args)
 
-        encoded = tokenizer.encode(x.pop(vltk.text))
-        x.pop(vltk.imgid, None)
-        x[vltk.text_attention_mask] = encoded.attention_mask
-        x[vltk.input_ids] = encoded.ids
-        x[vltk.type_ids] = encoded.type_ids
+        if not from_transformers:
+            encoded = tokenizer.encode(x.pop(vltk.text))
+            x.pop(vltk.imgid, None)
+            x[vltk.text_attention_mask] = encoded.attention_mask
+            x[vltk.input_ids] = encoded.ids
+            x[vltk.type_ids] = encoded.type_ids
+        else:
+            encoded = tokenizer(
+                x.pop(vltk.text),
+                padding="max_length",
+                truncation="longest_first",
+                max_length=proc_args["config"].lang.max_seq_length,
+                return_token_type_ids=True,
+            )
+            x[vltk.text_attention_mask] = encoded["attention_mask"]
+            x[vltk.input_ids] = encoded["input_ids"]
+            x[vltk.type_ids] = encoded["token_type_ids"]
 
         if vltk.label in x:
             label = x.pop(vltk.label)
+            raise Exception(label, answer_to_id)
             if label != config.lang.ignore_id:
                 lids = []
                 for l in label:
@@ -114,6 +112,8 @@ class LangDataset(BaseDataset):
         # now we do other text processors
         if text_processors is not None:
             for proc in text_processors:
+                if proc == "one_hot_label" and vltk.label not in x:
+                    continue
                 if proc == "matched_sentence_modeling":
                     continue
                 proc_func = _data_procecessors.get(proc)
@@ -123,12 +123,6 @@ class LangDataset(BaseDataset):
         if config.label_processor is not None:
             proc_func = _data_procecessors.get(config.label_processor)
             proc_func(x, **proc_args)
-
-        for k, v in x.items():
-            if isinstance(v, list) and not isinstance(v[0], str):
-                TORCHCOLS.add(k)
-        if vltk.label in x:
-            TORCHCOLS.add(vltk.label)
 
         return x
 
@@ -142,9 +136,11 @@ class LangDataset(BaseDataset):
         return rand_sent
 
     def _map(self, small_visnlangdatasetadapter):
-        proc_args = self.processor_args()
+        proc_args = self.lang_processor_args()
         return small_visnlangdatasetadapter.map(
-            lambda x: LangDataset.text_map_function(x, proc_args=proc_args)
+            lambda x: LangDataset.text_map_function(
+                x, proc_args=proc_args, from_transformers=self.from_transformers
+            )
         )
 
     def _handle_text_annotations(self, img_id):

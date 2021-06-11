@@ -2,7 +2,7 @@ import json
 import os
 import pickle
 from abc import abstractmethod
-from collections import Counter
+from collections import Counter, OrderedDict
 
 import datasets as ds
 import pyarrow
@@ -21,7 +21,7 @@ class VisnDataset(Adapter):
     _base_features = {
         vltk.imgid: ds.Value("string"),
     }
-    _meta_names = {"img_to_row_map", "object_frequencies"}
+    _meta_names = {"img_to_row_map", "object_frequencies", "vocab"}
     _is_annotation = True
 
     @staticmethod
@@ -98,20 +98,24 @@ class VisnDataset(Adapter):
                 continue
             if "caption" not in str(anno_file) and "question" not in str(anno_file):
                 anno_data = json.load(open(str(anno_file)))
-                json_files[str(anno_file)] = anno_data
+                json_files[str(anno_file).split("/")[-1]] = anno_data
 
         forward_dict = collect_args_to_func(cls.forward, kwargs=kwargs)
         total_annos = cls.forward(json_files, temp_splits, **forward_dict)
 
         # now write
         print("writing to Datasets/Arrow object")
-        writer, buffer, imgid2row, object_dict = cls._write_batches(
+        writer, buffer, imgid2row, object_dict, extra_vocab = cls._write_batches(
             total_annos, feature_dict, cls._batch_size, cls.__name__.lower()
         )
         if savedir is None:
             savedir = searchdir
 
-        extra_meta = {"img_to_row_map": imgid2row, "object_frequencies": object_dict}
+        extra_meta = {
+            "img_to_row_map": imgid2row,
+            "object_frequencies": object_dict,
+            "vocab": extra_vocab,
+        }
         (table, meta_dict) = cls._write_data(writer, buffer, savedir, extra_meta)
         if table is None:
             return None
@@ -122,7 +126,8 @@ class VisnDataset(Adapter):
         # name refers to the dataset (class) name
         object_dict = Counter()
         features = ds.Features(feature_dict)
-        imgid2row = {}
+        imgid2row = OrderedDict()
+        extra_vocab = set()
         cur_size = 0
         cur_row = 0
         buffer = pyarrow.BufferOutputStream()
@@ -143,6 +148,8 @@ class VisnDataset(Adapter):
                 name,
             )
             img_id = entry[vltk.imgid]
+            if vltk.text in entry:
+                extra_vocab.update(entry[vltk.text])
             # for now, we will do a temporary fix
             if vltk.label in entry:
                 object_dict.update(entry[vltk.label])
@@ -173,7 +180,7 @@ class VisnDataset(Adapter):
                 batch = features.encode_batch(cur_batch)
                 writer.write_batch(batch)
 
-        return writer, buffer, imgid2row, object_dict
+        return writer, buffer, imgid2row, object_dict, extra_vocab
 
     @property
     def labels(self):
@@ -228,6 +235,13 @@ class VisnDataset(Adapter):
     @abstractmethod
     def schema(*args, **kwargs):
         return dict
+
+    @property
+    def vocab(self):
+        if hasattr(self, "_vocab"):
+            return set(self._vocab.decode().split("\n"))
+        else:
+            return None
 
     # @abstractmethod
     # def imgid_to_filename(imgid, split):

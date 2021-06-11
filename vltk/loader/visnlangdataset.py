@@ -47,6 +47,8 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
         object_to_id=None,
         is_train=False,
         all_same_keys=True,
+        tokenizer_in_visn_dataset=False,
+        replace_keys=None,
     ):
         # ======
         # checking/setting respective adatpers
@@ -61,6 +63,8 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
             shrink_lang,
             shrink_vision,
         )
+        self.tokenizer_in_visn_dataset = tokenizer_in_visn_dataset
+
         self.visnlangdatasetadapterdict = visnlangdatasetadapterdict
         self.visndatasetadapterdict = visndatasetadapterdict
         self.vl_idx_organizer = SplitRangesVL(visnlangdatasetadapterdict)
@@ -89,6 +93,7 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
         # ======
         # set some other properties
         self.config = config
+        self.replace_keys = replace_keys
         self.all_same_keys = all_same_keys
         self.is_train = is_train
         self.answer_to_id = answer_to_id
@@ -212,11 +217,15 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
     def _do_map_img_first(self, i):
         img_id = self.uniq_imgs[i]
         text_info = self.datasets.get(img_id, return_dataset=True)
-        proc_args = self.processor_args()
+        proc_args = self.lang_processor_args()
         text_info = text_info.map(
-            lambda x: VisionLanguageDataset.text_map_function(x, proc_args=proc_args)
+            lambda x: VisionLanguageDataset.text_map_function(
+                x, proc_args=proc_args, from_transformers=self.from_transformers
+            )
         )[:]
         for name, item in text_info.items():
+            if name == vltk.span:
+                continue
             try:
                 text_info[name] = torch.tensor(item)
             except Exception:
@@ -227,9 +236,13 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
     def _do_map_text_first(self, i):
         entry = self.datasets[i]
         img_id = entry[vltk.imgid]
-        proc_args = self.processor_args()
-        text_info = self.text_map_function(entry, proc_args)
+        proc_args = self.lang_processor_args()
+        text_info = self.text_map_function(
+            entry, proc_args, from_transformers=self.from_transformers
+        )
         for name, item in text_info.items():
+            if name == vltk.span:
+                continue
             try:
                 text_info[name] = torch.tensor(item)
             except Exception:
@@ -339,14 +352,18 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
             anno_dict = self._handle_image(img_info_dict)
             if self.annotations is not None:
                 anno_dict.update(self.annotations.get(img_id))
-                anno_dict = self._handle_annotations(anno_dict)
+                extra_features = None
+                if vltk.span in text_info:
+                    extra_features = {vltk.span: text_info.pop(vltk.span)}
+                anno_dict = self._handle_annotations(
+                    anno_dict,
+                    replace_keys=self.replace_keys,
+                    extra_features=extra_features,
+                )
 
             entry = {**text_info, **anno_dict}
             return entry
-            # if not self.all_same_keys:
-            #     return entry
-            # else:
-            #     return {visnset_name: entry}
+
         else:
             # lets allow this to be the default
             text_info, img_id = self._do_map_text_first(i)
@@ -373,11 +390,15 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
             anno_dict = self._handle_image(img_info_dict)
             if self.annotations is not None:
                 anno_dict.update(self.annotations.get(img_id))
-                self._handle_annotations(anno_dict)
+                extra_features = None
+                if vltk.span in text_info:
+                    extra_features = {vltk.span: text_info.pop(vltk.span)}
+
+                self._handle_annotations(
+                    anno_dict,
+                    extra_features=extra_features,
+                    replace_keys=self.replace_keys,
+                )
 
             entry = {**text_info, **anno_dict}
             return entry
-            # if not self.all_same_keys:
-            #     return entry
-            # else:
-            #     return {langset_name: entry}

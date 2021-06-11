@@ -3,6 +3,7 @@ import os
 import resource
 import sys
 from abc import ABCMeta
+from copy import deepcopy
 
 from datasets import Dataset
 # disable logging from datasets
@@ -208,6 +209,62 @@ class CollatedVisionSets:
 
 
 class BaseDataset(Dataset):
+    def _init_tokenizer(self, config):
+        from_transformers = True
+        if isinstance(config.tokenizer, str):
+            try:
+                self.tokenizer = TOKENIZERS[config.tokenizer](
+                    VOCABPATH
+                    if config.vocab_file_or_name is None
+                    else config.vocab_file_or_name,
+                    lowercase=config.lowercase,
+                )
+                self.tokenizer.add_special_tokens(self.special_tokens)
+                self.tokenizer.enable_truncation(max_length=config.max_seq_length)
+                self.tokenizer.enable_padding(length=config.max_seq_length)
+                special_ids = set(
+                    [self.tokenizer.token_to_id(t) for t in self.special_tokens]
+                )
+                self.special_ids = deepcopy(special_ids)
+            except KeyError:
+                raise Exception(
+                    f"{config.tokenizer} not available. Try one of: {TOKENIZERS.keys()}.\
+                            OR pass a Tokenizer class from transformers"
+                )
+            from_transformers = False
+        else:
+            self.tokenizer = config.tokenizer.from_pretrained(
+                VOCABPATH
+                if config.vocab_file_or_name is None
+                else config.vocab_file_or_name
+            )
+            self.special_ids = set(
+                [
+                    self.tokenizer.bos_token,
+                    self.tokenizer.eos_token,
+                    self.tokenizer.unk_token,
+                    self.tokenizer.sep_token,
+                    self.tokenizer.pad_token,
+                    self.tokenizer.cls_token,
+                    self.tokenizer.mask_token,
+                ]
+            )
+        self.from_transformers = from_transformers
+
+        all_ids = tuple(i[1] for i in self.tokenizer.get_vocab().items())
+        self.all_ids = all_ids
+
+    def enable_padding(self):
+        self.tokenizer.enable_padding(
+            length=self.config.lang.max_seq_length,
+            direction=self.config.lang.pad_direction,
+            pad_id=self.tokenizer.token_to_id("[PAD]"),
+        )
+
+    def disable_padding(self):
+        self.tokenizer.no_padding()
+        pass
+
     @property
     def special_tokens(self):
         return [

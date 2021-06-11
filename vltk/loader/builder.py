@@ -79,6 +79,10 @@ def init_datasets(config):
     # loaders = sorted(loaders, key=lambda x: x[0], reverse=True)
     train_loader = train_loader if train_loader is not None else None
     eval_loader = eval_loader if eval_loader is not None else None
+    if train_loader is not None and hasattr(train_loader.dataset, "tokenizer"):
+        train_loader.tokenizer = train_loader.dataset.tokenizer
+    if eval_loader is not None and hasattr(eval_loader.dataset, "tokenizer"):
+        eval_loader.tokenizer = eval_loader.dataset.tokenizer
 
     return train_loader, eval_loader
 

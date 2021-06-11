@@ -228,6 +228,11 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
         pa_table = f.read_all()
         meta_dict = {}
         for n in meta_names:
+            if (
+                n.encode("utf-8") == "vocab"
+                and n not in pa_table.schema.meta_names.key()
+            ):
+                continue
             assert (
                 n.encode("utf-8") in pa_table.schema.metadata.keys()
             ), f"""

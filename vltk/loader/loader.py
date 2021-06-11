@@ -89,8 +89,10 @@ def check_all_keys_same(config, visnlangdict=None, visndict=None, annodict=None)
     visn_keys_same = True
     visnlang_keys_same = True
     anno_keys_same = True
+    tokenizer_in_visn_dataset = False
     visnlang_cols = set()
     visn_cols = set()
+    anno_cols = set()
     if visnlangdict is not None:
         for dset in visnlangdict:
             for split in visnlangdict[dset]:
@@ -122,7 +124,6 @@ def check_all_keys_same(config, visnlangdict=None, visndict=None, annodict=None)
                 continue
     if annodict is not None and not config.ignore_annotations:
         # TODO: check the case where segmentation things are different
-        anno_cols = set()
         for adapter in annodict.values():
             if not anno_cols:
                 # not so simple here, I must check that if there exists a difference, that the difference
@@ -136,6 +137,9 @@ def check_all_keys_same(config, visnlangdict=None, visndict=None, annodict=None)
                 adapter_cols = set(adapter.column_names)
             except Exception:
                 adapter_cols = set()
+
+            if vltk.text in adapter_cols:
+                tokenizer_in_visn_dataset = True
             if anno_cols != adapter_cols:
                 remaining_anno_cols = anno_cols - adapter_cols
                 remaining_adapter_cols = adapter_cols - anno_cols
@@ -144,6 +148,9 @@ def check_all_keys_same(config, visnlangdict=None, visndict=None, annodict=None)
                     continue
                 anno_keys_same = False
                 anno_cols = visnlang_cols.union(adapter.column_names)
+            replace_keys = anno_cols.intersection(visnlang_cols)
+            replace_keys.remove(vltk.imgid)
+            anno_cols = anno_cols.union(set(map(lambda x: "v" + x, replace_keys)))
         if vltk.polygons in anno_cols or vltk.RLE in anno_cols:
             try:
                 anno_cols.remove(vltk.polygons)
@@ -166,7 +173,7 @@ def check_all_keys_same(config, visnlangdict=None, visndict=None, annodict=None)
                                 use a combination of the dataset names as keys which will point to their respective\
                                 batch dictionaries."
         )
-    return all_same_keys, max_spanning_cols
+    return all_same_keys, max_spanning_cols, tokenizer_in_visn_dataset, replace_keys
 
 
 class VisionLanguageLoader(DataLoader):
@@ -183,11 +190,18 @@ class VisionLanguageLoader(DataLoader):
         visnlangdict = kwargs.get("visnlangdatasetadapterdict", None)
         annodict = kwargs.get("annotationdict", None)
         visndict = kwargs.get("visndatasetadapterdict", None)
-        all_same_keys, max_spanning_cols = check_all_keys_same(
-            config, visnlangdict, visndict, annodict
-        )
+        (
+            all_same_keys,
+            max_spanning_cols,
+            tokenizer_in_visn_dataset,
+            replace_keys,
+        ) = check_all_keys_same(config, visnlangdict, visndict, annodict)
         dataset = VisionLanguageDataset(
-            config=config, is_train=is_train, all_same_keys=all_same_keys, **kwargs
+            config=config,
+            is_train=is_train,
+            all_same_keys=all_same_keys,
+            tokenizer_in_visn_dataset=tokenizer_in_visn_dataset,
+            **kwargs,
         )
         # init loader
         super().__init__(
@@ -220,11 +234,18 @@ class VisionLoader(DataLoader):
         visnlangdict = kwargs.get("visnlangdatasetadapterdict", None)
         annodict = kwargs.get("annotationdict", None)
         visndict = kwargs.get("visndatasetadapterdict", None)
-        all_same_keys, max_spanning_cols = check_all_keys_same(
-            config, visnlangdict, visndict, annodict
-        )
+
+        (
+            all_same_keys,
+            max_spanning_cols,
+            tokenizer_in_visn_dataset,
+        ) = check_all_keys_same(config, visnlangdict, visndict, annodict)
         dataset = VisionDataset(
-            config=config, is_train=is_train, all_same_keys=all_same_keys, **kwargs
+            config=config,
+            is_train=is_train,
+            all_same_keys=all_same_keys,
+            tokenizer_in_visn_dataset=tokenizer_in_visn_dataset,
+            **kwargs,
         )
 
         # init loader

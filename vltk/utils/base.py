@@ -77,6 +77,8 @@ def set_metadata(tbl, tbl_meta={}):
     for k, v in tbl_meta.items():
         if isinstance(v, dict):
             tbl_metadata[k] = json.dumps(v).encode("utf-8")
+        elif isinstance(v, set):
+            tbl_metadata[k] = "\n".join(v).encode("utf-8")
         else:
             tbl_metadata[k] = str(v).encode("utf-8")
 
