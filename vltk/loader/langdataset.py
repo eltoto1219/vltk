@@ -7,14 +7,13 @@ import random
 import resource
 import sys
 from collections import Iterable
-from copy import deepcopy
 
 import torch
 import vltk
 # disable logging from datasets
 from datasets.utils.logging import set_verbosity_error
 from vltk.loader.basedataset import BaseDataset, CollatedVLSets
-from vltk.utils.adapters import Data
+from vltk.processing import Processors
 
 __import__("tokenizers")
 TOKENIZERS = {
@@ -33,8 +32,6 @@ VOCABPATH = os.path.abspath(
 ).replace("loader/", "")
 TOKENIZEDKEY = "encoded"
 os.environ["TOKENIZERS_PARALLELISM"] = "False"
-
-_data_procecessors = Data()
 
 
 class LangDataset(BaseDataset):
@@ -78,7 +75,7 @@ class LangDataset(BaseDataset):
         text_processors = config.text_processors
         if text_processors is not None:
             if "matched_sentence_modeling" in text_processors:
-                proc_func = _data_procecessors.get("matched_sentence_modeling")
+                proc_func = Processors().get("matched_sentence_modeling")()
                 x = proc_func(x, **proc_args)
 
         if not from_transformers:
@@ -116,13 +113,8 @@ class LangDataset(BaseDataset):
                     continue
                 if proc == "matched_sentence_modeling":
                     continue
-                proc_func = _data_procecessors.get(proc)
+                proc_func = Processors.get(proc)()
                 proc_func(x, **proc_args)
-
-        # now we do label proccesor
-        if config.label_processor is not None:
-            proc_func = _data_procecessors.get(config.label_processor)
-            proc_func(x, **proc_args)
 
         return x
 

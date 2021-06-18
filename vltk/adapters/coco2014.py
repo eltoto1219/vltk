@@ -16,7 +16,6 @@ class Coco2014(adapters.VisnDataset):
 
         total_annos = {}
         id_to_cat = {}
-        id_to_size = {}
         file_to_id_to_stem = defaultdict(dict)
         for file, json in json_files.items():
             if "instance" not in file:
@@ -24,10 +23,6 @@ class Coco2014(adapters.VisnDataset):
             info = json["images"]
             for i in info:
                 img_id = i["file_name"].split(".")[0]
-                id_to_size[img_id] = [
-                    i["height"],
-                    i["width"],
-                ]
                 file_to_id_to_stem[file][i["id"]] = img_id
         for file, json in json_files.items():
             if "instance" not in file:

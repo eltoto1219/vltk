@@ -14,10 +14,7 @@ from tqdm import tqdm
 from vltk import Features
 from vltk.abc.adapter import Adapter
 from vltk.inspection import collect_args_to_func
-from vltk.processing.label import Label
 from vltk.utils import base as utils
-
-_labelproc = Label()
 
 
 class VisnLangDataset(Adapter):
@@ -129,12 +126,6 @@ class VisnLangDataset(Adapter):
                 assert config is not None
                 min_label_frequency = config.min_label_frequency
             kwargs["min_label_frequency"] = min_label_frequency
-            if label_preprocessor is None:
-                assert config is not None
-                label_preprocessor = config.label_preprocessor
-            if not callable(label_preprocessor):
-                assert isinstance(label_preprocessor, str), type(label_preprocessor)
-                label_preprocessor = _labelproc.get(label_preprocessor)
 
         if splits is None:
             splits = vltk.SPLITALIASES

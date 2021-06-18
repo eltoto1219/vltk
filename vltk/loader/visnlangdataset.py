@@ -14,7 +14,6 @@ from vltk.loader.basedataset import (CollatedVLSets, SplitRangesVision,
                                      SplitRangesVL)
 from vltk.loader.langdataset import LangDataset
 from vltk.loader.visndataset import VisionDataset
-from vltk.utils.adapters import Data
 
 __import__("tokenizers")
 TOKENIZERS = {
@@ -31,8 +30,6 @@ VOCABPATH = os.path.abspath(
 ).replace("loader/", "")
 TOKENIZEDKEY = "encoded"
 os.environ["TOKENIZERS_PARALLELISM"] = "False"
-
-_data_procecessors = Data()
 
 
 # TODO

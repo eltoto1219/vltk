@@ -150,15 +150,15 @@ class VisionConfig(config.Config):
 
 class DataConfig(config.Config):
     objects_file: Union[str, None] = None
-    text_processors: Union[None, List[str], str] = ["one_hot_label"]
+    processors: Union[None, List[str]] = None
     visn: Union[config.Config] = None
     lang: Union[config.Config] = None
-    label_processor: Union[None, str] = "one_hot_label"
     labels: Union[None, str] = None
     eval_datasets = None
     train_datasets = None
-    rand_feats: Union[None, tuple] = None
+    rand_feats: Union[None, tuple] = None  # if tuple, tuple represents shape
     eval_batch_size = 32
+    add_cls_to_box = False
     train_batch_size = 64
     extractor: Union[None, str] = None
     datadir: str = "/playpen1/home/avmendoz/data"
@@ -181,7 +181,6 @@ class DataConfig(config.Config):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.text_processors = Config.handle_iterables(self.text_processors)
         visn = kwargs.get("visn", {})
         lang = kwargs.get("lang", {})
         if isinstance(visn, VisionConfig):

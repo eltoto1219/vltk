@@ -149,7 +149,8 @@ def check_all_keys_same(config, visnlangdict=None, visndict=None, annodict=None)
                 anno_keys_same = False
                 anno_cols = visnlang_cols.union(adapter.column_names)
             replace_keys = anno_cols.intersection(visnlang_cols)
-            replace_keys.remove(vltk.imgid)
+            if vltk.imgid in replace_keys:
+                replace_keys.remove(vltk.imgid)
             anno_cols = anno_cols.union(set(map(lambda x: "v" + x, replace_keys)))
         if vltk.polygons in anno_cols or vltk.RLE in anno_cols:
             try:
@@ -164,7 +165,9 @@ def check_all_keys_same(config, visnlangdict=None, visndict=None, annodict=None)
                 anno_cols.add(vltk.segmentation)
 
     max_spanning_cols = visnlang_cols.union(visn_cols).union(anno_cols)
-    print(f"Max spanning column names for each batch: {max_spanning_cols}")
+    print(
+        f"Max spanning column names for each batch: {max_spanning_cols} (not including extra columns/features from processors)"
+    )
     # here we will add all the feature names that could be added while we process each example
     all_same_keys = visnlang_keys_same and visn_keys_same and anno_keys_same
     if not all_same_keys and not config.collate_simple:
@@ -239,6 +242,7 @@ class VisionLoader(DataLoader):
             all_same_keys,
             max_spanning_cols,
             tokenizer_in_visn_dataset,
+            replace_keys,
         ) = check_all_keys_same(config, visnlangdict, visndict, annodict)
         dataset = VisionDataset(
             config=config,

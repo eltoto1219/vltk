@@ -9,11 +9,11 @@ from itertools import chain
 import torch
 import vltk
 from datasets.utils.logging import set_verbosity_error
-from torch.nn.utils.rnn import pad_sequence
 # disable logging from datasets
 from vltk.loader.basedataset import BaseDataset, CollatedVisionSets
+from vltk.processing import Processors, VisnProccessor
 from vltk.utils import base
-from vltk.utils.adapters import (Data, get_rawsize, get_scale, get_size,
+from vltk.utils.adapters import (get_rawsize, get_scale, get_size,
                                  imagepoints_to_mask, rescale_box,
                                  resize_binary_mask, seg_to_mask)
 
@@ -35,8 +35,6 @@ global TORCHCOLS
 TORCHCOLS = set()
 os.environ["TOKENIZERS_PARALLELISM"] = "False"
 
-_data_procecessors = Data()
-
 
 class VisionDataset(BaseDataset):
     _supported = (
@@ -49,7 +47,7 @@ class VisionDataset(BaseDataset):
         vltk.tokenbox,
     )
     _padding = {vltk.box: [0, 0, 0, 0]}
-    _sep = {vltk.box: torch.tensor([[1000, 1000, 1000, 1000]])}
+    _sep = {vltk.box: torch.tensor([[0, 0, 0, 0]])}
     _cls = {vltk.box: torch.tensor([[0, 0, 0, 0]])}
 
     def __init__(
@@ -71,6 +69,8 @@ class VisionDataset(BaseDataset):
         self._init_annotation_dict(config, annotationdict)
         self.config = config
         self._init_image_processor(config)
+        self._init_vision_processors(config)
+        self._init_box_cls_token(config)
         self.visndatasetadapterdict = visndatasetadapterdict
         self.object_to_id = object_to_id
         self.img_id_to_path = {}
@@ -98,6 +98,34 @@ class VisionDataset(BaseDataset):
         else:
             pass
         self.object_to_id = path_or_dict
+
+    def _init_box_cls_token(self, config):
+        size = self.config.visn.size
+        if isinstance(size, tuple):
+            cls_box = [size[0], size[1], 0, 0]
+        else:
+            cls_box = [size, size, 0, 0]
+        self._cls_box = cls_box
+
+    @torch.no_grad()
+    def cls_box(self):
+        return torch.tensor([self._cls_box])
+
+    def _init_vision_processors(self, config):
+        vision_processors = config.processors if config.processors is not None else []
+
+        self.vision_processors = [
+            x() if x.__bases__[0] == VisnProccessor else Processors().get(x)()
+            for x in vision_processors
+        ]
+        self.vision_processor_keys = ()
+        for x in self.vision_processors:
+            self.vision_processor_keys += x.keys
+
+    def run_vision_processors(self, entry):
+        for processor in self.vision_processors:
+            entry = processor(entry, config=self.config)
+        return entry
 
     def _init_annotation_dict(self, config, annotationdict):
         if annotationdict is None or config.ignore_annotations:
@@ -147,7 +175,8 @@ class VisionDataset(BaseDataset):
         img_id = entry[vltk.imgid]
         skip_segmentation = (
             True
-            if vltk.size not in entry and not self.config.ignore_segmentation
+            if (vltk.size not in entry or self.config.ignore_segmentation)
+            or not self.config.add_cls_to_box
             else False
         )
         # get annotations for image
@@ -159,24 +188,28 @@ class VisionDataset(BaseDataset):
         # TODO: need better solution for later, but now were dumping all string labels
         # into the object to id dictionary
         # add annotation labels to image
-        if vltk.label in entry:
+        if vltk.label in entry and not isinstance(entry[vltk.label], torch.Tensor):
             word_labels = entry[vltk.label]
             labels = torch.Tensor(self.answer_to_id[word_labels])
             entry[vltk.label] = labels
-        if vltk.objects in entry:
+        if vltk.objects in entry and not isinstance(entry[vltk.objects], torch.Tensor):
             word_labels = entry[vltk.objects]
-            if len(word_labels) < self.config.max_objects:
-                n_objects = len(word_labels)
-                entry[vltk.n_objects] = torch.Tensor(n_objects)
-                word_labels += [""] * (self.config.max_objects - n_objects)
-            else:
-                word_labels = word_labels[: self.config.max_objects]
+            n_objects = len(word_labels)
+            entry[vltk.n_objects] = torch.tensor(n_objects)
+            if n_objects == self.config.max_objects and self.config.add_cls_to_box:
+                word_labels[-1] = ""
+            word_labels += [""] * max(0, (self.config.max_objects - n_objects))
             labels = torch.Tensor([self.object_to_id[l] for l in word_labels])
             entry[vltk.objects] = labels
 
-        # we go through user-defined annoations first
+        # go through annotations not in processors or supported
         for k, v in entry.items():
-            if k not in vltk.SUPPORTEDNAMES and k != vltk.objects:
+            if (
+                k not in (vltk.objects, vltk.n_objects)
+                and not isinstance(v, torch.Tensor)
+                and k not in self.vision_processor_keys
+                and k not in vltk.SUPPORTEDNAMES
+            ):
                 # take care of lists of strings
                 try:
                     prim = base.get_list_primitive(v)
@@ -186,9 +219,12 @@ class VisionDataset(BaseDataset):
                     values = base.convertids_recursive(v, self.object_to_id)
                     entry[k] = values
 
+        # run vision processors
+        entry = self.run_vision_processors(entry)
+
         # only loop through annotations processed by vltk
         for k in self._supported:
-            if k not in entry:
+            if k not in entry or isinstance(entry[k], torch.Tensor):
                 continue
             v = entry[k]
             if k == vltk.polygons and not skip_segmentation:
@@ -238,7 +274,10 @@ class VisionDataset(BaseDataset):
             elif k == vltk.box or k == vltk.tokenbox:
                 values = v
                 if k == vltk.box:
-                    values = values[: min(len(values), self.config.max_objects)]
+                    if self.config.add_cls_to_box:
+                        values = values[: min(len(values), self.config.max_objects)]
+                    else:
+                        values = values[: min(len(values), self.config.max_objects - 1)]
                 else:
                     values = values[
                         : min(len(values), self.config.lang.max_visual_seq_length - 1)
@@ -259,6 +298,9 @@ class VisionDataset(BaseDataset):
                     )
                     values = torch.cat((values, self._sep[vltk.box]), dim=0)
                 else:
+                    if self.config.add_cls_to_box:
+                        values = torch.cat((values, self.cls_box()), dim=0)
+
                     values = torch.nn.functional.pad(
                         values,
                         (0, 0, 0, self.config.max_objects - len(values)),

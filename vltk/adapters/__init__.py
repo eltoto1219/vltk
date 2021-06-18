@@ -1,3 +1,8 @@
+import inspect
+import os
+import sys
+
+import __main__
 import vltk
 from vltk.abc.adapter import Adapter
 from vltk.abc.extraction import VisnExtraction

@@ -225,8 +225,8 @@ def load_v(to_load, train_ds, eval_ds, config):
     loaded_eval = defaultdict(dict)  # will be datasetk
     loaded_train = defaultdict(dict)  # will be datasetk
     loaded_annotations = defaultdict(dict)
-    object_to_id = {}
-    object_id = 0
+    object_to_id = {"": 0}
+    object_id = 1
     for name in sorted(set(to_load.keys())):
         splits = split_handler(to_load[name])  # list looks like ['trainval', 'dev']
         annotations = _adapters.get(name).load(config.datadir)

@@ -8,7 +8,6 @@ from copy import deepcopy
 from datasets import Dataset
 # disable logging from datasets
 from datasets.utils.logging import set_verbosity_error
-from vltk.utils.adapters import Data
 
 # note if we do not immport a pacakage correctly in this class, no loops or exps will be present
 
@@ -30,8 +29,6 @@ TOKENIZEDKEY = "encoded"
 global TORCHCOLS
 TORCHCOLS = set()
 os.environ["TOKENIZERS_PARALLELISM"] = "False"
-
-_data_procecessors = Data()
 
 
 class SplitRangesVision:
@@ -199,7 +196,10 @@ class CollatedVisionSets:
             if x in rng:
                 listpos = self.range2listpos[rng]
                 listind = x - rng.start
-                return self.args[listpos][listind], self.args[listpos].__name__.lower()
+                return (
+                    self.args[listpos][listind],
+                    type(self.args[listpos]).__name__.lower(),
+                )
 
     def __len__(self):
         return sum(map(lambda x: len(x), self.args))
