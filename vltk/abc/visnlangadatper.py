@@ -84,7 +84,7 @@ class VisnLangDataset(Adapter):
                 ):
                     path = str(path)
                     if textset_name in path.lower():
-                        if split in path:
+                        if split is None or split in path:
                             text_files.append(path)
 
         if not text_files:
@@ -142,6 +142,9 @@ class VisnLangDataset(Adapter):
 
         print(f"searching for input files for splits: {splits}")
         split_dict = {}
+        file_split_dict = {}
+        split_file_numbers = {}
+        found_any_files = False
         for split in splits:
             label_dict = Counter()
             cur_row = 0
@@ -164,6 +167,37 @@ class VisnLangDataset(Adapter):
                             temp.append(t)
 
                 text_files = temp
+                if text_files:
+                    found_any_files = True
+                file_split_dict[split] = text_files
+                split_file_numbers[split] = len(text_files)
+
+        if not found_any_files:
+            print(
+                "No files pattern matched with corresponding split, falling back to searching all json in top level directory"
+            )
+            text_files = cls._locate_text_files(
+                searchdir=searchdir, textset_name=cls.__name__.lower(), split=None
+            )
+            if hasattr(cls, "filters"):
+                assert isinstance(
+                    cls.filters, list
+                ), f"filters must be in a list, not type {type(cls.filters)}"
+                temp = []
+                for i, t in enumerate(text_files):
+                    stem = Path(t).stem
+                    for f in cls.filters:
+                        if f not in stem and t not in temp:
+                            temp.append(t)
+
+                text_files = temp
+            if not text_files:
+                raise Exception("...could not locate any json files")
+            file_split_dict["train"] = text_files
+
+        for split, text_files in file_split_dict.items():
+            if not text_files:
+                continue
 
             schema_dict = collect_args_to_func(cls.schema, kwargs=kwargs)
             features = ds.Features({**cls.schema(**schema_dict), **cls._base_features})

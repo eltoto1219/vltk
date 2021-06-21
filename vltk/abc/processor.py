@@ -20,12 +20,12 @@ class Processor:
 
     @torch.no_grad()
     def __call__(self, inp, *args, **kwargs):
-        if isinstance(inp, dict):
-            assert (
-                self.keys
-            ), "the `keys` attribute, set as optional positional arguments to \
-                    the __init__ method must be set when the input to the forward method \
-                    is a dictionary"
+        # if isinstance(inp, dict):
+        #     assert (
+        #         self.keys
+        #     ), "the `keys` attribute, set as optional positional arguments to \
+        #             the __init__ method must be set when the input to the forward method \
+        #             is a dictionary"
         kwargs = collect_args_to_func(self.forward, kwargs)
         output = self.forward(inp, *args, **kwargs)
         if not isinstance(output, dict):

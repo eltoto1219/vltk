@@ -31,8 +31,6 @@ VOCABPATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "libdata/bert-base-uncased-vocab.txt")
 ).replace("loader/", "")
 TOKENIZEDKEY = "encoded"
-global TORCHCOLS
-TORCHCOLS = set()
 os.environ["TOKENIZERS_PARALLELISM"] = "False"
 
 
@@ -59,6 +57,7 @@ class VisionDataset(BaseDataset):
         is_train=False,
         all_same_keys=True,
         tokenizer_in_visn_dataset=False,
+        **kwargs,
     ):
 
         self.tokenizer_in_visn_dataset = tokenizer_in_visn_dataset
@@ -83,6 +82,7 @@ class VisionDataset(BaseDataset):
                 self.img_id_to_path.update(imgids2files)
         self.imgids = tuple(self.img_id_to_path.keys())
         self.all_same_keys = all_same_keys
+        self.max_spanning_cols = kwargs.get("max_spanning_cols", None)
 
     @property
     def image(self):
@@ -113,11 +113,17 @@ class VisionDataset(BaseDataset):
 
     def _init_vision_processors(self, config):
         vision_processors = config.processors if config.processors is not None else []
-
-        self.vision_processors = [
-            x() if x.__bases__[0] == VisnProccessor else Processors().get(x)()
+        vision_processors = [
+            x if not isinstance(x, str) else Processors().get(x)
             for x in vision_processors
         ]
+
+        vision_processors = list(
+            filter(lambda x: x.__bases__[0] == VisnProccessor, vision_processors)
+        )
+
+        self.vision_processors = [x() for x in vision_processors]
+
         self.vision_processor_keys = ()
         for x in self.vision_processors:
             self.vision_processor_keys += x.keys

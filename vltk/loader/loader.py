@@ -199,6 +199,7 @@ class VisionLanguageLoader(DataLoader):
             tokenizer_in_visn_dataset,
             replace_keys,
         ) = check_all_keys_same(config, visnlangdict, visndict, annodict)
+        kwargs["max_spanning_cols"] = max_spanning_cols
         dataset = VisionLanguageDataset(
             config=config,
             is_train=is_train,

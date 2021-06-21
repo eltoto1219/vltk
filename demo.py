@@ -18,7 +18,7 @@ class FRCNN(adapters.VisnExtraction):
             "size": (800, 1333),
             "mode": "bilinear",
             "pad_value": 0.0,
-            "mean": [102.9801, 115.9465, 122.7717],
+            "mean": [102.9801 / 255, 115.9465 / 255, 122.7717 / 255],
             "sdev": [1.0, 1.0, 1.0],
         }
     )

@@ -97,10 +97,20 @@ def batcher(iterable, n=64):
 def try_load_json(filepath):
     try:
         with open(filepath) as f:
-            yield json.load(f)
+            data = json.load(f)
+        return data
     except json.decoder.JSONDecodeError:
         with open(filepath) as f:
-            yield jsonlines.open(f)
+            data = jsonlines.open(f)
+        return data
+    # try:
+    #     with open(filepath) as f:
+    #         entry = jsonlines.open(f)
+    #         yield entry
+    # except Exception:
+    #     with open(filepath) as f:
+    #         data = json.load(f)
+    #     return data
 
 
 def clean_imgid(img_id):

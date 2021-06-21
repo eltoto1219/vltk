@@ -46,6 +46,7 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
         all_same_keys=True,
         tokenizer_in_visn_dataset=False,
         replace_keys=None,
+        **kwargs,
     ):
         # ======
         # checking/setting respective adatpers
@@ -99,17 +100,17 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
         splits = self._check_uniq_splits()
         self.splits = splits
         self.placeholders = {}
+        self.max_spanning_cols = kwargs.get("max_spanning_cols")
         # ======
 
         # ======
         # do tokenizer stuff
         self._init_tokenizer(config.lang)
-        # ======
-
-        # ======
-        # prepare image processing components borrowed from visndataset.py
         self._init_annotation_dict(config, annotationdict)
         self._init_image_processor(config)
+        self._init_vision_processors(config)
+        self._init_lang_processors(config)
+        self._init_visnlang_processors(config)
         # ======
 
         """
@@ -125,6 +126,9 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
         idea: prepend dataset id to all images, maybe start prepending all splits aswell
 
         """
+
+    def _init_visnlang_processors(self, config):
+        pass
 
     def _tighten_datasets(
         self,
@@ -184,9 +188,9 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
                 uniq_lang_imgs = uniq_lang_imgs.union(uniq_lang_imgs, temp_uniq)
                 uniq_imgs = uniq_imgs.union(uniq_visn_imgs.intersection(temp_uniq))
         if not uniq_imgs:
-            print(
+            raise Exception(
                 f"""
-                WARNING: there are no common image IDs between either language or vision datasets,
+                ERROR: there are no common image IDs between either language or vision datasets,
                 you may want to rename them or check to see if this should be the case or implement
                 the `adjust_imgid` function in the VisnLangAdapter. \n
                 Vision Dataset Image ID example: {next(iter(uniq_visn_imgs))}
@@ -213,38 +217,15 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
 
     def _do_map_img_first(self, i):
         img_id = self.uniq_imgs[i]
-        text_info = self.datasets.get(img_id, return_dataset=True)
-        proc_args = self.lang_processor_args()
-        text_info = text_info.map(
-            lambda x: VisionLanguageDataset.text_map_function(
-                x, proc_args=proc_args, from_transformers=self.from_transformers
-            )
-        )[:]
-        for name, item in text_info.items():
-            if name == vltk.span:
-                continue
-            try:
-                text_info[name] = torch.tensor(item)
-            except Exception:
-                pass
-
+        text_info = self.datasets.get(img_id)
+        text_info.pop(vltk.imgid)
+        text_info = self._handle_text_annotations(text_info, encode_batch=True)
         return text_info, img_id
 
     def _do_map_text_first(self, i):
-        entry = self.datasets[i]
-        img_id = entry[vltk.imgid]
-        proc_args = self.lang_processor_args()
-        text_info = self.text_map_function(
-            entry, proc_args, from_transformers=self.from_transformers
-        )
-        for name, item in text_info.items():
-            if name == vltk.span:
-                continue
-            try:
-                text_info[name] = torch.tensor(item)
-            except Exception:
-                pass
-
+        text_info = self.datasets[i]
+        img_id = text_info[vltk.imgid]
+        text_info = self._handle_text_annotations(text_info, encode_batch=False)
         return text_info, img_id
 
     def random_visn_feat(self):
@@ -371,7 +352,7 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
                 vinset_splits,
             ) = self.vl_idx_organizer[i]
             # TODO: for now I just check through all splits to see which imgid is present.
-            # however, there for all known datasets, there should only be one split present
+            # however, for all known datasets, there should only be one split present
             for vsplit in vinset_splits:
                 try:
                     img_info_dict_or_filepath = self.visndatasetadapterdict[

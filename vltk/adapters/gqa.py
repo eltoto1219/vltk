@@ -1,7 +1,7 @@
 from collections import Counter
 
 import vltk
-from vltk import adapters
+from vltk import Features, adapters
 from vltk.utils.adatpers import clean_label
 
 
