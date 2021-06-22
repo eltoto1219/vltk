@@ -71,9 +71,18 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
 
     def imgid_filter(self, imgids, is_visnlang=True):
         remaining = set(self.imgids).intersection(imgids)
+        # try:
+        #     remaining = sorted(remaining, key=int)
+        # except Exception:
+        #     pass
 
         if is_visnlang:
-            # TODO: this could be really slow, i will have to time it later
+            # TODO this is slow right now, broken somehow.
+            # I will need to fix
+            # filtered_self = self.filter(lambda x: x[vltk.imgid] in imgids)
+            # new_map = defaultdict(list)
+            # for i, x in enumerate(filtered_self):
+            #     new_map[x[vltk.imgid]].append(i)
             idx_groups = dict(
                 map(lambda imgid: (imgid, self.get_idx(imgid)), remaining)
             )
@@ -84,11 +93,9 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
                 idx_set.extend(idxs)
                 new_map[imgid] = list(map(lambda x: x[0] + idx, enumerate(idxs)))
                 idx += len(idxs)
-            # raise Exception(new_map, idx_set)
+
         else:
-            idx_set = list(
-                itertools.chain(*(map(lambda idx: self.get_idx(idx), remaining)))
-            )
+            idx_set = list((map(lambda idx: self.get_idx(idx), remaining)))
         filtered_self = self.select(idx_set)
         setattr(filtered_self, "img_to_row_map", self.img_to_row_map)
         setattr(filtered_self, "get", self.get)
@@ -99,6 +106,7 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
         else:
             setattr(filtered_self, "_img_to_row_map", dict(zip(remaining, idx_set)))
             setattr(filtered_self, "check_imgid_alignment", self.check_imgid_alignment)
+            setattr(filtered_self, "imgids", self.imgids)
 
         return filtered_self
 

@@ -37,71 +37,80 @@ __all__ = ["FRCNN"]
 
 
 # other:
-def norm_box(boxes, raw_sizes):
-    if not isinstance(boxes, torch.Tensor):
-        normalized_boxes = boxes.copy()
-    else:
-        normalized_boxes = boxes.clone()
-    normalized_boxes[:, 1::2] /= raw_sizes[:, 0].cpu().view(-1,1,1)
-    normalized_boxes[:, 0::2] /= raw_sizes[:, 1].cpu().view(-1,1,1)
-    return normalized_boxes
+# def norm_box(boxes, raw_sizes):
+#     raise Exception(boxes)
+#     if not isinstance(boxes, torch.Tensor):
+#         normalized_boxes = boxes.copy()
+#     else:
+#         normalized_boxes = boxes.clone()
+#     backtolist = False
+#     if isinstance(normalized_boxes, list):
+#         normalized_boxes = np.array(normalized_boxes)
+#         backtolist = True
+#         raise Exception(normalized_boxes)
+#     normalized_boxes[:, 1::2] /= raw_sizes[:, 0].cpu().view(-1,1,1)
+#     normalized_boxes[:, 0::2] /= raw_sizes[:, 1].cpu().view(-1,1,1)
+#     if backtolist:
+#         normalized_boxes = list(normalized_boxes)
+
+#     return normalized_boxes
 
 
-def pad_list_tensors(list_tensors, preds_per_image, max_detections=None,
-        return_tensors=None, padding=None, pad_value=0, location = None):
-    """
-    location will always be cpu for np tensors
-    """
-    if location is None:
-        location = "cpu"
-    assert return_tensors in {"pt", "np", None}
-    assert padding in {"max_detections", "max_batch", None}
-    new = []
-    if padding is None:
-        if return_tensors is None:
-            return list_tensors
-        elif return_tensors == "pt":
-            if not isinstance(list_tensors, torch.Tensor):
-                return torch.stack(list_tensors).to(location)
-            else:
-                return list_tensors.to(location)
-        else:
-            if not isinstance(list_tensors, list):
-               return np.array(list_tensors.to(location))
-            else:
-               return list_tensors.to(location)
-    if padding == "max_detections":
-        assert max_detections is not None, "specify max number of detections per batch"
-    elif padding == "max_batch":
-        max_detections = max(preds_per_image)
-    for i in range(len(list_tensors)):
-        too_small = False
-        tensor_i = list_tensors.pop(0)
-        if tensor_i.ndim < 2:
-            too_small = True
-            tensor_i = tensor_i.unsqueeze(-1)
-        assert isinstance(tensor_i, torch.Tensor)
-        tensor_i = F.pad(input=tensor_i, pad=(0, 0, 0, max_detections - preds_per_image[i]), mode="constant", value=pad_value)
-        if too_small:
-            tensor_i = tensor_i.squeeze(-1)
-        if return_tensors is None:
-            if location == "cpu":
-                tensor_i = tensor_i.cpu()
-            tensor_i = tensor_i.tolist()
-        if return_tensors == "np":
-            if location == "cpu":
-                tensor_i = tensor_i.cpu()
-            tensor_i = tensor_i.numpy()
-        else:
-            if location == "cpu":
-                tensor_i = tensor_i.cpu()
-        new.append(tensor_i)
-    if return_tensors == "np":
-        return np.stack(new, axis=0)
-    elif return_tensors == "pt" and not isinstance(new, torch.Tensor):
-        return torch.stack(new, dim=0)
-    else:
-        return list_tensors
+# def pad_list_tensors(list_tensors, preds_per_image, max_detections=None,
+#         return_tensors=None, padding=None, pad_value=0, location = None):
+#     """
+#     location will always be cpu for np tensors
+#     """
+#     if location is None:
+#         location = "cpu"
+#     assert return_tensors in {"pt", "np", None}
+#     assert padding in {"max_detections", "max_batch", None}
+#     new = []
+#     if padding is None:
+#         if return_tensors is None:
+#             return list_tensors
+#         elif return_tensors == "pt":
+#             if not isinstance(list_tensors, torch.Tensor):
+#                 return torch.stack(list_tensors).to(location)
+#             else:
+#                 return list_tensors.to(location)
+#         else:
+#             if not isinstance(list_tensors, list):
+#                return np.array(list_tensors.to(location))
+#             else:
+#                return list_tensors.to(location)
+#     if padding == "max_detections":
+#         assert max_detections is not None, "specify max number of detections per batch"
+#     elif padding == "max_batch":
+#         max_detections = max(preds_per_image)
+#     for i in range(len(list_tensors)):
+#         too_small = False
+#         tensor_i = list_tensors.pop(0)
+#         if tensor_i.ndim < 2:
+#             too_small = True
+#             tensor_i = tensor_i.unsqueeze(-1)
+#         assert isinstance(tensor_i, torch.Tensor)
+#         tensor_i = F.pad(input=tensor_i, pad=(0, 0, 0, max_detections - preds_per_image[i]), mode="constant", value=pad_value)
+#         if too_small:
+#             tensor_i = tensor_i.squeeze(-1)
+#         if return_tensors is None:
+#             if location == "cpu":
+#                 tensor_i = tensor_i.cpu()
+#             tensor_i = tensor_i.tolist()
+#         if return_tensors == "np":
+#             if location == "cpu":
+#                 tensor_i = tensor_i.cpu()
+#             tensor_i = tensor_i.numpy()
+#         else:
+#             if location == "cpu" and isinstance(tensor_i, torch.Tensor):
+#                 tensor_i = tensor_i.cpu()
+#         new.append(tensor_i)
+#     if return_tensors == "np":
+#         return np.stack(new, axis=0)
+#     elif return_tensors == "pt" and not isinstance(new, torch.Tensor):
+#         return torch.stack(new, dim=0)
+#     else:
+#         return list_tensors
 
 
 def do_nms(boxes, scores, image_shape, score_thresh, nms_thresh, mind, maxd):
@@ -1969,31 +1978,29 @@ class FRCNN(nn.Module):
         )
 
         # will we pad???
-        subset_kwargs = {
-            "max_detections": self.max_detections,
-            "return_tensors": kwargs.get("return_tensors", None),
-            "pad_value": kwargs.get("pad_value", 0),
-            "padding": kwargs.get("padding", None)
-        }
+        # subset_kwargs = {
+        #     "max_detections": self.max_detections,
+        #     "return_tensors": kwargs.get("return_tensors", None),
+        #     "pad_value": kwargs.get("pad_value", 0),
+        #     "padding": kwargs.get("padding", None)
+        # }
         preds_per_image = torch.tensor([p.size(0) for p in boxes])
-        boxes = pad_list_tensors(boxes, preds_per_image, **subset_kwargs)
-        classes = pad_list_tensors(classes, preds_per_image, **subset_kwargs)
-        class_probs = pad_list_tensors(class_probs, preds_per_image, **subset_kwargs)
-        attrs = pad_list_tensors(attrs, preds_per_image, **subset_kwargs)
-        attr_probs = pad_list_tensors(attr_probs, preds_per_image, **subset_kwargs)
-        roi_features = pad_list_tensors(roi_features, preds_per_image, **subset_kwargs)
-        subset_kwargs["padding"] = None
-        preds_per_image = pad_list_tensors(preds_per_image, None, **subset_kwargs)
-        sizes = pad_list_tensors(image_shapes, None, **subset_kwargs)
-        normalized_boxes = norm_box(boxes, original_sizes)
+        # boxes = pad_list_tensors(boxes, preds_per_image, **subset_kwargs)
+        # classes = pad_list_tensors(classes, preds_per_image, **subset_kwargs)
+        # class_probs = pad_list_tensors(class_probs, preds_per_image, **subset_kwargs)
+        # attrs = pad_list_tensors(attrs, preds_per_image, **subset_kwargs)
+        # attr_probs = pad_list_tensors(attr_probs, preds_per_image, **subset_kwargs)
+        # roi_features = pad_list_tensors(roi_features, preds_per_image, **subset_kwargs)
+        # subset_kwargs["padding"] = None
+        # preds_per_image = pad_list_tensors(preds_per_image, None, **subset_kwargs)
+        # sizes = pad_list_tensors(image_shapes, None, **subset_kwargs)
+        # normalized_boxes = norm_box(boxes, original_sizes)
         return OrderedDict({
             "obj_ids": classes,
             "obj_probs": class_probs,
             "attr_ids": attrs,
             "attr_probs": attr_probs,
             "boxes": boxes,
-            "sizes": sizes,
             "preds_per_image": preds_per_image,
             "roi_features": roi_features,
-            "normalized_boxes": normalized_boxes
         })

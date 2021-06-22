@@ -2,7 +2,7 @@ from collections import Counter
 
 import vltk
 from vltk import Features, adapters
-from vltk.utils.adatpers import clean_label
+from vltk.utils.adapters import clean_label
 
 
 class GQA(adapters.VisnLangDataset):
@@ -24,13 +24,13 @@ class GQA(adapters.VisnLangDataset):
         label_frequencies = Counter()
         batch_entries = []
 
-        for t in json_files:
-            for i, (k, v) in enumerate(t.items()):
+        for filename, data in json_files.items():
+            for i, (k, v) in enumerate(data.items()):
                 if "answer" in v:
                     answer = clean_label(v["answer"])
                     label_frequencies.update([answer])
 
-            for i, (k, v) in enumerate(t.items()):
+            for i, (k, v) in enumerate(data.items()):
                 if split == "test":
                     answer = None
                 elif label_frequencies[v["answer"]] < min_label_frequency:
@@ -45,7 +45,6 @@ class GQA(adapters.VisnLangDataset):
                     vltk.text: text,
                     vltk.imgid: img_id,
                     vltk.label: [answer],
-                    vltk.score: [1.0],
                 }
 
                 batch_entries.append(entry)

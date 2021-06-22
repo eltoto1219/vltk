@@ -181,12 +181,16 @@ class LangDataset(BaseDataset):
             # this condition is for an entry without label but label is in one dataset
             # except across full batch
             entry[vltk.label] = torch.tensor(
-                [self.config.lang.ignore_id] * entry[vltk.text].shape[0]
+                [self.config.lang.ignore_id] * entry[vltk.input_ids].shape[0]
             )
             if vltk.score in self.max_spanning_cols:
-                entry[vltk.score] = torch.zeros(entry[vltk.text].shape[0]).float()
+                entry[vltk.score] = torch.zeros(entry[vltk.input_ids].shape[0]).float()
 
-        elif vltk.label in entry and encode_batch:
+        elif (
+            vltk.label in entry
+            and encode_batch
+            and vltk.label in self.max_spanning_cols
+        ):
             # TODO dont worry about mulitple labels per thing just yet
 
             label = entry.pop(vltk.label)

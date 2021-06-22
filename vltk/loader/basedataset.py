@@ -5,6 +5,7 @@ import sys
 from abc import ABCMeta
 from copy import deepcopy
 
+import torch
 from datasets import Dataset
 # disable logging from datasets
 from datasets.utils.logging import set_verbosity_error
@@ -219,7 +220,18 @@ class BaseDataset(Dataset):
                     else config.vocab_file_or_name,
                     lowercase=config.lowercase,
                 )
-                self.tokenizer.add_special_tokens(self.special_tokens)
+                self.special_tokens = set(
+                    [
+                        self.tokenizer.bos_token,
+                        self.tokenizer.eos_token,
+                        self.tokenizer.unk_token,
+                        self.tokenizer.sep_token,
+                        self.tokenizer.pad_token,
+                        self.tokenizer.cls_token,
+                        self.tokenizer.mask_token,
+                    ]
+                )
+                # self.tokenizer.add_special_tokens(self.special_tokens)
                 self.tokenizer.enable_truncation(max_length=config.max_seq_length)
                 self.tokenizer.enable_padding(length=config.max_seq_length)
                 special_ids = set(
@@ -238,7 +250,7 @@ class BaseDataset(Dataset):
                 if config.vocab_file_or_name is None
                 else config.vocab_file_or_name
             )
-            self.special_ids = set(
+            self.special_tokens = set(
                 [
                     self.tokenizer.bos_token,
                     self.tokenizer.eos_token,
@@ -249,6 +261,10 @@ class BaseDataset(Dataset):
                     self.tokenizer.mask_token,
                 ]
             )
+            special_ids = set(
+                [self.tokenizer.convert_tokens_to_ids(t) for t in self.special_tokens]
+            )
+            self.special_ids = deepcopy(special_ids)
         self.from_transformers = from_transformers
 
         all_ids = tuple(i[1] for i in self.tokenizer.get_vocab().items())
@@ -258,7 +274,7 @@ class BaseDataset(Dataset):
         self.tokenizer.enable_padding(
             length=self.config.lang.max_seq_length,
             direction=self.config.lang.pad_direction,
-            pad_id=self.tokenizer.token_to_id("[PAD]"),
+            pad_id=self.tokenizer.token_to_id(self.tokenizer.pad_token),
         )
 
     def disable_padding(self):
@@ -266,21 +282,21 @@ class BaseDataset(Dataset):
         pass
 
     @property
-    def special_tokens(self):
-        return [
-            "[unk]",
-            "[sep]",
-            "[pad]",
-            "[cls]",
-            "[mask]",
-        ]
-
-    @property
     def batch_size(self):
         if not self.is_train:
             return self.config.eval_batch_size
         else:
             return self.config.train_batch_size
+
+    def try_tensorify(self, entry):
+        for k in entry:
+            if not isinstance(entry[k], torch.Tensor):
+                try:
+                    entry[k] = torch.tensor(entry[k])
+                except Exception:
+                    pass
+
+        return entry
 
     def _update_placeholders(self, entry):
         raise NotImplementedError

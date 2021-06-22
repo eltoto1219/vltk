@@ -63,7 +63,11 @@ def get_classes(path_or_dir_name, cls_defintion=None, pkg=None):
                     # if module_name == 'exp_newdata':
                     #    raise Exception(mod)
                 else:
-                    mod = importlib.import_module(npkg)
+                    try:
+                        mod = importlib.import_module(npkg)
+                    except Exception:
+                        mod = importlib.import_module(npkg)
+                        # raise Exception(p, npkg, mod)
                     mod = inspect.getmembers(mod, inspect.isclass)
                 for t in mod:
                     if cls_defintion in inspect.getmro(t[-1]):
@@ -73,7 +77,8 @@ def get_classes(path_or_dir_name, cls_defintion=None, pkg=None):
                                 classes[t[-1].__name__.lower()] = t[-1]
                             except AttributeError:
                                 classes[t[-1].__name__.lower()] = t[-1]
-            except ModuleNotFoundError:
+            except Exception:
+                mod = importlib.import_module(npkg)
                 assert module_name != "exp_newdata"
                 pass
     return classes

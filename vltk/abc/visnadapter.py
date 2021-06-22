@@ -216,16 +216,16 @@ class VisnDataset(Adapter):
 
     def align_imgids(self):
         for i in range(len(self)):
-            self._img_to_row_map[self[i]["img_id"]] = i
+            self._img_to_row_map[self[i][vltk.imgid]] = i
 
     def check_imgid_alignment(self):
         orig_map = self.img_to_row_map
         for i in range(len(self)):
-            img_id = self[i]["img_id"]
+            img_id = self[i][vltk.imgid]
             mapped_ind = orig_map[img_id]
             if mapped_ind != i:
                 return False
-            self._img_to_row_map[self[i]["img_id"]] = i
+            self._img_to_row_map[self[i][vltk.imgid]] = i
         return True
 
     @abstractmethod

@@ -40,3 +40,12 @@ if __name__ == "__main__":
     # print(encoding.offsets)
     # print("tokens")
     # print([bwpt.id_to_token(w) for w in encoding.ids])
+    """
+        if is_visnlang:
+            # TODO this is slow right now, broken somehow.
+            # I will need to fix
+            filtered_self = self.filter(lambda x: x[vltk.imgid] in imgids)
+            new_map = defaultdict(list)
+            for i, x in enumerate(filtered_self):
+                new_map[x[vltk.imgid]].append(i)
+    """

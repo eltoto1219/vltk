@@ -84,6 +84,8 @@ class VisnLangDataset(Adapter):
                 ):
                     path = str(path)
                     if textset_name in path.lower():
+                        if split == "test" and "dev" in path:
+                            continue
                         if split is None or split in path:
                             text_files.append(path)
 
@@ -146,9 +148,6 @@ class VisnLangDataset(Adapter):
         split_file_numbers = {}
         found_any_files = False
         for split in splits:
-            label_dict = Counter()
-            cur_row = 0
-            imgid2rows = defaultdict(list)
 
             text_files = cls._locate_text_files(
                 searchdir=searchdir, textset_name=cls.__name__.lower(), split=split
@@ -167,10 +166,10 @@ class VisnLangDataset(Adapter):
                             temp.append(t)
 
                 text_files = temp
-                if text_files:
-                    found_any_files = True
-                file_split_dict[split] = text_files
-                split_file_numbers[split] = len(text_files)
+            if text_files:
+                found_any_files = True
+            file_split_dict[split] = text_files
+            split_file_numbers[split] = len(text_files)
 
         if not found_any_files:
             print(
@@ -196,6 +195,10 @@ class VisnLangDataset(Adapter):
             file_split_dict["train"] = text_files
 
         for split, text_files in file_split_dict.items():
+            label_dict = Counter()
+            cur_row = 0
+            imgid2rows = defaultdict(list)
+
             if not text_files:
                 continue
 

@@ -15,7 +15,11 @@ class VQA(adapters.VisnLangDataset):
 
     def schema():
         # img id and score are assumed to be default features
-        return {vltk.qid: Features.String, vltk.label: Features.StringList}
+        return {
+            vltk.qid: Features.String,
+            vltk.label: Features.StringList,
+            vltk.score: Features.FloatList,
+        }
 
     def adjust_imgid(imgid, vdset_name, vdset_split):
         # length of COCO ids are are always length 12
@@ -27,33 +31,31 @@ class VQA(adapters.VisnLangDataset):
         all_questions = []
         qid2answers = {}
         label_frequencies = Counter()
-        for filename, generator in json_files.items():
-            for x in generator:
-                if "questions" in x:
-                    all_questions.extend(x["questions"])
-                else:
-                    annotations = x["annotations"]
-                    accepted_answers = {
-                        clean_label(anno["multiple_choice_answer"])
-                        for anno in annotations
+        for filename, x in json_files.items():
+            if "questions" in x:
+                all_questions.extend(x["questions"])
+            else:
+                annotations = x["annotations"]
+                accepted_answers = {
+                    clean_label(anno["multiple_choice_answer"]) for anno in annotations
+                }
+                for anno in annotations:
+                    qid = str(anno["question_id"])
+                    answers = anno["answers"]
+                    label_frequencies.update(
+                        [clean_label(anno["multiple_choice_answer"])]
+                    )
+                    answer_counter = Counter()
+                    for ans_dict in answers:
+                        ans = ans_dict["answer"]
+                        if ans not in accepted_answers:
+                            pass
+                        else:
+                            ans = clean_label(ans)
+                            answer_counter.update([ans])
+                    qid2answers[qid] = {
+                        k: soft_score(v) for k, v in answer_counter.items()
                     }
-                    for anno in annotations:
-                        qid = str(anno["question_id"])
-                        answers = anno["answers"]
-                        label_frequencies.update(
-                            [clean_label(anno["multiple_choice_answer"])]
-                        )
-                        answer_counter = Counter()
-                        for ans_dict in answers:
-                            ans = ans_dict["answer"]
-                            if ans not in accepted_answers:
-                                pass
-                            else:
-                                ans = clean_label(ans)
-                                answer_counter.update([ans])
-                        qid2answers[qid] = {
-                            k: soft_score(v) for k, v in answer_counter.items()
-                        }
 
         skipped = 0
         for entry in all_questions:

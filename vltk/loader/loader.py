@@ -147,7 +147,10 @@ def check_all_keys_same(config, visnlangdict=None, visndict=None, annodict=None)
                 if remaining_cols == set([vltk.polygons, vltk.RLE]):
                     continue
                 anno_keys_same = False
-                anno_cols = visnlang_cols.union(adapter.column_names)
+                try:
+                    anno_cols = visnlang_cols.union(adapter.column_names)
+                except Exception:
+                    pass
             replace_keys = anno_cols.intersection(visnlang_cols)
             if vltk.imgid in replace_keys:
                 replace_keys.remove(vltk.imgid)

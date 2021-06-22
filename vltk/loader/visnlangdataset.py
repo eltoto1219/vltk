@@ -8,6 +8,7 @@ import sys
 
 import torch
 import vltk
+from datasets import Dataset
 # disable logging from datasets
 from datasets.utils.logging import set_verbosity_error
 from vltk.loader.basedataset import (CollatedVLSets, SplitRangesVision,
@@ -152,12 +153,14 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
                 for is_name in visndatasetadapterdict:
                     for is_split in visndatasetadapterdict[is_name]:
                         try:
+                            # for visionsets that are Dataset objects
                             imgset = visndatasetadapterdict[is_name][is_split]
                             filtered_imgset = imgset.imgid_filter(uniq_imgs, False)
                             # TODO: remove later once I actually end up testing with this
-                            assert filtered_imgset.check_imgid_alignment()
+                            # assert filtered_imgset.check_imgid_alignment()
                             visndatasetadapterdict[is_name][is_split] = filtered_imgset
                         except Exception:
+                            # for vision sets that are only a dictionary of imgids
                             imgsetdict = visndatasetadapterdict[is_name][is_split]
                             imgsetdict = dict(
                                 filter(lambda x: x[0] in uniq_imgs, imgsetdict.items())
@@ -174,6 +177,8 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
             for k, imgset in is_split_dict.items():
                 try:
                     img_ids = imgset.imgids
+                    # Adapters().get(imgset.dataset).adjust_imgid()
+                    # raise Exception(k, imgset, imgset.dataset)
                 except Exception:
                     img_ids = imgset.keys()
 
@@ -317,29 +322,38 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
             img_info_dict_or_adapter = self.visndatasetadapterdict[visnset_name][
                 visnset_split
             ]
-            img_info_file_or_entry = img_info_dict_or_adapter.get(img_id)
-            if isinstance(img_info_file_or_entry, str):
-                img_info_dict = {
-                    vltk.filepath: img_info_file_or_entry,
+            anno_dict_or_str = img_info_dict_or_adapter.get(img_id)
+            if isinstance(anno_dict_or_str, str):
+                anno_dict = {
+                    vltk.filepath: anno_dict_or_str,
                     vltk.imgid: img_id,
                 }
+                anno_dict = self._handle_image(anno_dict)
             else:
-                raise Exception(
-                    img_info_file_or_entry, img_id, visnset_split, visnset_name
-                )
-            anno_dict = self._handle_image(img_info_dict)
+                anno_dict = anno_dict_or_str
+
+            # update with ground truth annotations, allow predcitions to overwrite GT
             if self.annotations is not None:
-                anno_dict.update(self.annotations.get(img_id))
-                extra_features = None
-                if vltk.span in text_info:
-                    extra_features = {vltk.span: text_info.pop(vltk.span)}
-                anno_dict = self._handle_annotations(
-                    anno_dict,
-                    replace_keys=self.replace_keys,
-                    extra_features=extra_features,
-                )
+                annotations = self.annotations.get(img_id)
+                annotations = {
+                    k: v for k, v in annotations.items() if k not in anno_dict
+                }
+                anno_dict.update(annotations)
+
+            # TODO: fix depricated span code
+            extra_features = None
+            if vltk.span in text_info:
+                extra_features = {vltk.span: text_info.pop(vltk.span)}
+
+            # now we actually handle the annotations
+            anno_dict = self._handle_annotations(
+                anno_dict,
+                replace_keys=self.replace_keys,
+                extra_features=extra_features,
+            )
 
             entry = {**text_info, **anno_dict}
+            entry = self.try_tensorify(entry)
             return entry
 
         else:
@@ -353,30 +367,48 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
             ) = self.vl_idx_organizer[i]
             # TODO: for now I just check through all splits to see which imgid is present.
             # however, for all known datasets, there should only be one split present
+            img_info_dict_or_filepath = None
             for vsplit in vinset_splits:
+                visnadapter = self.visndatasetadapterdict[visnset_name][vsplit]
                 try:
-                    img_info_dict_or_filepath = self.visndatasetadapterdict[
-                        visnset_name
-                    ][vsplit].get(img_id)
+                    img_info_dict_or_filepath = visnadapter.get(img_id, None)
                 except KeyError:
+                    img_info_dict_or_filepath = None
+                    continue
+
+                if img_info_dict_or_filepath is None:
                     pass
+                elif not isinstance(img_info_dict_or_filepath, (dict, str)):
+                    img_info_dict_or_filepath = img_info_dict_or_filepath[0]
+                    if not isinstance(img_info_dict_or_filepath, (dict, str)):
+                        raise Exception(img_info_dict_or_filepath)
+
             if isinstance(img_info_dict_or_filepath, str):
-                img_info_dict = {
+                anno_dict = {
                     vltk.filepath: img_info_dict_or_filepath,
                     vltk.imgid: img_id,
                 }
-            anno_dict = self._handle_image(img_info_dict)
-            if self.annotations is not None:
-                anno_dict.update(self.annotations.get(img_id))
-                extra_features = None
-                if vltk.span in text_info:
-                    extra_features = {vltk.span: text_info.pop(vltk.span)}
+                anno_dict = self._handle_image(anno_dict)
+            else:
+                anno_dict = img_info_dict_or_filepath
 
-                self._handle_annotations(
-                    anno_dict,
-                    extra_features=extra_features,
-                    replace_keys=self.replace_keys,
-                )
+            if self.annotations is not None:
+                annotations = self.annotations.get(img_id)
+                annotations = {
+                    k: v for k, v in annotations.items() if k not in anno_dict
+                }
+                anno_dict.update(annotations)
+
+            extra_features = None
+            if vltk.span in text_info:
+                extra_features = {vltk.span: text_info.pop(vltk.span)}
+
+            self._handle_annotations(
+                anno_dict,
+                extra_features=extra_features,
+                replace_keys=self.replace_keys,
+            )
 
             entry = {**text_info, **anno_dict}
+            entry = self.try_tensorify(entry)
             return entry

@@ -23,7 +23,6 @@ def clean_imgid_default(imgid):
 class VisnExtraction(Adapter):
     _meta_names = [
         "img_to_row_map",
-        "model_config",
         "img_to_row_map",
         "dataset",
         "processor_args",
@@ -32,24 +31,22 @@ class VisnExtraction(Adapter):
     _batch_size = 128
 
     default_processor = None
-    model_config = None
-    weights = None
 
     def processor(self, *args, **kwargs):
         return self._processor(*args, **kwargs)
 
     def align_imgids(self):
         for i in range(len(self)):
-            self._img_to_row_map[self[i]["img_id"]] = i
+            self._img_to_row_map[self[i][vltk.imgid]] = i
 
     def check_imgid_alignment(self):
         orig_map = self.img_to_row_map
         for i in range(len(self)):
-            img_id = self[i]["img_id"]
+            img_id = self[i][vltk.imgid]
             mapped_ind = orig_map[img_id]
             if mapped_ind != i:
                 return False
-            self._img_to_row_map[self[i]["img_id"]] = i
+            self._img_to_row_map[self[i][vltk.imgid]] = i
         return True
 
     @property
@@ -99,44 +96,22 @@ class VisnExtraction(Adapter):
 
         return processor, processor_args
 
-    @staticmethod
-    def _init_model(model_class, model_config, default_config, weights):
-        if model_config is None and default_config is not None:
-            model_config = default_config
-
-        if model_config is None:
-            try:
-                model = model_class()
-            except Exception:
-                raise Exception("Unable to init model without config")
-        else:
-            try:
-                if hasattr(model_class, "from_pretrained") and weights is not None:
-                    model = model_class.from_pretrained(weights, model_config)
-                else:
-                    model = model_class(model_config)
-                    if weights is not None:
-                        model.load_state_dict(torch.load(weights))
-            except Exception:
-                raise Exception("Unable to init model with config")
-        return model
-
     @classmethod
     def extract(
         cls,
-        searchdir,
+        datadir,
         processor_config=None,
-        model_config=None,
         splits=None,
         subset_ids=None,
-        dataset_name=None,
+        dataset=None,
         img_format="jpg",
         processor=None,
         **kwargs,
     ):
 
+        dataset_name = dataset
+        searchdir = datadir
         extractor_name = cls.__name__.lower()
-        assert hasattr(cls, "model") and cls.model is not None
         searchdirs, valid_splits = cls._get_valid_search_pathes(
             searchdir, dataset_name, splits
         )
@@ -147,9 +122,12 @@ class VisnExtraction(Adapter):
             processor_config, processor, cls.default_processor
         )
         schema = VisnExtraction._build_schema(cls.schema, **kwargs)
-        model = VisnExtraction._init_model(
-            cls.model, model_config, cls.model_config, cls.weights
-        )
+        try:
+            model, model_config = cls.setup()
+        except Exception:
+            raise Exception(
+                "setup model is supposed to return (`model`, `model_config`) objects, but only returned one object."
+            )
         setattr(cls, "model", model)
         # setup tracking dicts
         split2buffer = OrderedDict()
@@ -171,7 +149,6 @@ class VisnExtraction(Adapter):
         ):
             split = path.parent.name
             img_id = path.stem
-            img_id = clean_imgid_default(img_id)
             imgs_left = abs(i + 1 - total_files)
             if split not in valid_splits:
                 continue
@@ -211,7 +188,7 @@ class VisnExtraction(Adapter):
             filepath = str(path)
 
             entry = {vltk.filepath: filepath, vltk.imgid: img_id, vltk.split: split}
-            entry[vltk.image] = processor(filepath)
+            entry[vltk.img] = processor(filepath)
             entry[vltk.size] = get_size(processor)
             entry[vltk.scale] = get_scale(processor)
             entry[vltk.rawsize] = get_rawsize(processor)
@@ -277,7 +254,6 @@ class VisnExtraction(Adapter):
     def schema(*args, **kwargs):
         return dict
 
-    @property
     @abstractmethod
-    def model(self):
+    def setup():
         return None

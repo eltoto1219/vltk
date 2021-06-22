@@ -1,7 +1,8 @@
+import torch
 import vltk
-from vltk import Features, adapters, compat
+from vltk import Features, adapters
 from vltk.configs import VisionConfig
-from vltk.modeling.frcnn import FRCNN as FasterRCNN
+from vltk.utils.adapters import rescale_box
 
 
 class FRCNN(adapters.VisnExtraction):
@@ -9,25 +10,29 @@ class FRCNN(adapters.VisnExtraction):
     # TODO: currently, this image preprocessing config is not correct
     default_processor = VisionConfig(
         **{
-            "transforms": ["ToPILImage", "ToTensor", "ResizeTensor", "Normalize"],
+            "transforms": ["FromFile", "ToTensor", "Resize", "Normalize"],
             "size": (800, 1333),
             "mode": "bilinear",
             "pad_value": 0.0,
-            "mean": [102.9801, 115.9465, 122.7717],
-            "sdev": [1.0, 1.0, 1.0],
+            "mean": [102.9801 / 255, 115.9465 / 255, 122.7717 / 255],
+            "std": [1.0, 1.0, 1.0],
         }
     )
-    # model_config = compat.Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
-    weights = "unc-nlp/frcnn-vg-finetuned"
-    model = FasterRCNN
-    model_config = compat.Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
+
+    def setup():
+        from vltk import compat
+        from vltk.modeling.frcnn import FRCNN as FasterRCNN
+
+        weights = "unc-nlp/frcnn-vg-finetuned"
+        model_config = compat.Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
+        return FasterRCNN.from_pretrained(weights, model_config), model_config
 
     def schema(max_detections=36, visual_dim=2048):
         return {
-            "attr_ids": Features.ids,
-            "object_ids": Features.ids,
-            vltk.features: Features.features(max_detections, visual_dim),
-            vltk.boxtensor: Features.boxtensor(max_detections),
+            "attr_ids": Features.Ids,
+            "object_ids": Features.Ids,
+            vltk.features: Features.Features3D(max_detections, visual_dim),
+            vltk.box: Features.Box,
         }
 
     def forward(model, entry):
@@ -42,12 +47,15 @@ class FRCNN(adapters.VisnExtraction):
             scales_yx=scale_hw.unsqueeze(0),
             padding="max_detections",
             pad_value=0.0,
-            return_tensors="np",
             location="cpu",
         )
+        normalized_boxes = torch.round(
+            rescale_box(model_out["boxes"][0], 1 / entry["scale"])
+        )
+
         return {
-            "object_ids": model_out["obj_ids"],
-            "attr_ids": model_out["attr_ids"],
-            vltk.boxtensor: model_out["normalized_boxes"],
-            vltk.features: model_out["roi_features"],
+            "object_ids": [model_out["obj_ids"][0].tolist()],
+            "attr_ids": [model_out["attr_ids"][0].tolist()],
+            vltk.box: [normalized_boxes.tolist()],
+            vltk.features: [model_out["roi_features"][0]],
         }

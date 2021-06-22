@@ -72,7 +72,6 @@ SUPPORTEDNAMES = {
 
 
 SPLITALIASES = {
-    "testdev",
     "test",
     "dev",
     "eval",

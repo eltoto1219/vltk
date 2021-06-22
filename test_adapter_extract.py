@@ -12,30 +12,24 @@ class TestProcessor(LangProccessor):
 
 
 if __name__ == "__main__":
-    VGQA = Adapters().get("vgqa")
     datadir = "/home/eltoto/demodata"
-    # VGQA.extract(datadir)
-    # print(Adapters().avail())
-    # superset datasets
-    # define config for dataset
     config = DataConfig(
         lang=LangConfig(
             tokenizer=RobertaTokenizerFast, vocab_file_or_name="roberta-base"
         ),
         processors=[TestProcessor],
-        # choose which dataset and dataset split for train and eval
         train_datasets=[
+            ["vqa", "trainval"],
+            ["gqa", "trainval"],
             ["vgqa", "train"],
+            ["cococaptions", "trainval"],
         ],
-        # eval_datasets=["gqa", "testdev"],
-        # choose which tokenizer to use
-        # choose which feature extractor to use
-        extractor=None,
+        extractor="frcnn",
         datadir=datadir,
         num_workers=1,
-        train_batch_size=1,
+        train_batch_size=5,
         eval_batch_size=1,
-        img_first=True,
+        img_first=False,
     )
 
     train_loader, val_loader = build(config)
