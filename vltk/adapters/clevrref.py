@@ -26,7 +26,7 @@ class CLEVRREF(adapters.VisnDataset):
     def forward(json_files, splits):
         # default box order: x, y, h, w
         entries = defaultdict(dict)
-        for filepath, js in json_files:
+        for filepath, js in json_files.items():
             if "scene" not in filepath:
                 continue
             for i, scene in enumerate(tqdm(js["scenes"])):

@@ -8,13 +8,13 @@ import sys
 
 import torch
 import vltk
-from datasets import Dataset
 # disable logging from datasets
 from datasets.utils.logging import set_verbosity_error
 from vltk.loader.basedataset import (CollatedVLSets, SplitRangesVision,
                                      SplitRangesVL)
 from vltk.loader.langdataset import LangDataset
 from vltk.loader.visndataset import VisionDataset
+from vltk.processing import Processors, VisnLangProcessor
 
 __import__("tokenizers")
 TOKENIZERS = {
@@ -27,7 +27,7 @@ resource.setrlimit(resource.RLIMIT_NOFILE, (6144, rlimit[1]))
 set_verbosity_error()
 
 VOCABPATH = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "libdata/bert-base-uncased-vocab.txt")
+    os.path.join(os.path.dirname(__file__), "libdata/vocab.txt")
 ).replace("loader/", "")
 TOKENIZEDKEY = "encoded"
 os.environ["TOKENIZERS_PARALLELISM"] = "False"
@@ -41,8 +41,7 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
         visnlangdatasetadapterdict,  # contains visnlang annotations
         visndatasetadapterdict,  # contains dict of files or dataset of features
         annotationdict=None,  # conatains annotations for vision datasets
-        answer_to_id=None,
-        object_to_id=None,
+        metadata_ids=None,
         is_train=False,
         all_same_keys=True,
         tokenizer_in_visn_dataset=False,
@@ -95,9 +94,7 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
         self.replace_keys = replace_keys
         self.all_same_keys = all_same_keys
         self.is_train = is_train
-        self.answer_to_id = answer_to_id
-        self.object_to_id = object_to_id
-        self.uniq_labels = set(answer_to_id.keys())
+        self.metadata_ids = metadata_ids
         splits = self._check_uniq_splits()
         self.splits = splits
         self.placeholders = {}
@@ -129,7 +126,29 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
         """
 
     def _init_visnlang_processors(self, config):
-        pass
+        visnlang_processors = (
+            config.visnlang_processors if config.visnlang_processors is not None else []
+        )
+
+        visnlang_processors = [
+            x if not isinstance(x, str) else Processors().get(x)
+            for x in visnlang_processors
+        ]
+
+        visnlang_processors = list(
+            filter(lambda x: x.__bases__[0] == VisnLangProcessor, visnlang_processors)
+        )
+
+        self.visnlang_processors = [x(config=self.config) for x in visnlang_processors]
+
+        self.visnlang_processor_keys = ()
+        for x in self.visnlang_processor_keys:
+            self.visnlang_processor_keys += tuple(x.keys)
+
+    def run_visnlang_processors(self, lang_entry, visn_entry, img_first):
+        for processor in self.visnlang_processors:
+            entry = processor(lang_entry, visn_entry, img_first=img_first)
+        return entry
 
     def _tighten_datasets(
         self,
@@ -340,19 +359,16 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
                 }
                 anno_dict.update(annotations)
 
-            # TODO: fix depricated span code
-            extra_features = None
-            if vltk.span in text_info:
-                extra_features = {vltk.span: text_info.pop(vltk.span)}
-
-            # now we actually handle the annotations
             anno_dict = self._handle_annotations(
                 anno_dict,
                 replace_keys=self.replace_keys,
-                extra_features=extra_features,
+            )
+            text_info, anno_dict = self.run_visnlang_processors(
+                text_info, anno_dict, self.config.img_first
             )
 
             entry = {**text_info, **anno_dict}
+
             entry = self.try_tensorify(entry)
             return entry
 
@@ -399,14 +415,14 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
                 }
                 anno_dict.update(annotations)
 
-            extra_features = None
-            if vltk.span in text_info:
-                extra_features = {vltk.span: text_info.pop(vltk.span)}
-
             self._handle_annotations(
                 anno_dict,
                 extra_features=extra_features,
                 replace_keys=self.replace_keys,
+            )
+
+            text_info, anno_dict = self.run_visnlang_processors(
+                text_info, anno_dict, self.config.img_first
             )
 
             entry = {**text_info, **anno_dict}

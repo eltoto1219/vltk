@@ -11,17 +11,15 @@ _adapters = Adapters()
 def init_datasets(config):
     train_loader = None
     eval_loader = None
-    answer_to_id = None
-    object_to_id = None
+    metadata_ids = None
     train_ds, eval_ds, to_load, datasets_type = parse_datasets(config)
     if datasets_type == VLDATA:
         out_dict = load_vl(to_load, train_ds, eval_ds, config)
+        metadata_ids = out_dict["metadata_ids"]
         train = out_dict["train"]
         evalutation = out_dict["eval"]
         annos = out_dict["annotations"]
         visndatasetadapters = out_dict["visndatasetadapters"]
-        answer_to_id = out_dict["answers"]
-        object_to_id = out_dict["objects"]
 
         if train:
             train_loader = VisionLanguageLoader(
@@ -29,8 +27,7 @@ def init_datasets(config):
                 visnlangdatasetadapterdict=train,
                 visndatasetadapterdict=visndatasetadapters,
                 annotationdict=annos,
-                answer_to_id=answer_to_id,
-                object_to_id=object_to_id,
+                metadata_ids=metadata_ids,
                 is_train=True,
             )
 
@@ -40,8 +37,7 @@ def init_datasets(config):
                 visnlangdatasetadapterdict=evalutation,
                 visndatasetadapterdict=visndatasetadapters,
                 annotationdict=annos,
-                answer_to_id=answer_to_id,
-                object_to_id=object_to_id,
+                metadata_ids=metadata_ids,
                 is_train=False,
             )
     if datasets_type == VDATA:
@@ -50,7 +46,7 @@ def init_datasets(config):
         # if is_train is false
         train = out_dict["train"]
         evalutation = out_dict["eval"]
-        object_to_id = out_dict["objects"]
+        metadata_ids = out_dict["metadata_ids"]
         annotations = out_dict["annotations"]
 
         if train:
@@ -58,7 +54,7 @@ def init_datasets(config):
                 config,
                 visndatasetadapterdict=train,
                 annotationdict={k: v for k, v in annotations.items() if k in train_ds},
-                object_to_id=object_to_id,
+                metadata_ids=metadata_ids,
                 is_train=True,
             )
         if evalutation:
@@ -66,7 +62,7 @@ def init_datasets(config):
                 config,
                 visndatasetadapterdict=evalutation,
                 annotationdict={k: v for k, v in annotations.items() if k in eval_ds},
-                object_to_id=object_to_id,
+                metadata_ids=metadata_ids,
                 is_train=False,
             )
 
@@ -134,19 +130,23 @@ def load_vl(to_load, train_ds, eval_ds, config):
     loaded_train = defaultdict(dict)  # will be datasetk
     loaded_visndatasetadapters = defaultdict(dict)
     loaded_annotations = defaultdict(dict)
-    answer_to_id = {"": 0}
-    object_to_id = {"": 0}
-    answer_id = 1
-    object_id = 1
+    metadata_ids = {}
+    metadata_idxs = {}
     for name in sorted(set(to_load.keys())):
         splits = split_handler(to_load[name])  # list looks like ['trainval', 'dev']
-        for split in splits:
+        for split in sorted(splits):
             # add visnlangdatasetadapter first
             visnlangdatasetadapter = _adapters.get(name).load(datadir, split=split)
-            for l in sorted(visnlangdatasetadapter.labels):
-                if l not in answer_to_id:
-                    answer_to_id[l] = answer_id
-                    answer_id += 1
+            dataset_metadata = visnlangdatasetadapter.get_metadata_counters()
+            for meta in dataset_metadata:
+                if meta not in metadata_ids:
+                    metadata_ids[meta] = {"": 0}
+                    metadata_idxs[meta] = 1
+                for l in sorted(dataset_metadata[meta].keys()):
+                    if l not in metadata_ids[meta]:
+                        metadata_ids[meta][l] = metadata_idxs[meta]
+                        metadata_idxs[meta] += 1
+
             if name in eval_ds and split in split_handler(eval_ds[name]):
                 loaded_eval[name][split] = visnlangdatasetadapter
             if name in train_ds and split in split_handler(train_ds[name]):
@@ -168,16 +168,16 @@ def load_vl(to_load, train_ds, eval_ds, config):
                     is_annotations = _adapters.get(is_name)
                 loaded_annotations[is_name] = is_annotations
 
-                # try:
-                #     [l for l in is_annotations.labels]
-                # except Exception:
-                #     raise Exception(is_annotations, "here")
+                dataset_metadata = is_annotations.get_metadata_counters()
+                for meta in dataset_metadata:
+                    if meta not in metadata_ids:
+                        metadata_ids[meta] = {"": 0}
+                        metadata_idxs[meta] = 1
+                    for l in sorted(dataset_metadata[meta].keys()):
+                        if l not in metadata_ids[meta]:
+                            metadata_ids[meta][l] = metadata_idxs[meta]
+                            metadata_idxs[meta] += 1
 
-                if not isinstance(is_annotations.labels, property):
-                    for l in sorted(is_annotations.labels):
-                        if l not in object_to_id:
-                            object_to_id[l] = object_id
-                            object_id += 1
             if (
                 is_name in loaded_visndatasetadapters[is_name]
                 and is_split in loaded_visndatasetadapters[is_name]
@@ -203,20 +203,18 @@ def load_vl(to_load, train_ds, eval_ds, config):
                 loaded_visndatasetadapters[is_name][is_split] = is_data
                 print(f"Added VisnDataset {is_name}: {is_split}")
 
-        answer_file = config.labels
-        objects_file = config.objects_file
-        if answer_file is not None or "":
-            answer_to_id = json.load(open(answer_file))
-        if objects_file is not None or "":
-            object_to_id = json.load(open(objects_file))
+    if config.metadata_filedict is not None:
+        metadata_filedict = config.metadata_filedict
+        for k in metadata_ids:
+            if k in metadata_filedict:
+                metadata_ids[k] = json.load(open(metadata_filedict[k]))
 
     return {
         "eval": loaded_eval,
         "train": loaded_train,
         "annotations": loaded_annotations,
         "visndatasetadapters": loaded_visndatasetadapters,
-        "answers": answer_to_id,
-        "objects": object_to_id,
+        "metadata_ids": metadata_ids,
     }
 
 
@@ -225,31 +223,40 @@ def load_v(to_load, train_ds, eval_ds, config):
     loaded_eval = defaultdict(dict)  # will be datasetk
     loaded_train = defaultdict(dict)  # will be datasetk
     loaded_annotations = defaultdict(dict)
-    object_to_id = {"": 0}
-    object_id = 1
+    metadata_ids = {}
+    metadata_idxs = {}
     for name in sorted(set(to_load.keys())):
         splits = split_handler(to_load[name])  # list looks like ['trainval', 'dev']
         annotations = _adapters.get(name).load(config.datadir)
         loaded_annotations[name] = annotations
-        for split in splits:
+        for split in sorted(splits):
             imgids2pathes = _adapters.get(name).load_imgid2path(config.datadir, split)
-            for l in sorted(annotations.labels):
-                if l not in object_to_id:
-                    object_to_id[l] = object_id
-                    object_id += 1
+            dataset_metadata = annotations.get_metadata_counters()
+            for meta in dataset_metadata:
+                if meta not in metadata_ids:
+                    metadata_ids[meta] = {"": 0}
+                    metadata_idxs[meta] = 1
+                for l in sorted(dataset_metadata[meta].keys()):
+                    if l not in metadata_ids[meta]:
+                        metadata_ids[meta][l] = metadata_idxs[meta]
+                        metadata_idxs[meta] += 1
             if name in eval_ds and split in split in eval_ds[name]:
                 loaded_eval[name][split] = imgids2pathes
             if name in train_ds and split in train_ds[name]:
                 loaded_train[name][split] = imgids2pathes
             print(f"Added VisnDatasetAdapter {name}: {split}")
-    if config.objects_file is not None:
-        object_to_id = json.load(config.objects_file)
+
+    if config.metadata_filedict is not None:
+        metadata_filedict = config.metadata_filedict
+        for k in metadata_ids:
+            if k in metadata_filedict:
+                metadata_ids[k] = json.load(open(metadata_filedict[k]))
 
     return {
         "train": loaded_train,
         "eval": loaded_eval,
         "annotations": loaded_annotations,
-        "objects": object_to_id,
+        "metadata_ids": metadata_ids,
     }
 
 

@@ -1,5 +1,7 @@
 import os
-from typing import List, Union
+from typing import Dict, List, Union
+
+from PIL import Image as PImage
 
 from vltk.abc import config
 from vltk.inspection import get_args
@@ -95,7 +97,7 @@ class FinetuneConfig(config.Config):
 
 
 class LangConfig(config.Config):
-    vocab_file_or_name: Union[None, str] = None
+    vocab_path_or_name: Union[None, str] = None
     tokenizer: Union[str, object] = "BertWordPieceTokenizer"
     word_mask_rate: float = 0.15  # these all belong to text preporcessors. change
     feature_mask_rate: float = 0.15
@@ -115,7 +117,8 @@ class LangConfig(config.Config):
 
 
 class VisionConfig(config.Config):
-    transforms: List = ["FromFile", "ToTensor", "Resize"]
+    transforms: List = ["FromFile", "Resize", "ToTensor"]
+    interpolation = PImage.BICUBIC
     grayscale: bool = False
     size: tuple = (256, 256)
 
@@ -149,8 +152,9 @@ class VisionConfig(config.Config):
 
 
 class DataConfig(config.Config):
-    objects_file: Union[str, None] = None
-    processors: Union[None, List[str]] = None
+    lang_processors: Union[None, List[str]] = None
+    visn_processors: Union[None, List[str]] = None
+    visnlang_processors: Union[None, List[str]] = None
     visn: Union[config.Config] = None
     lang: Union[config.Config] = None
     labels: Union[None, str] = None
@@ -168,8 +172,6 @@ class DataConfig(config.Config):
     drop_last: bool = True
     pin_memory: bool = False
     max_objects: int = 36
-    attribute_file: str = ""
-    object_file: str = ""
     percent: int = 1.0
     skip_eval: bool = False
     skip_train: bool = False
@@ -178,6 +180,7 @@ class DataConfig(config.Config):
     ignore_annotations: bool = False
     ignore_filepath: bool = True
     ignore_segmentation: bool = False
+    metadata_filedict: Union[None, Dict[str, str]] = None
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

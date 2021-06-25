@@ -342,7 +342,31 @@ def get_list_primitive(ls):
     if isinstance(ls, collections.Iterable) and not isinstance(ls, str):
         return get_list_primitive(ls[0])
     else:
-        return type(ls)
+        if ls is None:
+            return None
+        else:
+            return type(ls)
+
+
+# stack overflow credit
+def flatten_stringlist(container):
+    if container is None:
+        return []
+    if isinstance(container, str):
+        return [container]
+    for i in container:
+        if isinstance(i, (list, tuple)):
+            for j in flatten_stringlist(i):
+                yield j
+        else:
+            yield i
+
+
+def get_arrow_primitive(schema_value):
+    if hasattr(schema_value, "feature"):
+        return get_arrow_primitive(schema_value.feature)
+    else:
+        return schema_value.dtype
 
 
 def convertids_recursive(ls, objids):

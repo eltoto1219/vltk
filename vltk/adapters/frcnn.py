@@ -1,5 +1,6 @@
 import torch
 import vltk
+from PIL import Image
 from vltk import Features, adapters
 from vltk.configs import VisionConfig
 from vltk.utils.adapters import rescale_box
@@ -10,9 +11,10 @@ class FRCNN(adapters.VisnExtraction):
     # TODO: currently, this image preprocessing config is not correct
     default_processor = VisionConfig(
         **{
-            "transforms": ["FromFile", "ToTensor", "Resize", "Normalize"],
-            "size": (800, 1333),
-            "mode": "bilinear",
+            "transforms": ["FromFile", "Resize", "ToTensor", "Normalize"],
+            "size": 800,
+            "max_size": 1333,
+            "mode": Image.BILINEAR,
             "pad_value": 0.0,
             "mean": [102.9801 / 255, 115.9465 / 255, 122.7717 / 255],
             "std": [1.0, 1.0, 1.0],

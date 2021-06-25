@@ -1,7 +1,3 @@
-Cython
-GPUtil
-Pillow
-PyYAML
 appdirs
 astroid
 black
@@ -9,12 +5,14 @@ certifi
 chardet
 click
 cycler
+Cython
 datasets
 dill
 einops
 filelock
 fire
 flake8
+GPUtil
 idna
 isort
 joblib
@@ -30,6 +28,7 @@ packaging
 pandas
 pathspec
 pep8
+Pillow
 pyaml
 pyarrow
 pycocotools
@@ -39,10 +38,10 @@ pylint
 pyparsing
 python-dateutil
 pytz
+PyYAML
 regex
 requests
 sacremoses
-scikit-image
 scipy
 six
 termcolor
@@ -58,3 +57,4 @@ urllib3
 wget
 wrapt
 xxhash
+scikit-image

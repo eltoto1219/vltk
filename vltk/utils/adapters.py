@@ -240,6 +240,12 @@ def get_span_via_jaccard(words, answers, skipped=None):
     return span, max_jaccard
 
 
+def truncate_and_pad_list(inp_list, max_len, pad_value=""):
+    inp_list = inp_list[: min(max_len, len(inp_list))]
+    inp_list += [pad_value] * (max_len - len(inp_list))
+    return inp_list
+
+
 def basic_coco_annotations(json_files, splits):
     """
     inputs:

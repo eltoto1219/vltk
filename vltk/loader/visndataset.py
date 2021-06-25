@@ -11,7 +11,7 @@ import vltk
 from datasets.utils.logging import set_verbosity_error
 # disable logging from datasets
 from vltk.loader.basedataset import BaseDataset, CollatedVisionSets
-from vltk.processing import Processors, VisnProccessor
+from vltk.processing import Processors, VisnProcessor
 from vltk.utils import base
 from vltk.utils.adapters import (get_rawsize, get_scale, get_size,
                                  imagepoints_to_mask, rescale_box,
@@ -28,7 +28,7 @@ resource.setrlimit(resource.RLIMIT_NOFILE, (6144, rlimit[1]))
 set_verbosity_error()
 
 VOCABPATH = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "libdata/bert-base-uncased-vocab.txt")
+    os.path.join(os.path.dirname(__file__), "libdata/vocab.txt")
 ).replace("loader/", "")
 TOKENIZEDKEY = "encoded"
 os.environ["TOKENIZERS_PARALLELISM"] = "False"
@@ -42,7 +42,6 @@ class VisionDataset(BaseDataset):
         vltk.area,
         vltk.box,
         vltk.RLE,
-        vltk.tokenbox,
     )
     _padding = {vltk.box: [0, 0, 0, 0]}
     _sep = {vltk.box: torch.tensor([[0, 0, 0, 0]])}
@@ -53,7 +52,7 @@ class VisionDataset(BaseDataset):
         config,
         visndatasetadapterdict,
         annotationdict=None,
-        object_to_id=None,
+        metadata_ids=None,
         is_train=False,
         all_same_keys=True,
         tokenizer_in_visn_dataset=False,
@@ -71,7 +70,7 @@ class VisionDataset(BaseDataset):
         self._init_vision_processors(config)
         self._init_box_cls_token(config)
         self.visndatasetadapterdict = visndatasetadapterdict
-        self.object_to_id = object_to_id
+        self.metadata_ids = metadata_ids
         self.img_id_to_path = {}
         self.n_imgs = 0
         # later if we need
@@ -92,13 +91,6 @@ class VisionDataset(BaseDataset):
     def annotations(self):
         return self._annotations
 
-    def update_objects(self, path_or_dict):
-        if isinstance(path_or_dict, str):
-            path_or_dict = json.load(open(path_or_dict))
-        else:
-            pass
-        self.object_to_id = path_or_dict
-
     def _init_box_cls_token(self, config):
         size = self.config.visn.size
         if isinstance(size, tuple):
@@ -112,21 +104,30 @@ class VisionDataset(BaseDataset):
         return torch.tensor([self._cls_box])
 
     def _init_vision_processors(self, config):
-        vision_processors = config.processors if config.processors is not None else []
+        vision_processors = (
+            config.visn_processors if config.visn_processors is not None else []
+        )
         vision_processors = [
             x if not isinstance(x, str) else Processors().get(x)
             for x in vision_processors
         ]
 
         vision_processors = list(
-            filter(lambda x: x.__bases__[0] == VisnProccessor, vision_processors)
+            filter(lambda x: x.__bases__[0] == VisnProcessor, vision_processors)
         )
 
-        self.vision_processors = [x() for x in vision_processors]
+        self.vision_processors = [
+            x(
+                tokenizer=self.tokenizer,
+                from_transformers=self.from_transformers,
+                config=self.config,
+            )
+            for x in vision_processors
+        ]
 
         self.vision_processor_keys = ()
         for x in self.vision_processors:
-            self.vision_processor_keys += x.keys
+            self.vision_processor_keys += tuple(x.keys)
 
     def run_vision_processors(self, entry):
         for processor in self.vision_processors:
@@ -172,12 +173,12 @@ class VisionDataset(BaseDataset):
         entry[vltk.rawsize] = get_rawsize(self.image)
         if torch.all(entry[vltk.size].eq(entry[vltk.rawsize])):
             entry.pop(vltk.rawsize)
-        else:
-            entry[vltk.scale] = get_scale(self.image)
+        entry[vltk.scale] = get_scale(self.image)
+
         return entry
 
     @torch.no_grad()
-    def _handle_annotations(self, entry, replace_keys=None, extra_features=None):
+    def _handle_annotations(self, entry, replace_keys=None):
         img_id = entry[vltk.imgid]
         skip_segmentation = (
             True
@@ -205,25 +206,10 @@ class VisionDataset(BaseDataset):
             if n_objects == self.config.max_objects and self.config.add_cls_to_box:
                 word_labels[-1] = ""
             word_labels += [""] * max(0, (self.config.max_objects - n_objects))
-            labels = torch.Tensor([self.object_to_id[l] for l in word_labels])
+            labels = torch.Tensor(
+                [self.metadata_ids[vltk.objects][l] for l in word_labels]
+            )
             entry[vltk.objects] = labels
-
-        # go through annotations not in processors or supported
-        for k, v in entry.items():
-            if (
-                k not in (vltk.objects, vltk.n_objects)
-                and not isinstance(v, torch.Tensor)
-                and k not in self.vision_processor_keys
-                and k not in vltk.SUPPORTEDNAMES
-            ):
-                # take care of lists of strings
-                try:
-                    prim = base.get_list_primitive(v)
-                except Exception:
-                    raise Exception(k, v)
-                if prim == str:
-                    values = base.convertids_recursive(v, self.object_to_id)
-                    entry[k] = values
 
         # run vision processors
         entry = self.run_vision_processors(entry)
@@ -277,107 +263,27 @@ class VisionDataset(BaseDataset):
                 )
                 entry[vltk.segmentation] = segs
 
-            elif k == vltk.box or k == vltk.tokenbox:
+            elif k == vltk.box:
                 values = v
                 if k == vltk.box:
                     if self.config.add_cls_to_box:
                         values = values[: min(len(values), self.config.max_objects)]
                     else:
                         values = values[: min(len(values), self.config.max_objects - 1)]
-                else:
-                    values = values[
-                        : min(len(values), self.config.lang.max_visual_seq_length - 1)
-                    ]
+
                 values = torch.tensor(v)
 
                 if vltk.scale in entry:
                     values = rescale_box(values, entry[vltk.scale])
-                if k == vltk.tokenbox:
-                    values = torch.nn.functional.pad(
-                        values,
-                        (
-                            0,
-                            0,
-                            0,
-                            (self.config.lang.max_visual_seq_length - 1) - len(values),
-                        ),
-                    )
-                    values = torch.cat((values, self._sep[vltk.box]), dim=0)
-                else:
-                    if self.config.add_cls_to_box:
-                        values = torch.cat((values, self.cls_box()), dim=0)
 
-                    values = torch.nn.functional.pad(
-                        values,
-                        (0, 0, 0, self.config.max_objects - len(values)),
-                    )
+                if self.config.add_cls_to_box:
+                    values = torch.cat((values, self.cls_box()), dim=0)
+
+                values = torch.nn.functional.pad(
+                    values,
+                    (0, 0, 0, self.config.max_objects - len(values)),
+                )
                 entry[k] = values
-            elif k == vltk.text:
-                if not self.from_transformers:
-                    self.disable_padding()
-                    text = list(
-                        map(
-                            lambda x: x.ids,
-                            self.tokenizer.encode_batch(
-                                entry.pop(k), add_special_tokens=False
-                            ),
-                        )
-                    )
-                    self.enable_padding()
-                else:
-                    text = self.tokenizer(
-                        entry.pop(k),
-                        add_special_tokens=False,
-                        return_attention_mask=False,
-                    )["input_ids"]
-                # I will always ensure tokenbox comes after entry
-                if extra_features is not None and vltk.span in extra_features:
-                    spans = [
-                        list(chain(*map(lambda x: [x[0]] * len(x[1]), zip(span, text))))
-                        for span in extra_features.pop(vltk.span)
-                    ]
-                    spans = torch.tensor(
-                        list(
-                            map(
-                                lambda x: x[
-                                    : min(
-                                        self.config.lang.max_visual_seq_length, len(x)
-                                    )
-                                ]
-                                + [0]
-                                * (
-                                    self.config.lang.max_visual_seq_length
-                                    - min(
-                                        self.config.lang.max_visual_seq_length, len(x)
-                                    )
-                                ),
-                                spans,
-                            )
-                        )
-                    )
-                    entry[vltk.span] = spans
-
-                if vltk.tokenbox in entry:
-                    entry[vltk.tokenbox] = list(
-                        chain(
-                            *map(
-                                lambda x: [x[0]] * len(x[1]),
-                                zip(entry.get(vltk.tokenbox), text),
-                            )
-                        )
-                    )
-
-                text = list(chain(*text))[
-                    : min(len(text), self.config.lang.max_visual_seq_length - 1)
-                ]
-                if not self.from_transformers:
-                    text += [self.tokenizer.token_to_id(self.tokenizer.sep_token)]
-                else:
-                    text += [
-                        self.tokenizer.convert_tokens_to_ids(self.tokenizer.sep_token)
-                    ]
-                text += [0] * (self.config.lang.max_visual_seq_length - len(text))
-                entry[k] = torch.tensor(text)
 
         if replace_keys is not None:
             for r in replace_keys:
@@ -399,7 +305,3 @@ class VisionDataset(BaseDataset):
         if self.annotations is not None:
             anno_dict = self._handle_annotations(anno_dict)
         return anno_dict
-        # if not self.all_same_keys:
-        #     return anno_dict
-        # else:
-        #     return {anno_dataset: anno_dict}

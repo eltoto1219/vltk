@@ -9,6 +9,7 @@ import torch
 from datasets import Dataset
 # disable logging from datasets
 from datasets.utils.logging import set_verbosity_error
+from vltk.utils.base import convertids_recursive
 
 # note if we do not immport a pacakage correctly in this class, no loops or exps will be present
 
@@ -24,7 +25,7 @@ resource.setrlimit(resource.RLIMIT_NOFILE, (6144, rlimit[1]))
 set_verbosity_error()
 
 VOCABPATH = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "libdata/bert-base-uncased-vocab.txt")
+    os.path.join(os.path.dirname(__file__), "libdata/vocab.txt")
 ).replace("loader/", "")
 TOKENIZEDKEY = "encoded"
 global TORCHCOLS
@@ -216,21 +217,42 @@ class BaseDataset(Dataset):
             try:
                 self.tokenizer = TOKENIZERS[config.tokenizer](
                     VOCABPATH
-                    if config.vocab_file_or_name is None
-                    else config.vocab_file_or_name,
+                    if config.vocab_path_or_name is None
+                    else config.vocab_path_or_name,
                     lowercase=config.lowercase,
                 )
-                self.special_tokens = set(
-                    [
-                        self.tokenizer.bos_token,
-                        self.tokenizer.eos_token,
-                        self.tokenizer.unk_token,
-                        self.tokenizer.sep_token,
-                        self.tokenizer.pad_token,
-                        self.tokenizer.cls_token,
-                        self.tokenizer.mask_token,
-                    ]
-                )
+                try:
+                    self.special_tokens = set(
+                        [
+                            self.tokenizer.bos_token,
+                            self.tokenizer.eos_token,
+                            self.tokenizer.unk_token,
+                            self.tokenizer.sep_token,
+                            self.tokenizer.pad_token,
+                            self.tokenizer.cls_token,
+                            self.tokenizer.mask_token,
+                        ]
+                    )
+                except Exception:
+                    self.tokenizer.bos_token = "[BOS]"
+                    self.tokenizer.eos_token = "[EOS]"
+                    self.tokenizer.unk_token = "[UNK]"
+                    self.tokenizer.sep_token = "[SEP]"
+                    self.tokenizer.pad_token = "[PAD]"
+                    self.tokenizer.cls_token = "[CLS]"
+                    self.tokenizer.mask_token = "[MASK]"
+                    self.special_tokens = set(
+                        [
+                            self.tokenizer.bos_token,
+                            self.tokenizer.eos_token,
+                            self.tokenizer.unk_token,
+                            self.tokenizer.sep_token,
+                            self.tokenizer.pad_token,
+                            self.tokenizer.cls_token,
+                            self.tokenizer.mask_token,
+                        ]
+                    )
+
                 # self.tokenizer.add_special_tokens(self.special_tokens)
                 self.tokenizer.enable_truncation(max_length=config.max_seq_length)
                 self.tokenizer.enable_padding(length=config.max_seq_length)
@@ -246,9 +268,9 @@ class BaseDataset(Dataset):
             from_transformers = False
         else:
             self.tokenizer = config.tokenizer.from_pretrained(
-                VOCABPATH
-                if config.vocab_file_or_name is None
-                else config.vocab_file_or_name
+                "/".join(VOCABPATH.split("/")[:-1])
+                if config.vocab_path_or_name is None
+                else config.vocab_path_or_name
             )
             self.special_tokens = set(
                 [
@@ -270,17 +292,6 @@ class BaseDataset(Dataset):
         all_ids = tuple(i[1] for i in self.tokenizer.get_vocab().items())
         self.all_ids = all_ids
 
-    def enable_padding(self):
-        self.tokenizer.enable_padding(
-            length=self.config.lang.max_seq_length,
-            direction=self.config.lang.pad_direction,
-            pad_id=self.tokenizer.token_to_id(self.tokenizer.pad_token),
-        )
-
-    def disable_padding(self):
-        self.tokenizer.no_padding()
-        pass
-
     @property
     def batch_size(self):
         if not self.is_train:
@@ -293,6 +304,11 @@ class BaseDataset(Dataset):
             if not isinstance(entry[k], torch.Tensor):
                 try:
                     entry[k] = torch.tensor(entry[k])
+                except Exception:
+                    pass
+            if not isinstance(entry[k], torch.Tensor):
+                try:
+                    entry[k] = convertids_recursive(entry[k], self.metadata_ids[k])
                 except Exception:
                     pass
 

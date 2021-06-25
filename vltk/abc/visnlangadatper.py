@@ -1,6 +1,6 @@
 import os
 from abc import abstractmethod
-from collections import Counter, defaultdict
+from collections import defaultdict
 from copy import deepcopy
 from pathlib import Path
 from typing import List
@@ -15,6 +15,7 @@ from vltk import Features
 from vltk.abc.adapter import Adapter
 from vltk.inspection import collect_args_to_func
 from vltk.utils import base as utils
+from vltk.utils.base import get_list_primitive
 
 
 class VisnLangDataset(Adapter):
@@ -143,7 +144,6 @@ class VisnLangDataset(Adapter):
         os.makedirs(savedir, exist_ok=True)
 
         print(f"searching for input files for splits: {splits}")
-        split_dict = {}
         file_split_dict = {}
         split_file_numbers = {}
         found_any_files = False
@@ -160,10 +160,12 @@ class VisnLangDataset(Adapter):
                 ), f"filters must be in a list, not type {type(cls.filters)}"
                 temp = []
                 for i, t in enumerate(text_files):
-                    stem = Path(t).stem
+                    passe_all = True
                     for f in cls.filters:
-                        if f not in stem and t not in temp:
-                            temp.append(t)
+                        if f in t:
+                            passe_all = False
+                    if passe_all:
+                        temp.append(t)
 
                 text_files = temp
             if text_files:
@@ -184,18 +186,20 @@ class VisnLangDataset(Adapter):
                 ), f"filters must be in a list, not type {type(cls.filters)}"
                 temp = []
                 for i, t in enumerate(text_files):
-                    stem = Path(t).stem
+                    passe_all = True
                     for f in cls.filters:
-                        if f not in stem and t not in temp:
-                            temp.append(t)
+                        if f in t:
+                            passe_all = False
+                    if passe_all:
+                        temp.append(t)
 
                 text_files = temp
             if not text_files:
                 raise Exception("...could not locate any json files")
             file_split_dict["train"] = text_files
 
+        split_dict = {}
         for split, text_files in file_split_dict.items():
-            label_dict = Counter()
             cur_row = 0
             imgid2rows = defaultdict(list)
 
@@ -204,7 +208,7 @@ class VisnLangDataset(Adapter):
 
             schema_dict = collect_args_to_func(cls.schema, kwargs=kwargs)
             features = ds.Features({**cls.schema(**schema_dict), **cls._base_features})
-            # features = ds.Features({**cls.schema(**kwargs), **cls._base_features})
+            meta_dict = VisnLangDataset._init_metadata(features)
             if not supervised:
                 features.pop(vltk.score)
                 features.pop(vltk.label)
@@ -214,8 +218,9 @@ class VisnLangDataset(Adapter):
             if split == "test" or not supervised:
                 if test_features is None:
                     test_features = deepcopy(features)
-                    test_features.pop(vltk.score, None)
-                    test_features.pop(vltk.label, None)
+                    for f in deepcopy(set(test_features.keys())):
+                        if f in meta_dict:
+                            test_features.pop(f)
                 writer = ArrowWriter(features=test_features, stream=stream)
             else:
                 writer = ArrowWriter(features=features, stream=stream)
@@ -236,7 +241,6 @@ class VisnLangDataset(Adapter):
 
             # pre-checks
             print("writing rows to arrow dataset")
-            splitdict = {}
             for sub_batch_entries in utils.batcher(batch_entries, n=64):
                 flat_entry = None
                 for b in sub_batch_entries:
@@ -247,13 +251,8 @@ class VisnLangDataset(Adapter):
                     b[vltk.imgid] = cls.adjust_imgid(
                         b[vltk.imgid], vdset_name, vdset_split
                     )
+                    meta_dict = VisnLangDataset._update_metadata(meta_dict, b)
 
-                    if not supervised or split == "test" or vltk.label not in b:
-                        b.pop(vltk.score, None)
-                        b.pop(vltk.label, None)
-                    else:
-                        for label in b["label"]:
-                            label_dict.update([label])
                     imgid2rows[b[vltk.imgid]].append(cur_row)
                     cur_row += 1
                     b = {k: [v] for k, v in b.items()}
@@ -265,10 +264,19 @@ class VisnLangDataset(Adapter):
                             flat_entry[k].extend(b[k])
 
                 if split == "test" or not supervised:
-                    if test_features is None:
-                        test_features = deepcopy(features)
-                        test_features.pop(vltk.label, None)
-                        test_features.pop(vltk.score, None)
+
+                    for f in deepcopy(set(flat_entry.keys())):
+                        if f not in test_features:
+                            flat_entry.pop(f)
+
+                        if (
+                            f in flat_entry
+                            and get_list_primitive(flat_entry[f]) is None
+                        ):
+                            flat_entry.pop(f)
+                            if f in test_features:
+                                test_features.pop(f)
+
                     batch = test_features.encode_batch(flat_entry)
                     writer.write_batch(batch)
                 else:
@@ -277,11 +285,9 @@ class VisnLangDataset(Adapter):
 
             # misc.
             savefile = os.path.join(savedir, f"{split}.arrow")
-            meta_dict = {
-                "img_to_row_map": imgid2rows,
-                "answer_frequencies": dict(label_dict),
-                "split": split,
-            }
+            meta_dict["img_to_row_map"] = imgid2rows
+            meta_dict["split"] = split
+
             table, info, meta_dict = Adapter._save_dataset(
                 buffer, writer, savefile, meta_dict, split
             )
@@ -293,15 +299,8 @@ class VisnLangDataset(Adapter):
                 info=info,
                 meta_dict=meta_dict,
             )
-            splitdict[split] = arrow_dset
+            split_dict[split] = arrow_dset
         return split_dict
-
-    # def get(self, img_id):
-    #     small_dataset = self[self.img_to_row_map[img_id]]
-    #     img_ids = set(small_dataset.pop(vltk.imgid))
-    #     assert len(img_ids) == 1, img_ids
-    #     small_dataset[vltk.imgid] = next(iter(img_ids))
-    #     return small_dataset
 
     def text_iter(self):
         for i in range(len(self)):

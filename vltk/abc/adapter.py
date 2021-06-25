@@ -4,7 +4,7 @@ import logging as logger
 import os
 import pickle
 from abc import ABCMeta, abstractmethod
-from collections import defaultdict
+from collections import Counter, defaultdict
 from pathlib import Path
 from typing import List
 
@@ -14,7 +14,8 @@ import vltk
 from datasets import ArrowWriter, Dataset
 from vltk import Features
 from vltk.inspection import collect_args_to_func
-from vltk.utils.base import set_metadata
+from vltk.utils.base import (flatten_stringlist, get_arrow_primitive,
+                             set_metadata)
 
 
 class Adapter(ds.Dataset, metaclass=ABCMeta):
@@ -22,6 +23,7 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
     _extensions = ["json", "jsonl"]
     _batch_size = 32
     _base_schema = {vltk.imgid: Features.Imgid}
+    _id_keys = {vltk.imgid, vltk.qid, vltk.text}
     _is_annotation = False
     _is_feature = False
 
@@ -50,7 +52,39 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
         if meta_dict is None:
             meta_dict = {}
         for k, v in meta_dict.items():
-            setattr(self, "_" + k, v)
+            if isinstance(k, str):
+                k_decoded = k
+            else:
+                k_decoded = k.decode()
+            if k_decoded == "img_to_row_map" or k_decoded == "vocab":
+                setattr(self, "_" + k_decoded, v)
+            else:
+                setattr(self, "meta_" + k_decoded, v)
+        setattr(self, "_meta_dict", meta_dict)
+
+    @property
+    def meta_dict(self):
+        return self._meta_dict
+
+    def get_metadata_counters(self):
+        if not self._meta_dict:
+            return {}
+
+        try:
+            schema_dict = collect_args_to_func(type(self).schema, kwargs={})
+            feature_dict = {**type(self).schema(**schema_dict), **self._base_features}
+        except ValueError:
+            feature_dict = {**type(self).schema(), **self._base_features}
+        counter_keys = tuple(self._init_metadata(feature_dict).keys())
+        counters = {}
+        for key in counter_keys:
+            if not isinstance(next(iter(self._meta_dict)), str):
+                key_encoded = key.encode()
+            else:
+                key_encoded = key
+            if key_encoded in self._meta_dict:
+                counters[key] = self._meta_dict[key_encoded]
+        return counters
 
     def has(self, img_id):
         return img_id in self.img_to_row_map
@@ -71,18 +105,8 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
 
     def imgid_filter(self, imgids, is_visnlang=True):
         remaining = set(self.imgids).intersection(imgids)
-        # try:
-        #     remaining = sorted(remaining, key=int)
-        # except Exception:
-        #     pass
 
         if is_visnlang:
-            # TODO this is slow right now, broken somehow.
-            # I will need to fix
-            # filtered_self = self.filter(lambda x: x[vltk.imgid] in imgids)
-            # new_map = defaultdict(list)
-            # for i, x in enumerate(filtered_self):
-            #     new_map[x[vltk.imgid]].append(i)
             idx_groups = dict(
                 map(lambda imgid: (imgid, self.get_idx(imgid)), remaining)
             )
@@ -93,7 +117,6 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
                 idx_set.extend(idxs)
                 new_map[imgid] = list(map(lambda x: x[0] + idx, enumerate(idxs)))
                 idx += len(idxs)
-
         else:
             idx_set = list((map(lambda idx: self.get_idx(idx), remaining)))
         filtered_self = self.select(idx_set)
@@ -235,18 +258,11 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
         f = pyarrow.ipc.open_stream(mmap)
         pa_table = f.read_all()
         meta_dict = {}
-        for n in meta_names:
-            if (
-                n.encode("utf-8") == "vocab"
-                and n not in pa_table.schema.meta_names.key()
-            ):
+        for n in pa_table.schema.metadata.keys():
+            if n.decode() == "huggingface":
                 continue
-            assert (
-                n.encode("utf-8") in pa_table.schema.metadata.keys()
-            ), f"""
-            The key {n} is not in the arrow table's metadata: {pa_table.schema.metadata.keys()}
-            """
-            data_dump = pa_table.schema.metadata[n.encode("utf-8")]
+
+            data_dump = pa_table.schema.metadata[n]
             try:
                 data = json.loads(data_dump)
             except Exception:
@@ -283,10 +299,6 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
             return cls(arrow_table=pa_table, split=split, meta_dict=meta_dict)
         elif split is not None:
             path = os.path.join(path, f"{split}.arrow")
-            # if cls._is_feature:
-            #     path = os.path.join(path, f"{split}.arrow")
-            # else:
-            #     path = os.path.join(path, split)
             (pa_table, meta_dict, path) = Adapter._load_one_arrow(path, meta_names)
             return cls(arrow_table=pa_table, split=split, meta_dict=meta_dict)
         else:
@@ -298,6 +310,21 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
                     arrow_table=pa_table, split=split, meta_dict=meta_dict
                 )
             return arrow_dict
+
+    @staticmethod
+    def _init_metadata(schema):
+        metadata_dict = {}
+        for k, v in schema.items():
+            if k not in Adapter._id_keys and get_arrow_primitive(v) == "string":
+                metadata_dict[k] = Counter()
+        return metadata_dict
+
+    @staticmethod
+    def _update_metadata(meta_dict, batch_dict):
+        for k, v in meta_dict.items():
+            if k in batch_dict:
+                meta_dict[k].update(flatten_stringlist(batch_dict[k]))
+        return meta_dict
 
     @abstractmethod
     def forward(*args, **kwargs):

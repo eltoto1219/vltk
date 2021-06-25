@@ -9,6 +9,7 @@ ALL BOXES ARE EXPECTED TO GO IN: (X, Y, W, H) FORMAT
 
 # special deliminator
 delim = "^"
+tokenmap = "tokenmap"
 # common keys across library
 span = "span"
 n_objects = "n_objects"

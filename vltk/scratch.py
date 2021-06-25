@@ -8,7 +8,7 @@ if __name__ == "__main__":
     from transformers import RobertaTokenizerFast
 
     VOCABPATH = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "libdata/bert-base-uncased-vocab.txt")
+        os.path.join(os.path.dirname(__file__), "libdata/vocab.txt")
     ).replace("loader/", "")
 
     TOKENIZERS = {

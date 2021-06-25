@@ -5,6 +5,7 @@ tests/arrow_dataset.py
 tests/frcnn.py
 tests/frcnn_test.py
 tests/generic_test.py
+tests/test_adapter_extract.py
 tests/test_imageset.py
 tests/test_model.py
 tests/visualizer_test.py
@@ -33,6 +34,7 @@ vltk/abc/complex.py
 vltk/abc/config.py
 vltk/abc/extraction.py
 vltk/abc/loop.py
+vltk/abc/processor.py
 vltk/abc/simple.py
 vltk/abc/visnadapter.py
 vltk/abc/visnlangadatper.py
@@ -40,8 +42,10 @@ vltk/adapters/__init__.py
 vltk/adapters/clevr.py
 vltk/adapters/clevrref.py
 vltk/adapters/coco2014.py
+vltk/adapters/cococaptions.py
 vltk/adapters/frcnn.py
 vltk/adapters/gqa.py
+vltk/adapters/vgqa.py
 vltk/adapters/visualgenome.py
 vltk/adapters/vqa.py
 vltk/legacy/__init__.py
@@ -49,7 +53,9 @@ vltk/legacy/coco2014.py
 vltk/legacy/frcnn.py
 vltk/legacy/gqa.py
 vltk/legacy/legacy_train.py
+vltk/legacy/optim.py
 vltk/legacy/processing.py
+vltk/legacy/sched.py
 vltk/legacy/vit_ckp_convert.py
 vltk/legacy/vqa.py
 vltk/modeling/__init__.py
@@ -57,11 +63,10 @@ vltk/modeling/frcnn.py
 vltk/modeling/configs/__init__.py
 vltk/modeling/configs/frcnn.py
 vltk/processing/__init__.py
-vltk/processing/data.py
 vltk/processing/image.py
-vltk/processing/label.py
-vltk/processing/optim.py
-vltk/processing/sched.py
+vltk/processing/lang.py
+vltk/processing/visn.py
+vltk/processing/visnlang.py
 vltk/utils/__init__.py
 vltk/utils/adapters.py
 vltk/utils/base.py

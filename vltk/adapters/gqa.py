@@ -14,10 +14,10 @@ class GQA(adapters.VisnLangDataset):
         "testdev": {"coco2014": ["val"]},
     }
 
+    filters = ["unbalanced", "train"]
+
     def schema():
-        return {
-            vltk.label: Features.StringList,
-        }
+        return {vltk.label: Features.StringList, "layout": Features.StringList}
 
     def forward(json_files, split, min_label_frequency=2):
         skipped = 0
@@ -33,18 +33,22 @@ class GQA(adapters.VisnLangDataset):
             for i, (k, v) in enumerate(data.items()):
                 if split == "test":
                     answer = None
+                    layout = None
                 elif label_frequencies[v["answer"]] < min_label_frequency:
                     skipped += 1
                     continue
                 else:
                     answer = clean_label(v["answer"])
+                    layout = [layout["operation"] for layout in v["semantic"]]
 
                 text = v["question"]
                 img_id = v["imageId"].lstrip("n")
+
                 entry = {
                     vltk.text: text,
                     vltk.imgid: img_id,
                     vltk.label: [answer],
+                    "layout": layout,
                 }
 
                 batch_entries.append(entry)

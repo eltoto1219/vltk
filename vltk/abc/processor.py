@@ -8,26 +8,26 @@ class Processor:
 
     @property
     def keys(self):
-        return self._keys
+        if isinstance(self._keys, str):
+            return set([self._keys])
+        return set(self._keys)
 
-    def __init__(self, *args):
-        for a in args:
-            assert (
-                a == str
-            ), f"{a} must be key name to be queried if input to forward \
-                    will be a dictionaty"
-            self._keys += (a,)
+    def __init__(self, **kwargs):
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
     @torch.no_grad()
-    def __call__(self, inp, *args, **kwargs):
-        # if isinstance(inp, dict):
-        #     assert (
-        #         self.keys
-        #     ), "the `keys` attribute, set as optional positional arguments to \
-        #             the __init__ method must be set when the input to the forward method \
-        #             is a dictionary"
+    def __call__(self, inp, **kwargs):
+        if isinstance(inp, dict):
+            proc_keys = self.keys
+            intersection = proc_keys.intersection(set(inp.keys()))
+            assert (
+                intersection == proc_keys
+            ), f"{type(self).__name__} requires {proc_keys} to be present within the input dictionary, but not all \
+                    keys are present. the input dictionary only has: {inp.keys()}"
+
         kwargs = collect_args_to_func(self.forward, kwargs)
-        output = self.forward(inp, *args, **kwargs)
+        output = self.forward(inp, **kwargs)
         if not isinstance(output, dict):
             assert isinstance(
                 output, torch.Tensor
@@ -36,24 +36,24 @@ class Processor:
             must be a torch tensor aswell"
         else:
             pass
-            # assert not any(
-            #     map(
-            #         lambda x: isinstance(output[x], torch.Tensor)
-            #         if x in output
-            #         else True,
-            #         self.keys,
-            #     )
-            # ), f"Not all values to the respective keys, {self.keys}, are torch tensors"
+
         return output
 
 
-class VisnProccessor(Processor):
+class VisnProcessor(Processor):
     _type = "visn"
 
 
-class LangProccessor(Processor):
+class LangProcessor(Processor):
     _type = "lang"
 
 
-class VisnLangProccessor(Processor):
+class VisnLangProcessor(Processor):
     _type = "visnlang"
+
+    @torch.no_grad()
+    def __call__(self, text_inp, visn_inp, **kwargs):
+
+        text_inp, visn_inp = self.forward(text_inp, visn_inp, **kwargs)
+
+        return text_inp, visn_inp

@@ -73,6 +73,8 @@ class VisnDataset(Adapter):
 
         schema_dict = collect_args_to_func(cls.schema, kwargs=kwargs)
         feature_dict = {**cls.schema(**schema_dict), **cls._base_features}
+        # gather info from schema to figure out what metadata to collect
+        meta_dict = cls._init_metadata(feature_dict)
         # lets work on doing the annotations first
         total_annos = {}
         searchdir, _ = cls._get_valid_search_pathes(
@@ -105,26 +107,25 @@ class VisnDataset(Adapter):
 
         # now write
         print("writing to Datasets/Arrow object")
-        writer, buffer, imgid2row, object_dict, extra_vocab = cls._write_batches(
-            total_annos, feature_dict, cls._batch_size, cls.__name__.lower()
+        writer, buffer, extra_meta = cls._write_batches(
+            total_annos,
+            feature_dict,
+            cls._batch_size,
+            cls.__name__.lower(),
+            meta_dict=meta_dict,
         )
         if savedir is None:
             savedir = searchdir
 
-        extra_meta = {
-            "img_to_row_map": imgid2row,
-            "object_frequencies": object_dict,
-            "vocab": extra_vocab,
-        }
         (table, meta_dict) = cls._write_data(writer, buffer, savedir, extra_meta)
         if table is None:
             return None
         return cls(arrow_table=table, meta_dict=meta_dict)
 
     @staticmethod
-    def _write_batches(annos, feature_dict, batch_size, name):
+    def _write_batches(annos, feature_dict, batch_size, name, meta_dict):
         # name refers to the dataset (class) name
-        object_dict = Counter()
+        # object_dict = Counter()
         features = ds.Features(feature_dict)
         imgid2row = OrderedDict()
         extra_vocab = set()
@@ -137,12 +138,7 @@ class VisnDataset(Adapter):
         # change feature types to classes isntead
         for i, entry in enumerate(annos):
             imgs_left = abs(i + 1 - n_files)
-            # leave uncleaned actually
-            """here"""
-            # entry[vltk.imgid] = f"{name}{vltk.delim}{entry[vltk.imgid]}"
 
-            # vdset_name = next(iter(vision_dataset_name_and_split.keys()))
-            # vdset_split = next(iter(vision_dataset_name_and_split.values()))
             entry[vltk.imgid] = VisnDataset.adjust_imgid(
                 entry[vltk.imgid],
                 name,
@@ -150,15 +146,7 @@ class VisnDataset(Adapter):
             img_id = entry[vltk.imgid]
             if vltk.text in entry:
                 extra_vocab.update(entry[vltk.text])
-            # for now, we will do a temporary fix
-            if vltk.label in entry:
-                object_dict.update(entry[vltk.label])
-            else:
-                for k, v in entry.items():
-                    if isinstance(v, list) and all(
-                        map(lambda x: isinstance(x, str), v)
-                    ):
-                        object_dict.update(v)
+            meta_dict = VisnDataset._update_metadata(meta_dict, entry)
             if img_id in imgid2row:
                 print(f"skipping {img_id}. Already written to table")
             imgid2row[img_id] = cur_row
@@ -180,7 +168,9 @@ class VisnDataset(Adapter):
                 batch = features.encode_batch(cur_batch)
                 writer.write_batch(batch)
 
-        return writer, buffer, imgid2row, object_dict, extra_vocab
+        meta_dict["img_to_row_map"] = imgid2row
+        meta_dict["vocab"] = extra_vocab
+        return writer, buffer, meta_dict
 
     @property
     def labels(self):

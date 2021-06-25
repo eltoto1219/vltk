@@ -1,6 +1,6 @@
 import vltk
-from vltk.abc.processor import (LangProccessor, Processor, VisnLangProccessor,
-                                VisnProccessor)
+from vltk.abc.processor import (LangProcessor, Processor, VisnLangProcessor,
+                                VisnProcessor)
 from vltk.inspection import get_classes
 
 
@@ -8,22 +8,27 @@ class Processors:
     def __init__(self):
         if "PROCESSORDICT" not in globals():
             global PROCESSORDICT
-            PROCESSORDICT = get_classes(vltk.PROCESSORS, Processor, pkg="vltk.adapters")
+            PROCESSORDICT = get_classes(
+                vltk.PROCESSORS, Processor, pkg="vltk.processing"
+            )
+            PROCESSORDICT.pop("visnlangprocessor", None)
+            PROCESSORDICT.pop("langprocessor", None)
+            PROCESSORDICT.pop("visnprocessor", None)
 
     def is_visnlang(self, processor: str):
         assert processor in self.avail(), f"adapter {processor} not is not available"
         processor_class = self.get(processor)
-        return processor_class.__bases__[0] == VisnLangProccessor
+        return processor_class.__bases__[0] == VisnLangProcessor
 
     def is_visn(self, processor: str):
         assert processor in self.avail(), f"adapter {processor} not is not available"
         processor_class = self.get(processor)
-        return processor_class.__bases__[0] == VisnProccessor
+        return processor_class.__bases__[0] == VisnProcessor
 
     def is_lang(self, processor: str):
         assert processor in self.avail(), f"adapter {processor} not is not available"
         processor_class = self.get(processor)
-        return processor_class.__bases__[0] == LangProccessor
+        return processor_class.__bases__[0] == LangProcessor
 
     @staticmethod
     def avail():

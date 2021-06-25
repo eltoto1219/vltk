@@ -16,13 +16,8 @@ from vltk.inspection import collect_args_to_func
 from vltk.processing.image import get_rawsize, get_scale, get_size
 
 
-def clean_imgid_default(imgid):
-    return imgid.split("_")[-1].lstrip("0").strip("n")
-
-
 class VisnExtraction(Adapter):
     _meta_names = [
-        "img_to_row_map",
         "img_to_row_map",
         "dataset",
         "processor_args",
@@ -122,6 +117,7 @@ class VisnExtraction(Adapter):
             processor_config, processor, cls.default_processor
         )
         schema = VisnExtraction._build_schema(cls.schema, **kwargs)
+
         try:
             model, model_config = cls.setup()
         except Exception:
@@ -135,6 +131,7 @@ class VisnExtraction(Adapter):
         split2writer = OrderedDict()
         split2imgid2row = {}
         split2currow = {}
+        split2metadata = {}
         # begin search
         print(f"extracting from {searchdirs}")
         batch_size = cls._batch_size
@@ -158,6 +155,7 @@ class VisnExtraction(Adapter):
             # oragnize by split now
             schema = ds.Features(schema)
             if split not in split2buffer:
+                meta_dict = VisnExtraction._init_metadata(schema)
                 imgid2row = {}
                 cur_row = 0
                 cur_size = 0
@@ -167,12 +165,14 @@ class VisnExtraction(Adapter):
                 split2stream[split] = stream
                 writer = ArrowWriter(features=schema, stream=stream)
                 split2writer[split] = writer
+                split2metadata[split] = meta_dict
             else:
                 # if new split and cur size is not zero, make sure to clear
                 if cur_size != 0:
                     cur_size = 0
                     batch = schema.encode_batch(cur_batch)
                     writer.write_batch(batch)
+                meta_dict = split2metadata[split]
                 imgid2row = split2imgid2row[split]
                 cur_row = split2currow[split]
                 buffer = split2buffer[split]
@@ -200,6 +200,7 @@ class VisnExtraction(Adapter):
                 output_dict, dict
             ), "model outputs should be in dict format"
             output_dict[vltk.imgid] = [img_id]
+            meta_dict = VisnExtraction._update_metadata(meta_dict, output_dict)
 
             if cur_size == 0:
                 cur_batch = output_dict
@@ -224,12 +225,11 @@ class VisnExtraction(Adapter):
         for (_, writer), (split, b) in zip(split2writer.items(), split2buffer.items()):
             savefile = os.path.join(savedir, f"{split}.arrow")
             imgid2row = split2imgid2row[split]
-            meta_dict = {
-                "img_to_row_map": imgid2row,
-                "model_config": model_config,
-                "dataset": dataset_name if dataset_name is not None else searchdir,
-                "processor_args": processor_args,
-            }
+            meta_dict = split2metadata[split]
+            meta_dict["img_to_row_map"] = imgid2row
+            meta_dict["model_config"] = model_config
+            meta_dict["dataset"] = dataset
+            meta_dict["processor_args"] = processor_args
 
             table, info, meta_dict = VisnExtraction._save_dataset(
                 b, writer, savefile, meta_dict, split

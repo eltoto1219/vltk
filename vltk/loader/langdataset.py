@@ -13,7 +13,7 @@ import vltk
 # disable logging from datasets
 from datasets.utils.logging import set_verbosity_error
 from vltk.loader.basedataset import BaseDataset, CollatedVLSets
-from vltk.processing import LangProccessor, Processors
+from vltk.processing import LangProcessor, Processors, VisnLangProcessor
 
 __import__("tokenizers")
 TOKENIZERS = {
@@ -28,7 +28,7 @@ resource.setrlimit(resource.RLIMIT_NOFILE, (6144, rlimit[1]))
 set_verbosity_error()
 
 VOCABPATH = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "libdata/bert-base-uncased-vocab.txt")
+    os.path.join(os.path.dirname(__file__), "libdata/vocab.txt")
 ).replace("loader/", "")
 TOKENIZEDKEY = "encoded"
 os.environ["TOKENIZERS_PARALLELISM"] = "False"
@@ -48,7 +48,9 @@ class LangDataset(BaseDataset):
         """
 
     def _init_lang_processors(self, config):
-        lang_processors = config.processors if config.processors is not None else []
+        lang_processors = (
+            config.lang_processors if config.lang_processors is not None else []
+        )
 
         lang_processors = [
             x if not isinstance(x, str) else Processors().get(x)
@@ -56,14 +58,24 @@ class LangDataset(BaseDataset):
         ]
 
         lang_processors = list(
-            filter(lambda x: x.__bases__[0] == LangProccessor, lang_processors)
+            filter(
+                lambda x: x.__bases__[0] == LangProcessor,
+                lang_processors,
+            )
         )
 
-        self.lang_processors = [x() for x in lang_processors]
+        self.lang_processors = [
+            x(
+                tokenizer=self.tokenizer,
+                from_transformers=self.from_transformers,
+                config=self.config,
+            )
+            for x in lang_processors
+        ]
 
         self.lang_processor_keys = ()
         for x in self.lang_processor_keys:
-            self.lang_processor_keys += x.keys
+            self.lang_processor_keys += tuple(x.keys)
 
     def run_lang_processors(self, entry, encode_batch=False):
         proc_args = self.lang_processor_args()
@@ -73,22 +85,17 @@ class LangDataset(BaseDataset):
         else:
             # add ability later to allow this to happen in parallel
             keys, values = zip(*entry.items())
+            new_keys = keys
             values_t = list(zip(*values))
             for i, v in enumerate(values_t):
                 e = dict(zip(keys, v))
                 for processor in self.lang_processors:
-                    new_keys, values = zip(*processor(e, **proc_args).items())
-                values_t[i] = values
-            entry = dict(zip(new_keys, (zip(*values_t))))
+                    e = processor(e, **proc_args)
+                new_keys, temp_values = zip(*e.items())
+                values_t[i] = list(temp_values)
+            new_values = list(zip(*values_t))
+            entry = dict(zip(new_keys, new_values))
         return entry
-
-    def update_labels(self, path_or_dict):
-        if isinstance(path_or_dict, str):
-            path_or_dict = json.load(open(path_or_dict))
-        else:
-            pass
-        self.answer_to_id = path_or_dict
-        self.uniq_labels = set(path_or_dict.keys())
 
     def lang_processor_args(self):
         # max_rand_sents = 1 if not self.config.img_first else 32
@@ -97,7 +104,7 @@ class LangDataset(BaseDataset):
             "config": self.config,
             # "random_sents": [self.random_sent() for i in range(max_rand_sents)],
             "special_ids": self.special_ids,
-            "answer_to_id": self.answer_to_id,
+            "metadata_ids": self.metadata_ids,
             "all_ids": self.all_ids,
             "n_ids": len(self.all_ids),
         }
@@ -158,7 +165,7 @@ class LangDataset(BaseDataset):
             if isinstance(label, torch.Tensor):
                 entry[vltk.label] = label
                 return entry
-            entry[vltk.label] = torch.tensor(self.answer_to_id[label[0]])
+            entry[vltk.label] = torch.tensor(self.metadata_ids[vltk.label][label[0]])
             if vltk.score in entry:
                 entry[vltk.score] = torch.tensor(entry[vltk.score])
             elif vltk.score in self.max_spanning_cols:
@@ -199,7 +206,7 @@ class LangDataset(BaseDataset):
                 return entry
             lids = []
             for l in label:
-                lid = self.answer_to_id[l[0]]
+                lid = self.metadata_ids[vltk.label][l[0]]
                 lids.append(lid)
             entry[vltk.label] = torch.tensor(lids)
             if vltk.score in entry:
@@ -212,6 +219,7 @@ class LangDataset(BaseDataset):
 
     def _handle_text_annotations(self, entry, encode_batch=False):
         entry = self.run_lang_processors(entry, encode_batch=encode_batch)
+
         entry = self.tokenize_entry(entry, encode_batch=encode_batch)
         entry = self._handle_text_label(entry, encode_batch=encode_batch)
         return entry
