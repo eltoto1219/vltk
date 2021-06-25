@@ -43,9 +43,6 @@ class VisionDataset(BaseDataset):
         vltk.box,
         vltk.RLE,
     )
-    _padding = {vltk.box: [0, 0, 0, 0]}
-    _sep = {vltk.box: torch.tensor([[0, 0, 0, 0]])}
-    _cls = {vltk.box: torch.tensor([[0, 0, 0, 0]])}
 
     def __init__(
         self,
@@ -61,7 +58,7 @@ class VisionDataset(BaseDataset):
 
         self.tokenizer_in_visn_dataset = tokenizer_in_visn_dataset
         if tokenizer_in_visn_dataset:
-            self._init_tokenizer(config)
+            self._init_tokenizer(config.lang)
         self.is_train = is_train
         # self.annotationdict = annotationdict
         self._init_annotation_dict(config, annotationdict)
@@ -192,13 +189,11 @@ class VisionDataset(BaseDataset):
             entry.pop(vltk.polygons)
         if skip_segmentation and vltk.RLE in entry:
             entry.pop(vltk.RLE)
-        # TODO: need better solution for later, but now were dumping all string labels
-        # into the object to id dictionary
         # add annotation labels to image
-        if vltk.label in entry and not isinstance(entry[vltk.label], torch.Tensor):
-            word_labels = entry[vltk.label]
-            labels = torch.Tensor(self.answer_to_id[word_labels])
-            entry[vltk.label] = labels
+        # if vltk.label in entry and not isinstance(entry[vltk.label], torch.Tensor):
+        #     word_labels = entry[vltk.label]
+        #     labels = torch.Tensor(self.answer_to_id[word_labels])
+        #     entry[vltk.label] = labels
         if vltk.objects in entry and not isinstance(entry[vltk.objects], torch.Tensor):
             word_labels = entry[vltk.objects]
             n_objects = len(word_labels)
@@ -304,4 +299,5 @@ class VisionDataset(BaseDataset):
         anno_dict = self._handle_image(anno_dict)
         if self.annotations is not None:
             anno_dict = self._handle_annotations(anno_dict)
+        anno_dict = self.try_tensorify(anno_dict)
         return anno_dict

@@ -6,9 +6,11 @@ from abc import ABCMeta
 from copy import deepcopy
 
 import torch
+import vltk
 from datasets import Dataset
 # disable logging from datasets
 from datasets.utils.logging import set_verbosity_error
+from vltk.utils.adapters import truncate_and_pad_list
 from vltk.utils.base import convertids_recursive
 
 # note if we do not immport a pacakage correctly in this class, no loops or exps will be present
@@ -306,11 +308,17 @@ class BaseDataset(Dataset):
                     entry[k] = torch.tensor(entry[k])
                 except Exception:
                     pass
-            if not isinstance(entry[k], torch.Tensor):
-                try:
-                    entry[k] = convertids_recursive(entry[k], self.metadata_ids[k])
-                except Exception:
-                    pass
+            if not isinstance(entry[k], torch.Tensor) and k in self.metadata_ids:
+                meta = entry[k]
+                # TODO: have something to check if k is from visual or is from visnlang
+                # and then pad to max length appropiately
+                # if k == vltk.label:
+                #     raise Exception(entry[k])
+                if isinstance(entry[k][0], str) and isinstance(entry[k], list):
+                    max_len = self.config.lang.max_visual_seq_length
+                    meta = truncate_and_pad_list(meta, max_len, "")
+
+                entry[k] = convertids_recursive(meta, self.metadata_ids[k])
 
         return entry
 

@@ -29,6 +29,10 @@ StringList = ds.Sequence(length=-1, feature=ds.Value("string"))
 NestedStringList = ds.Sequence(ds.Sequence(length=-1, feature=ds.Value("string")))
 
 Int = ds.Value("int32")
+IntList = ds.Sequence(length=-1, feature=ds.Value("int32"))
+NestedIntList = ds.Sequence(
+    length=-1, feature=ds.Sequence(length=-1, feature=ds.Value("int32"))
+)
 Span = ds.Sequence(length=-1, feature=ds.Value("int32"))
 Float = ds.Value("float32")
 
