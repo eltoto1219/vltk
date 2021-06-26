@@ -162,7 +162,6 @@ class DataConfig(config.Config):
     train_datasets = None
     rand_feats: Union[None, tuple] = None  # if tuple, tuple represents shape
     eval_batch_size = 32
-    add_cls_to_box = False
     train_batch_size = 64
     extractor: Union[None, str] = None
     datadir: str = "/playpen1/home/avmendoz/data"
@@ -173,14 +172,13 @@ class DataConfig(config.Config):
     pin_memory: bool = False
     max_objects: int = 36
     percent: int = 1.0
-    skip_eval: bool = False
-    skip_train: bool = False
-    use_raw_imgs: bool = False
     collate_simple: bool = True
     ignore_annotations: bool = False
     ignore_filepath: bool = True
     ignore_segmentation: bool = False
+    ignore_image: bool = False
     metadata_filedict: Union[None, Dict[str, str]] = None
+    add_visual_cls: bool = True
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

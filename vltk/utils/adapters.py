@@ -70,18 +70,17 @@ def mask_to_polygon(mask):
     return seg
 
 
-def rescale_box(boxes, hw_scale):
+def rescale_box(boxes, wh_scale):
     # boxes = (n, (x, y, w, h))
     # x = top left x position
     # y = top left y position
-    h_scale = hw_scale[0]
-    w_scale = hw_scale[1]
-    y_centroids = (boxes[:, 1] - boxes[:, 3] / 2) * h_scale
-    x_centroids = (boxes[:, 0] + boxes[:, 2] / 2) * w_scale
+    h_scale = wh_scale[1]
+    w_scale = wh_scale[0]
+    boxes[:, 0] *= w_scale
+    boxes[:, 1] *= h_scale
     boxes[:, 2] *= w_scale
     boxes[:, 3] *= h_scale
-    boxes[:, 0] = x_centroids - boxes[:, 2] / 2  # scaled xs
-    boxes[:, 1] = y_centroids + boxes[:, 3] / 2  # scaled ys
+
     return boxes
 
 

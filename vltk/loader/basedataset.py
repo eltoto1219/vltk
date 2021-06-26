@@ -310,14 +310,9 @@ class BaseDataset(Dataset):
                     pass
             if not isinstance(entry[k], torch.Tensor) and k in self.metadata_ids:
                 meta = entry[k]
-                # TODO: have something to check if k is from visual or is from visnlang
-                # and then pad to max length appropiately
-                # if k == vltk.label:
-                #     raise Exception(entry[k])
                 if isinstance(entry[k][0], str) and isinstance(entry[k], list):
                     max_len = self.config.lang.max_visual_seq_length
                     meta = truncate_and_pad_list(meta, max_len, "")
-
                 entry[k] = convertids_recursive(meta, self.metadata_ids[k])
 
         return entry

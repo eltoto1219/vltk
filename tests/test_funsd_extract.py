@@ -1,6 +1,6 @@
 import os
 
-from transformers import RobertaTokenizerFast
+from transformers import BertTokenizerFast, RobertaTokenizerFast
 from vltk.adapters import Adapters
 from vltk.configs import DataConfig, LangConfig, VisionConfig
 from vltk.loader import build
@@ -10,21 +10,19 @@ if __name__ == "__main__":
     Adapters().get("funsd").extract(datadir)
     config = DataConfig(
         # lang=LangConfig(tokenizer="BertWordPieceTokenizer"),
-        lang=LangConfig(
-            tokenizer=RobertaTokenizerFast, vocab_path_or_name="roberta-base"
-        ),
+        train_datasets=[["funsd", "train"]],
         visn=VisionConfig(grayscale=True),
-        train_datasets=[["funsd", "trainval"]],
-        visn_processors=["auxtokenize", "ocrbox"],
+        lang=LangConfig(max_visual_seq_length=512, tokenizer=BertTokenizerFast),
+        visn_processors=["auxtokenize", "ocrboxfixed", "tokenlabels", "xywhtoxyxy"],
+        num_workers=1,
         extractor=None,
         datadir=datadir,
         train_batch_size=2,
         eval_batch_size=2,
-        img_first=True,
-        num_workers=1,
+        add_visual_cls=True,
+        ignore_image=True,
     )
 
     train_loader, val_loader = build(config)
     for x in train_loader:
-        print(x)
-        break
+        pass

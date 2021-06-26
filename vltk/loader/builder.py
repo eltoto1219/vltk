@@ -12,6 +12,9 @@ def init_datasets(config):
     train_loader = None
     eval_loader = None
     metadata_ids = None
+    assert (
+        config.lang.ignore_id < 0
+    ), f"ignore id: {config.lang.ignore_id} must be negative"
     train_ds, eval_ds, to_load, datasets_type = parse_datasets(config)
     if datasets_type == VLDATA:
         out_dict = load_vl(to_load, train_ds, eval_ds, config)
@@ -140,8 +143,8 @@ def load_vl(to_load, train_ds, eval_ds, config):
             dataset_metadata = visnlangdatasetadapter.get_metadata_counters()
             for meta in dataset_metadata:
                 if meta not in metadata_ids:
-                    metadata_ids[meta] = {"": 0}
-                    metadata_idxs[meta] = 1
+                    metadata_ids[meta] = {"": config.ignore_id}
+                    metadata_idxs[meta] = 0
                 for l in sorted(dataset_metadata[meta].keys()):
                     if l not in metadata_ids[meta]:
                         metadata_ids[meta][l] = metadata_idxs[meta]
@@ -171,8 +174,8 @@ def load_vl(to_load, train_ds, eval_ds, config):
                 dataset_metadata = is_annotations.get_metadata_counters()
                 for meta in dataset_metadata:
                     if meta not in metadata_ids:
-                        metadata_ids[meta] = {"": 0}
-                        metadata_idxs[meta] = 1
+                        metadata_ids[meta] = {"": config.lang.ignore_id}
+                        metadata_idxs[meta] = 0
                     for l in sorted(dataset_metadata[meta].keys()):
                         if l not in metadata_ids[meta]:
                             metadata_ids[meta][l] = metadata_idxs[meta]
@@ -234,8 +237,8 @@ def load_v(to_load, train_ds, eval_ds, config):
             dataset_metadata = annotations.get_metadata_counters()
             for meta in dataset_metadata:
                 if meta not in metadata_ids:
-                    metadata_ids[meta] = {"": 0}
-                    metadata_idxs[meta] = 1
+                    metadata_ids[meta] = {"": config.lang.ignore_id}
+                    metadata_idxs[meta] = 0
                 for l in sorted(dataset_metadata[meta].keys()):
                     if l not in metadata_ids[meta]:
                         metadata_ids[meta][l] = metadata_idxs[meta]

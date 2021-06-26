@@ -172,6 +172,9 @@ class VisionDataset(BaseDataset):
             entry.pop(vltk.rawsize)
         entry[vltk.scale] = get_scale(self.image)
 
+        if self.config.ignore_image:
+            entry.pop(vltk.img)
+
         return entry
 
     @torch.no_grad()
@@ -180,7 +183,6 @@ class VisionDataset(BaseDataset):
         skip_segmentation = (
             True
             if (vltk.size not in entry or self.config.ignore_segmentation)
-            or not self.config.add_cls_to_box
             else False
         )
         # get annotations for image
@@ -213,7 +215,7 @@ class VisionDataset(BaseDataset):
         for k in self._supported:
             if k not in entry or isinstance(entry[k], torch.Tensor):
                 continue
-            v = entry[k]
+            # v = entry[k]
             if k == vltk.polygons and not skip_segmentation:
                 size = entry[vltk.size]
                 if vltk.rawsize not in entry:
@@ -259,26 +261,27 @@ class VisionDataset(BaseDataset):
                 entry[vltk.segmentation] = segs
 
             elif k == vltk.box:
-                values = v
-                if k == vltk.box:
-                    if self.config.add_cls_to_box:
-                        values = values[: min(len(values), self.config.max_objects)]
-                    else:
-                        values = values[: min(len(values), self.config.max_objects - 1)]
+                pass
+                # values = v
+                # if k == vltk.box:
+                #     if self.config.add_cls_to_box:
+                #         values = values[: min(len(values), self.config.max_objects)]
+                #     else:
+                #         values = values[: min(len(values), self.config.max_objects - 1)]
 
-                values = torch.tensor(v)
+                # values = torch.tensor(v)
 
-                if vltk.scale in entry:
-                    values = rescale_box(values, entry[vltk.scale])
+                # if vltk.scale in entry:
+                #     values = rescale_box(values, entry[vltk.scale])
 
-                if self.config.add_cls_to_box:
-                    values = torch.cat((values, self.cls_box()), dim=0)
+                # if self.config.add_cls_to_box:
+                #     values = torch.cat((values, self.cls_box()), dim=0)
 
-                values = torch.nn.functional.pad(
-                    values,
-                    (0, 0, 0, self.config.max_objects - len(values)),
-                )
-                entry[k] = values
+                # values = torch.nn.functional.pad(
+                #     values,
+                #     (0, 0, 0, self.config.max_objects - len(values)),
+                # )
+                # entry[k] = values
 
         if replace_keys is not None:
             for r in replace_keys:

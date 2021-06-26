@@ -12,6 +12,8 @@ class Span(VisnLangProcessor):
     def map_span(self, span, tokenmap, max_len):
         span = list(chain(*map(lambda x: [x[0]] * x[1], zip(span, tokenmap))))
         span = truncate_and_pad_list(span, max_len, 0)
+        if self.config.add_visual_cls:
+            span = [0] + span[1:]
         return span
 
     def forward(self, lang_entry, visn_entry, **kwargs):

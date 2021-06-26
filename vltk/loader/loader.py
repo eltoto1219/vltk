@@ -19,10 +19,8 @@ def collate(
 
     if all_same_keys:
         return collate_homogeneous(columns, pad, img_first)
-    elif collate_simple:
-        return collate_min_spanning_cols(columns, pad, img_first)
     else:
-        return collate_heterogenous(columns, pad, img_first, max_spanning_cols)
+        return collate_heterogenous(columns, pad, img_first)
 
 
 def collate_homogeneous(
@@ -31,21 +29,21 @@ def collate_homogeneous(
     img_first=False,
 ):
     batch = {}
+    # raise Exception
     for k in columns[0].keys():
-        if k == vltk.segmentation:
-            batch[k] = torch.stack([i.get(k) for i in columns if i is not None])
-        else:
+        if k not in (vltk.imgid, vltk.qid):
             try:
-
                 batch[k] = torch.stack([i.get(k) for i in columns if i is not None])
             except Exception:
+                raise Exception(k)
 
-                batch[k] = [i.get(k, "") for i in columns if i is not None]
+        else:
+            batch[k] = [i.get(k, None) for i in columns if i is not None]
 
     return batch
 
 
-def collate_min_spanning_cols(
+def collate_heterogenous(
     columns: List[Dict[str, torch.Tensor]],
     pad: bool = True,
     img_first=False,
@@ -63,25 +61,25 @@ def collate_min_spanning_cols(
     return batch
 
 
-def collate_heterogenous(
-    columns: List[Dict[str, torch.Tensor]],
-    pad: bool = True,
-    img_first=False,
-    max_spanning_cols: Union[None, set] = None,
-):
-    raise Exception
-    batch = {}
-    for k in max_spanning_cols:
-        try:
+# def collate_heterogenous(
+#     columns: List[Dict[str, torch.Tensor]],
+#     pad: bool = True,
+#     img_first=False,
+#     max_spanning_cols: Union[None, set] = None,
+# ):
+#     raise Exception
+#     batch = {}
+#     for k in max_spanning_cols:
+#         try:
 
-            batch[k] = torch.stack([i.get(k) for i in columns if i is not None])
-        except Exception:
+#             batch[k] = torch.stack([i.get(k) for i in columns if i is not None])
+#         except Exception:
 
-            batch[k] = [i.get(k, "") for i in columns if i is not None]
+#             batch[k] = [i.get(k, "") for i in columns if i is not None]
 
-    return batch
+#     return batch
 
-    pass
+#     pass
 
 
 def check_all_keys_same(config, visnlangdict=None, visndict=None, annodict=None):
