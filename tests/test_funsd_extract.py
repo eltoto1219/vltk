@@ -6,7 +6,7 @@ from vltk.configs import DataConfig, LangConfig, VisionConfig
 from vltk.loader import build
 
 if __name__ == "__main__":
-    datadir = os.path.join(os.environ["HOME"], "demodata")
+    datadir = os.path.join(os.environ["HOME"], "data")
     Adapters().get("funsd").extract(datadir)
     config = DataConfig(
         # lang=LangConfig(tokenizer="BertWordPieceTokenizer"),

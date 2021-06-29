@@ -19,6 +19,46 @@ ANS_CONVERT = json.load(open(os.path.join(PATH, "convert_answers.json")))
 CONTRACTION_CONVERT = json.load(open(os.path.join(PATH, "convert_answers.json")))
 
 
+def map_ocr_predictions(pred, tokenmap, gold=None):
+    golds = []
+    preds = []
+    accs = []
+    if gold is not None:
+        for g, t, p in zip(gold, tokenmap, pred):
+            t = t[: t.argmin()]
+            total = 0
+            for i, v in enumerate(t):
+                total += v
+                if total >= len(g):
+                    break
+            t = t[:i]
+
+            tsum = sum(t)
+            split_g = torch.split(g[:tsum], t.cpu().tolist())
+            split_p = torch.split(p[:tsum], t.cpu().tolist())
+            true_gold = torch.stack([x[0] for x in split_g]).cpu().tolist()
+            true_preds = torch.stack([x.mode().values for x in split_p]).cpu().tolist()
+            accs += [(1 if p == g else 0) for p, g in zip(true_preds, true_gold)]
+            preds += true_preds
+            golds += true_gold
+        return golds, preds, accs
+    else:
+        for t, p in zip(tokenmap, pred):
+            t = t[: t.argmin()]
+            total = 0
+            for i, v in enumerate(t):
+                total += v
+                if total >= len(p):
+                    break
+            t = t[:i]
+
+            tsum = sum(t)
+            split_p = torch.split(p[:tsum], t.cpu().tolist())
+            true_preds = torch.stack([x.mode().values for x in split_p]).cpu().tolist()
+            preds += true_preds
+        return preds
+
+
 def histogram_from_counter(counter):
     # credits to stack overflow
     # TODO: add credits to stack overflow for other functions that I am using form there
