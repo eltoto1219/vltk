@@ -34,7 +34,7 @@ class DocVQA(adapters.VisnLangDataset):
 
     def schema():
         # img id, label, and score are assumed to be default features
-        return {vltk.span: Features.Span}
+        return {vltk.label: Features.StringList}  # vltk.span: Features.Span,
 
     def forward(json_files, split, datadir=None):
         skipped = 0
@@ -49,32 +49,37 @@ class DocVQA(adapters.VisnLangDataset):
                 # open annotation:
 
                 answers = list(map(lambda x: x.lower(), d["answers"]))
-                try:
-                    anno = json.load(
-                        open(
-                            os.path.join(
-                                datadir, "docvqavisn/annotations", f"{imgid}.json"
-                            ),
-                            "r",
-                        )
-                    )["recognitionResults"][0]
-                except FileNotFoundError:
-                    skipped += 1
-                    continue
+                # try:
+                #     anno = json.load(
+                #         open(
+                #             os.path.join(
+                #                 datadir, "docvqavisn/annotations", f"{imgid}.json"
+                #             ),
+                #             "r",
+                #         )
+                #     )["recognitionResults"][0]
+                # except FileNotFoundError:
+                #     skipped += 1
+                #     continue
 
-                words = ()
-                for lines in anno["lines"]:
-                    for word in lines["words"]:
-                        words += (word["text"].lower(),)
-                if not words:
-                    skipped += 1
-                    continue
+                # words = ()
+                # for lines in anno["lines"]:
+                #     for word in lines["words"]:
+                #         words += (word["text"].lower(),)
+                # if not words:
+                #     skipped += 1
+                #     continue
 
-                span, max_jaccard = get_span_via_jaccard(words, answers, skipped)
-                if span is None:
-                    continue
+                # span, max_jaccard = get_span_via_jaccard(words, answers, skipped)
+                # if span is None:
+                #     continue
 
-                entry = {vltk.text: question, vltk.imgid: imgid, vltk.span: span}
+                entry = {
+                    vltk.text: question,
+                    vltk.imgid: imgid,
+                    vltk.label: answers
+                    # vltk.span: span
+                }
                 batch_entries.append(entry)
         print(f"skipped {skipped} questions: could not find answer.")
         return batch_entries

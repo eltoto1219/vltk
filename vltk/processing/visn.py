@@ -152,6 +152,9 @@ class XYWHtoXYXY(VisnProcessor):
         for k in (vltk.tokenbox, vltk.box):
             if k in entry:
                 box = entry[k]
-                box[:, -2:] += box[:, :2]
+                try:
+                    box[:, -2:] += box[:, :2]
+                except Exception:
+                    raise Exception(box)
                 entry[k] = box
         return entry

@@ -19,7 +19,7 @@ ANS_CONVERT = json.load(open(os.path.join(PATH, "convert_answers.json")))
 CONTRACTION_CONVERT = json.load(open(os.path.join(PATH, "convert_answers.json")))
 
 
-def map_ocr_predictions(pred, tokenmap, gold=None):
+def map_ocr_predictions(pred, tokenmap, gold=None, boxes=None):
     golds = []
     preds = []
     accs = []
@@ -56,7 +56,26 @@ def map_ocr_predictions(pred, tokenmap, gold=None):
             split_p = torch.split(p[:tsum], t.cpu().tolist())
             true_preds = torch.stack([x.mode().values for x in split_p]).cpu().tolist()
             preds += true_preds
-        return preds
+        bboxes = None
+        if boxes is not None:
+            bboxes = []
+            for t, b in zip(tokenmap, boxes):
+                t = t[: t.argmin()]
+                total = 0
+                for i, v in enumerate(t):
+                    total += v
+                    if total >= len(b):
+                        break
+                t = t[:i]
+
+                tsum = sum(t)
+                split_b = torch.split(b[:tsum], t.cpu().tolist())
+                temp_boxes = []
+                for s in split_b:
+                    temp_boxes.append(s.tolist()[0])
+                true_boxes = temp_boxes
+                bboxes += true_boxes
+        return preds, bboxes
 
 
 def histogram_from_counter(counter):
