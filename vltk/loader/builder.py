@@ -274,4 +274,6 @@ def split_handler(splits):
             for valid in SPLITALIASES:
                 if valid in split:
                     unique_splits.add(valid)
+    if "" in splits:
+        unique_splits.add("")
     return sorted(unique_splits)

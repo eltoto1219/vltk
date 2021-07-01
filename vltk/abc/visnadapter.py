@@ -3,16 +3,17 @@ import os
 import pickle
 from abc import abstractmethod
 from collections import Counter, OrderedDict
+from pathlib import Path
 
 import datasets as ds
 import pyarrow
 import vltk
 from datasets import ArrowWriter
 from tqdm import tqdm
-from vltk import ANNOTATION_DIR
+from vltk import ANNOTATION_DIR, SPLITALIASES
 from vltk.abc.adapter import Adapter
 from vltk.inspection import collect_args_to_func
-from vltk.utils.base import set_metadata
+from vltk.utils.base import set_metadata, try_load
 
 
 class VisnDataset(Adapter):
@@ -40,25 +41,50 @@ class VisnDataset(Adapter):
     @classmethod
     def load_imgid2path(cls, datadir, split):
         name = cls.__name__.lower()
-        path = os.path.join(datadir, name, split)
-        return VisnDataset.files(path, name)
+        return VisnDataset.files(datadir, name, split)
 
     @staticmethod
-    def files(path, name):
+    def files(path, name, split):
         files = {}
-        if not os.path.isdir(path):
-            print(f"No path exists for: {path}")
-            return files
-        for i in os.listdir(path):
-            fp = os.path.join(path, i)
-            # TODO: confirm if I still want to prepend dataset name later
-            # okay, so we will only add the dataset name if it is not already present
-            # actually, lets not worry about this until we run into this issue
-            iid = i.split(".")[0]
-            # if name.casefold() not in iid.casefold():
-            #     iid = f'{name}{vltk.delim}{i.split(".")[0]}'
-            # iid = i.split(".")[0]
-            files[iid] = fp
+        if split:
+
+            for ext in ("png", "jpeg", "jpg"):
+                for path in Path(os.path.join(path, name)).glob(
+                    f"**/*.{ext}",
+                ):
+
+                    path = str(path)
+
+                    try:
+                        stem, ext = path.split(".")
+                    except Exception:
+                        continue
+                    if split not in stem:
+
+                        continue
+                    files[stem.split("/")[-1]] = path
+        else:
+            for ext in ("png", "jpeg", "jpg"):
+                for path in Path(os.path.join(path, name)).glob(
+                    f"**/*.{ext}",
+                ):
+
+                    path = str(path)
+                    try:
+                        stem, ext = path.split(".")
+                    except Exception:
+                        continue
+                    cont = False
+                    for spl in SPLITALIASES:
+                        if spl in stem:
+                            raise Exception(spl, stem)
+                            cont = True
+                            break
+                    if cont:
+                        raise Exception
+                        continue
+                    files[stem.split("/")[-1]] = path
+
         return files
 
     @classmethod
@@ -81,7 +107,6 @@ class VisnDataset(Adapter):
             searchdir, name=cls.__name__.lower(), annodir=ANNOTATION_DIR
         )
         files = cls._iter_files(searchdir)
-        # get into right format
         json_files = {}
         temp_splits = []
         print("loading annotations...")
@@ -95,11 +120,8 @@ class VisnDataset(Adapter):
                     split = spl
                     break
             temp_splits.append(split)
-            if "json" not in str(anno_file):
-                continue
-            if "caption" not in str(anno_file) and "question" not in str(anno_file):
-                anno_data = json.load(open(str(anno_file)))
-                json_files[str(anno_file).split("/")[-1]] = anno_data
+            anno_data = try_load(anno_file)
+            json_files[str(anno_file).split("/")[-1]] = anno_data
 
         kwargs["datadir"] = "/".join(searchdir.split("/")[:-2])
         forward_dict = collect_args_to_func(cls.forward, kwargs=kwargs)

@@ -94,15 +94,20 @@ def batcher(iterable, n=64):
         yield iterable[ndx : min(ndx + n, l)]
 
 
-def try_load_json(filepath):
-    try:
-        with open(filepath) as f:
-            data = json.load(f)
-        return data
-    except json.decoder.JSONDecodeError:
-        with open(filepath) as f:
-            data = jsonlines.open(f)
-        return data
+def try_load(filepath):
+    ext = str(filepath).split(".")[-1]
+    if ext in ("json", "jsonl"):
+        try:
+            with open(filepath) as f:
+                data = json.load(f)
+            return data
+        except json.decoder.JSONDecodeError:
+            with open(filepath) as f:
+                data = jsonlines.open(f)
+            return data
+    elif "pdf" == ext:
+        return str(filepath)
+    raise Exception(ext)
     # try:
     #     with open(filepath) as f:
     #         entry = jsonlines.open(f)
