@@ -39,21 +39,18 @@ class FRCNN(adapters.VisnExtraction):
 
     def forward(model, entry):
 
-        size = entry["size"]
-        scale_hw = entry["scale"]
-        image = entry["image"]
+        size = entry[vltk.size]
+        scale_wh = entry[vltk.scale]
+        image = entry[vltk.img]
 
         model_out = model(
             images=image.unsqueeze(0),
             image_shapes=size.unsqueeze(0),
-            scales_yx=scale_hw.unsqueeze(0),
             padding="max_detections",
             pad_value=0.0,
             location="cpu",
         )
-        normalized_boxes = torch.round(
-            rescale_box(model_out["boxes"][0], 1 / entry["scale"])
-        )
+        normalized_boxes = torch.round(rescale_box(model_out["boxes"][0], 1 / scale_wh))
 
         return {
             "object_ids": [model_out["obj_ids"][0].tolist()],

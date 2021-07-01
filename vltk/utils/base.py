@@ -375,16 +375,20 @@ def get_arrow_primitive(schema_value):
 
 
 def convertids_recursive(ls, objids):
+    ls = list(ls)
     # get deepest nested list
     if (
         isinstance(ls, collections.Iterable)
         and not isinstance(ls, str)
         and isinstance(ls[0], str)
     ):
-        return torch.Tensor(list(map(lambda x: objids[x], ls)))
+        ten = torch.Tensor(list(map(lambda x: objids[x], ls)))
+        return ten
     else:
         for idx, item in enumerate(ls):
-            ls[idx] = convertids_recursive(ls)
+            res = convertids_recursive(item, objids)
+            assert isinstance(res, torch.Tensor), (type(res), res)
+            ls[idx] = res
         try:
             ls = torch.stack(ls)
         except Exception:

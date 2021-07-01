@@ -7,7 +7,6 @@ import torch
 import torchvision.transforms.functional as FV
 import vltk
 from pycocotools import mask as coco_mask
-from skimage import measure
 from tqdm import tqdm
 from vltk.processing.image import (Image, get_pad, get_rawsize, get_scale,
                                    get_size)
@@ -91,10 +90,10 @@ def histogram_from_counter(counter):
     plt.show()
 
 
-def imagepoints_to_polygon(points):
-    img = imagepoints_to_mask(points)
-    polygon = mask_to_polygon(img)
-    return polygon
+# def imagepoints_to_polygon(points):
+#     img = imagepoints_to_mask(points)
+#     polygon = mask_to_polygon(img)
+#     return polygon
 
 
 # source: https://github.com/ksrath0re/clevr-refplus-rec/
@@ -119,14 +118,14 @@ def imagepoints_to_mask(points, size):
     return img
 
 
-def mask_to_polygon(mask):
-    contours = measure.find_contours(mask, 0.5)
-    seg = []
-    for contour in contours:
-        contour = np.flip(contour, axis=1)
-        segmentation = contour.ravel().tolist()
-        seg.append(segmentation)
-    return seg
+# def mask_to_polygon(mask):
+#     contours = measure.find_contours(mask, 0.5)
+#     seg = []
+#     for contour in contours:
+#         contour = np.flip(contour, axis=1)
+#         segmentation = contour.ravel().tolist()
+#         seg.append(segmentation)
+#     return seg
 
 
 def rescale_box(boxes, wh_scale):

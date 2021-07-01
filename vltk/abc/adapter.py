@@ -128,11 +128,12 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
         if is_visnlang:
             setattr(filtered_self, "data_info", self.data_info)
             setattr(filtered_self, "_img_to_row_map", new_map)
+            setattr(filtered_self, "imgids", remaining)
             # setattr(filtered_self, "_img_to_row_map", new_map)
         else:
             setattr(filtered_self, "_img_to_row_map", dict(zip(remaining, idx_set)))
             setattr(filtered_self, "check_imgid_alignment", self.check_imgid_alignment)
-            setattr(filtered_self, "imgids", self.imgids)
+            setattr(filtered_self, "imgids", remaining)
 
         return filtered_self
 
@@ -197,7 +198,7 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
             final_paths.append(path)
             valid_splits.append(splt)
 
-        assert final_paths
+        assert final_paths, (searchdir, name, splits, annodir)
         return final_paths, valid_splits
 
     @staticmethod
@@ -211,12 +212,13 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
         return savepath
 
     @staticmethod
-    def _iter_files(searchdirs, valid_splits=None):
+    def _iter_files(searchdirs, valid_splits=None, iter_imgs=False):
         text_files = []
         if isinstance(searchdirs, str):
             searchdirs = [searchdirs]
         for datadir in searchdirs:
-            for suffix in SUFFIXES:
+            iterfilter = IMGFILES if iter_imgs else SUFFIXES
+            for suffix in iterfilter:
                 for path in Path(datadir).glob(
                     f"**/*.{suffix}",
                 ):

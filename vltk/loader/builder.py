@@ -143,7 +143,7 @@ def load_vl(to_load, train_ds, eval_ds, config):
             dataset_metadata = visnlangdatasetadapter.get_metadata_counters()
             for meta in dataset_metadata:
                 if meta not in metadata_ids:
-                    metadata_ids[meta] = {"": config.ignore_id}
+                    metadata_ids[meta] = {"": config.lang.ignore_id}
                     metadata_idxs[meta] = 0
                 for l in sorted(dataset_metadata[meta].keys()):
                     if l not in metadata_ids[meta]:
@@ -171,15 +171,18 @@ def load_vl(to_load, train_ds, eval_ds, config):
                     is_annotations = _adapters.get(is_name)
                 loaded_annotations[is_name] = is_annotations
 
-                dataset_metadata = is_annotations.get_metadata_counters()
-                for meta in dataset_metadata:
-                    if meta not in metadata_ids:
-                        metadata_ids[meta] = {"": config.lang.ignore_id}
-                        metadata_idxs[meta] = 0
-                    for l in sorted(dataset_metadata[meta].keys()):
-                        if l not in metadata_ids[meta]:
-                            metadata_ids[meta][l] = metadata_idxs[meta]
-                            metadata_idxs[meta] += 1
+                try:
+                    dataset_metadata = is_annotations.get_metadata_counters()
+                    for meta in dataset_metadata:
+                        if meta not in metadata_ids:
+                            metadata_ids[meta] = {"": config.lang.ignore_id}
+                            metadata_idxs[meta] = 0
+                        for l in sorted(dataset_metadata[meta].keys()):
+                            if l not in metadata_ids[meta]:
+                                metadata_ids[meta][l] = metadata_idxs[meta]
+                                metadata_idxs[meta] += 1
+                except Exception:
+                    pass
 
             if (
                 is_name in loaded_visndatasetadapters[is_name]
