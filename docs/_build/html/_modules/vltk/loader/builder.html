@@ -1,0 +1,499 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>vltk.loader.builder &mdash; VLTK: The Vision Language Toolkit 0.2 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> VLTK: The Vision Language Toolkit
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules.html">vltk</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">VLTK: The Vision Language Toolkit</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+          <li><a href="../loader.html">vltk.loader</a> &raquo;</li>
+        
+      <li>vltk.loader.builder</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for vltk.loader.builder</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+
+<span class="kn">from</span> <span class="nn">vltk</span> <span class="kn">import</span> <span class="n">SPLITALIASES</span><span class="p">,</span> <span class="n">VDATA</span><span class="p">,</span> <span class="n">VLDATA</span>
+<span class="kn">from</span> <span class="nn">vltk.adapters</span> <span class="kn">import</span> <span class="n">Adapters</span>
+<span class="kn">from</span> <span class="nn">vltk.loader.loader</span> <span class="kn">import</span> <span class="n">VisionLanguageLoader</span><span class="p">,</span> <span class="n">VisionLoader</span>
+
+<span class="n">_adapters</span> <span class="o">=</span> <span class="n">Adapters</span><span class="p">()</span>
+
+
+<div class="viewcode-block" id="init_datasets"><a class="viewcode-back" href="../../../vltk.loader.html#vltk.loader.builder.init_datasets">[docs]</a><span class="k">def</span> <span class="nf">init_datasets</span><span class="p">(</span><span class="n">config</span><span class="p">):</span>
+    <span class="n">train_loader</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">eval_loader</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">metadata_ids</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">assert</span> <span class="p">(</span>
+        <span class="n">config</span><span class="o">.</span><span class="n">lang</span><span class="o">.</span><span class="n">ignore_id</span> <span class="o">&lt;</span> <span class="mi">0</span>
+    <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;ignore id: </span><span class="si">{</span><span class="n">config</span><span class="o">.</span><span class="n">lang</span><span class="o">.</span><span class="n">ignore_id</span><span class="si">}</span><span class="s2"> must be negative&quot;</span>
+    <span class="n">train_ds</span><span class="p">,</span> <span class="n">eval_ds</span><span class="p">,</span> <span class="n">to_load</span><span class="p">,</span> <span class="n">datasets_type</span> <span class="o">=</span> <span class="n">parse_datasets</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">datasets_type</span> <span class="o">==</span> <span class="n">VLDATA</span><span class="p">:</span>
+        <span class="n">out_dict</span> <span class="o">=</span> <span class="n">load_vl</span><span class="p">(</span><span class="n">to_load</span><span class="p">,</span> <span class="n">train_ds</span><span class="p">,</span> <span class="n">eval_ds</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+        <span class="n">metadata_ids</span> <span class="o">=</span> <span class="n">out_dict</span><span class="p">[</span><span class="s2">&quot;metadata_ids&quot;</span><span class="p">]</span>
+        <span class="n">train</span> <span class="o">=</span> <span class="n">out_dict</span><span class="p">[</span><span class="s2">&quot;train&quot;</span><span class="p">]</span>
+        <span class="n">evalutation</span> <span class="o">=</span> <span class="n">out_dict</span><span class="p">[</span><span class="s2">&quot;eval&quot;</span><span class="p">]</span>
+        <span class="n">annos</span> <span class="o">=</span> <span class="n">out_dict</span><span class="p">[</span><span class="s2">&quot;annotations&quot;</span><span class="p">]</span>
+        <span class="n">visndatasetadapters</span> <span class="o">=</span> <span class="n">out_dict</span><span class="p">[</span><span class="s2">&quot;visndatasetadapters&quot;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">train</span><span class="p">:</span>
+            <span class="n">train_loader</span> <span class="o">=</span> <span class="n">VisionLanguageLoader</span><span class="p">(</span>
+                <span class="n">config</span><span class="p">,</span>
+                <span class="n">visnlangdatasetadapterdict</span><span class="o">=</span><span class="n">train</span><span class="p">,</span>
+                <span class="n">visndatasetadapterdict</span><span class="o">=</span><span class="n">visndatasetadapters</span><span class="p">,</span>
+                <span class="n">annotationdict</span><span class="o">=</span><span class="n">annos</span><span class="p">,</span>
+                <span class="n">metadata_ids</span><span class="o">=</span><span class="n">metadata_ids</span><span class="p">,</span>
+                <span class="n">is_train</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">evalutation</span><span class="p">:</span>
+            <span class="n">eval_loader</span> <span class="o">=</span> <span class="n">VisionLanguageLoader</span><span class="p">(</span>
+                <span class="n">config</span><span class="p">,</span>
+                <span class="n">visnlangdatasetadapterdict</span><span class="o">=</span><span class="n">evalutation</span><span class="p">,</span>
+                <span class="n">visndatasetadapterdict</span><span class="o">=</span><span class="n">visndatasetadapters</span><span class="p">,</span>
+                <span class="n">annotationdict</span><span class="o">=</span><span class="n">annos</span><span class="p">,</span>
+                <span class="n">metadata_ids</span><span class="o">=</span><span class="n">metadata_ids</span><span class="p">,</span>
+                <span class="n">is_train</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="p">)</span>
+    <span class="k">if</span> <span class="n">datasets_type</span> <span class="o">==</span> <span class="n">VDATA</span><span class="p">:</span>
+
+        <span class="n">out_dict</span> <span class="o">=</span> <span class="n">load_v</span><span class="p">(</span><span class="n">to_load</span><span class="p">,</span> <span class="n">train_ds</span><span class="p">,</span> <span class="n">eval_ds</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+        <span class="c1"># if is_train is false</span>
+        <span class="n">train</span> <span class="o">=</span> <span class="n">out_dict</span><span class="p">[</span><span class="s2">&quot;train&quot;</span><span class="p">]</span>
+        <span class="n">evalutation</span> <span class="o">=</span> <span class="n">out_dict</span><span class="p">[</span><span class="s2">&quot;eval&quot;</span><span class="p">]</span>
+        <span class="n">metadata_ids</span> <span class="o">=</span> <span class="n">out_dict</span><span class="p">[</span><span class="s2">&quot;metadata_ids&quot;</span><span class="p">]</span>
+        <span class="n">annotations</span> <span class="o">=</span> <span class="n">out_dict</span><span class="p">[</span><span class="s2">&quot;annotations&quot;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="n">train</span><span class="p">:</span>
+            <span class="n">train_loader</span> <span class="o">=</span> <span class="n">VisionLoader</span><span class="p">(</span>
+                <span class="n">config</span><span class="p">,</span>
+                <span class="n">visndatasetadapterdict</span><span class="o">=</span><span class="n">train</span><span class="p">,</span>
+                <span class="n">annotationdict</span><span class="o">=</span><span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">annotations</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">train_ds</span><span class="p">},</span>
+                <span class="n">metadata_ids</span><span class="o">=</span><span class="n">metadata_ids</span><span class="p">,</span>
+                <span class="n">is_train</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">if</span> <span class="n">evalutation</span><span class="p">:</span>
+            <span class="n">eval_loader</span> <span class="o">=</span> <span class="n">VisionLoader</span><span class="p">(</span>
+                <span class="n">config</span><span class="p">,</span>
+                <span class="n">visndatasetadapterdict</span><span class="o">=</span><span class="n">evalutation</span><span class="p">,</span>
+                <span class="n">annotationdict</span><span class="o">=</span><span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">v</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">annotations</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">eval_ds</span><span class="p">},</span>
+                <span class="n">metadata_ids</span><span class="o">=</span><span class="n">metadata_ids</span><span class="p">,</span>
+                <span class="n">is_train</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="p">)</span>
+
+    <span class="c1"># loaders = {</span>
+    <span class="c1"># &quot;train&quot;: train_loader if train_loader is not None else None,</span>
+    <span class="c1"># &quot;eval&quot;: eval_loader if eval_loader is not None else None,</span>
+    <span class="c1"># }</span>
+    <span class="c1"># loaders = [(k, v) for k, v in loaders.items()]</span>
+    <span class="c1"># any_train = any(map(lambda x: x == &quot;train&quot;, [k for k in loaders]))</span>
+    <span class="c1"># loaders = sorted(loaders, key=lambda x: x[0], reverse=True)</span>
+    <span class="n">train_loader</span> <span class="o">=</span> <span class="n">train_loader</span> <span class="k">if</span> <span class="n">train_loader</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="n">eval_loader</span> <span class="o">=</span> <span class="n">eval_loader</span> <span class="k">if</span> <span class="n">eval_loader</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">train_loader</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">train_loader</span><span class="o">.</span><span class="n">dataset</span><span class="p">,</span> <span class="s2">&quot;tokenizer&quot;</span><span class="p">):</span>
+        <span class="n">train_loader</span><span class="o">.</span><span class="n">tokenizer</span> <span class="o">=</span> <span class="n">train_loader</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">tokenizer</span>
+    <span class="k">if</span> <span class="n">eval_loader</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">eval_loader</span><span class="o">.</span><span class="n">dataset</span><span class="p">,</span> <span class="s2">&quot;tokenizer&quot;</span><span class="p">):</span>
+        <span class="n">eval_loader</span><span class="o">.</span><span class="n">tokenizer</span> <span class="o">=</span> <span class="n">eval_loader</span><span class="o">.</span><span class="n">dataset</span><span class="o">.</span><span class="n">tokenizer</span>
+
+    <span class="k">return</span> <span class="n">train_loader</span><span class="p">,</span> <span class="n">eval_loader</span></div>
+
+
+<div class="viewcode-block" id="parse_datasets"><a class="viewcode-back" href="../../../vltk.loader.html#vltk.loader.builder.parse_datasets">[docs]</a><span class="k">def</span> <span class="nf">parse_datasets</span><span class="p">(</span><span class="n">config</span><span class="p">):</span>
+    <span class="n">load_visnlangdatasets</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">set</span><span class="p">)</span>
+    <span class="n">load_visndatasets</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">set</span><span class="p">)</span>
+    <span class="n">train_ds</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">set</span><span class="p">)</span>
+    <span class="n">eval_ds</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">set</span><span class="p">)</span>
+    <span class="n">train</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">train_datasets</span>
+    <span class="n">train</span> <span class="o">=</span> <span class="n">train</span> <span class="k">if</span> <span class="n">train</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">[]</span>
+    <span class="n">test</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">eval_datasets</span>
+    <span class="n">test</span> <span class="o">=</span> <span class="n">test</span> <span class="k">if</span> <span class="n">test</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">[]</span>
+
+    <span class="k">assert</span> <span class="n">train</span> <span class="ow">or</span> <span class="n">test</span><span class="p">,</span> <span class="s2">&quot;Must specify dataset in config to instatiate&quot;</span>
+    <span class="k">if</span> <span class="n">train</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">train</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">train</span> <span class="o">=</span> <span class="p">[</span><span class="n">train</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">test</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">test</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">test</span> <span class="o">=</span> <span class="p">[</span><span class="n">test</span><span class="p">]</span>
+    <span class="n">total</span> <span class="o">=</span> <span class="n">train</span> <span class="o">+</span> <span class="n">test</span>
+    <span class="n">all_img</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="n">all_vl</span> <span class="o">=</span> <span class="kc">False</span>
+    <span class="k">for</span> <span class="n">pair</span> <span class="ow">in</span> <span class="n">total</span><span class="p">:</span>
+        <span class="n">ds</span><span class="p">,</span> <span class="n">split</span> <span class="o">=</span> <span class="n">pair</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">pair</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span>
+        <span class="n">ds</span> <span class="o">=</span> <span class="n">ds</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="n">split</span> <span class="o">=</span> <span class="n">split</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="n">splits</span> <span class="o">=</span> <span class="n">split_handler</span><span class="p">(</span><span class="n">split</span><span class="p">)</span>
+        <span class="c1"># TODO: will need to change this</span>
+        <span class="k">if</span> <span class="n">_adapters</span><span class="o">.</span><span class="n">is_visnlang</span><span class="p">(</span><span class="n">ds</span><span class="p">):</span>
+            <span class="n">all_vl</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="n">load_visnlangdatasets</span><span class="p">[</span><span class="n">ds</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">splits</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">_adapters</span><span class="o">.</span><span class="n">is_visn</span><span class="p">(</span><span class="n">ds</span><span class="p">):</span>
+            <span class="n">load_visndatasets</span><span class="p">[</span><span class="n">ds</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">splits</span><span class="p">)</span>
+            <span class="n">all_img</span> <span class="o">=</span> <span class="kc">True</span>
+    <span class="k">for</span> <span class="n">ds</span><span class="p">,</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">train</span><span class="p">:</span>
+        <span class="n">train_ds</span><span class="p">[</span><span class="n">ds</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">split_handler</span><span class="p">(</span><span class="n">split</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">ds</span><span class="p">,</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">test</span><span class="p">:</span>
+        <span class="n">eval_ds</span><span class="p">[</span><span class="n">ds</span><span class="p">]</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">split_handler</span><span class="p">(</span><span class="n">split</span><span class="p">))</span>
+
+    <span class="k">assert</span> <span class="ow">not</span> <span class="p">(</span><span class="n">all_vl</span> <span class="ow">and</span> <span class="n">all_img</span><span class="p">),</span> <span class="s2">&quot;cannot specify mixture of VL and Vision datasets&quot;</span>
+    <span class="n">datasets_type</span> <span class="o">=</span> <span class="n">VDATA</span> <span class="k">if</span> <span class="n">all_img</span> <span class="k">else</span> <span class="n">VLDATA</span>
+    <span class="n">to_load</span> <span class="o">=</span> <span class="n">load_visndatasets</span> <span class="k">if</span> <span class="n">all_img</span> <span class="k">else</span> <span class="n">load_visnlangdatasets</span>
+    <span class="k">return</span> <span class="n">train_ds</span><span class="p">,</span> <span class="n">eval_ds</span><span class="p">,</span> <span class="n">to_load</span><span class="p">,</span> <span class="n">datasets_type</span></div>
+
+
+<div class="viewcode-block" id="load_vl"><a class="viewcode-back" href="../../../vltk.loader.html#vltk.loader.builder.load_vl">[docs]</a><span class="k">def</span> <span class="nf">load_vl</span><span class="p">(</span><span class="n">to_load</span><span class="p">,</span> <span class="n">train_ds</span><span class="p">,</span> <span class="n">eval_ds</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+    <span class="n">datadir</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">datadir</span>
+    <span class="n">loaded_eval</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>  <span class="c1"># will be datasetk</span>
+    <span class="n">loaded_train</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>  <span class="c1"># will be datasetk</span>
+    <span class="n">loaded_visndatasetadapters</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">loaded_annotations</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">metadata_ids</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">metadata_idxs</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">to_load</span><span class="o">.</span><span class="n">keys</span><span class="p">())):</span>
+        <span class="n">splits</span> <span class="o">=</span> <span class="n">split_handler</span><span class="p">(</span><span class="n">to_load</span><span class="p">[</span><span class="n">name</span><span class="p">])</span>  <span class="c1"># list looks like [&#39;trainval&#39;, &#39;dev&#39;]</span>
+        <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">splits</span><span class="p">):</span>
+            <span class="c1"># add visnlangdatasetadapter first</span>
+            <span class="n">visnlangdatasetadapter</span> <span class="o">=</span> <span class="n">_adapters</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">datadir</span><span class="p">,</span> <span class="n">split</span><span class="o">=</span><span class="n">split</span><span class="p">)</span>
+            <span class="n">dataset_metadata</span> <span class="o">=</span> <span class="n">visnlangdatasetadapter</span><span class="o">.</span><span class="n">get_metadata_counters</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">meta</span> <span class="ow">in</span> <span class="n">dataset_metadata</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">meta</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">metadata_ids</span><span class="p">:</span>
+                    <span class="n">metadata_ids</span><span class="p">[</span><span class="n">meta</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;&quot;</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">lang</span><span class="o">.</span><span class="n">ignore_id</span><span class="p">}</span>
+                    <span class="n">metadata_idxs</span><span class="p">[</span><span class="n">meta</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">dataset_metadata</span><span class="p">[</span><span class="n">meta</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                    <span class="k">if</span> <span class="n">l</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">metadata_ids</span><span class="p">[</span><span class="n">meta</span><span class="p">]:</span>
+                        <span class="n">metadata_ids</span><span class="p">[</span><span class="n">meta</span><span class="p">][</span><span class="n">l</span><span class="p">]</span> <span class="o">=</span> <span class="n">metadata_idxs</span><span class="p">[</span><span class="n">meta</span><span class="p">]</span>
+                        <span class="n">metadata_idxs</span><span class="p">[</span><span class="n">meta</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">eval_ds</span> <span class="ow">and</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">split_handler</span><span class="p">(</span><span class="n">eval_ds</span><span class="p">[</span><span class="n">name</span><span class="p">]):</span>
+                <span class="n">loaded_eval</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="n">split</span><span class="p">]</span> <span class="o">=</span> <span class="n">visnlangdatasetadapter</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">train_ds</span> <span class="ow">and</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">split_handler</span><span class="p">(</span><span class="n">train_ds</span><span class="p">[</span><span class="n">name</span><span class="p">]):</span>
+                <span class="n">loaded_train</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="n">split</span><span class="p">]</span> <span class="o">=</span> <span class="n">visnlangdatasetadapter</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Added VisnLangDataset </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">split</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+            <span class="c1"># now add visndatasetadapter</span>
+            <span class="n">is_name</span><span class="p">,</span> <span class="n">is_split</span> <span class="o">=</span> <span class="nb">zip</span><span class="p">(</span><span class="o">*</span><span class="n">visnlangdatasetadapter</span><span class="o">.</span><span class="n">data_info</span><span class="p">[</span><span class="n">split</span><span class="p">]</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+            <span class="n">is_name</span> <span class="o">=</span> <span class="n">is_name</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">is_split</span> <span class="o">=</span> <span class="n">is_split</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="c1"># first check to see if we want annotations</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">config</span><span class="o">.</span><span class="n">ignore_annotations</span> <span class="ow">and</span> <span class="n">is_name</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">loaded_annotations</span><span class="p">:</span>
+                <span class="c1"># function in visndatasetadapter that: given datadir + optional split + optional</span>
+                <span class="c1"># extractor feats + annotation bool will return</span>
+                <span class="c1"># the desired path</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">is_annotations</span> <span class="o">=</span> <span class="n">_adapters</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">is_name</span><span class="p">)</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">datadir</span><span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                    <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Warning: No Annotations for </span><span class="si">{</span><span class="n">is_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                    <span class="n">is_annotations</span> <span class="o">=</span> <span class="n">_adapters</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">is_name</span><span class="p">)</span>
+                <span class="n">loaded_annotations</span><span class="p">[</span><span class="n">is_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">is_annotations</span>
+
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">dataset_metadata</span> <span class="o">=</span> <span class="n">is_annotations</span><span class="o">.</span><span class="n">get_metadata_counters</span><span class="p">()</span>
+                    <span class="k">for</span> <span class="n">meta</span> <span class="ow">in</span> <span class="n">dataset_metadata</span><span class="p">:</span>
+                        <span class="k">if</span> <span class="n">meta</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">metadata_ids</span><span class="p">:</span>
+                            <span class="n">metadata_ids</span><span class="p">[</span><span class="n">meta</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;&quot;</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">lang</span><span class="o">.</span><span class="n">ignore_id</span><span class="p">}</span>
+                            <span class="n">metadata_idxs</span><span class="p">[</span><span class="n">meta</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                        <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">dataset_metadata</span><span class="p">[</span><span class="n">meta</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                            <span class="k">if</span> <span class="n">l</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">metadata_ids</span><span class="p">[</span><span class="n">meta</span><span class="p">]:</span>
+                                <span class="n">metadata_ids</span><span class="p">[</span><span class="n">meta</span><span class="p">][</span><span class="n">l</span><span class="p">]</span> <span class="o">=</span> <span class="n">metadata_idxs</span><span class="p">[</span><span class="n">meta</span><span class="p">]</span>
+                                <span class="n">metadata_idxs</span><span class="p">[</span><span class="n">meta</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                    <span class="k">pass</span>
+
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="n">is_name</span> <span class="ow">in</span> <span class="n">loaded_visndatasetadapters</span><span class="p">[</span><span class="n">is_name</span><span class="p">]</span>
+                <span class="ow">and</span> <span class="n">is_split</span> <span class="ow">in</span> <span class="n">loaded_visndatasetadapters</span><span class="p">[</span><span class="n">is_name</span><span class="p">]</span>
+            <span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">extractor</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="c1"># this is if we want to get pre-computed features</span>
+                <span class="n">is_data</span> <span class="o">=</span> <span class="n">_adapters</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">extractor</span><span class="p">)</span><span class="o">.</span><span class="n">load</span><span class="p">(</span>
+                    <span class="n">datadir</span><span class="p">,</span> <span class="n">split</span><span class="o">=</span><span class="n">is_split</span><span class="p">,</span> <span class="n">dataset_name</span><span class="o">=</span><span class="n">is_name</span>
+                <span class="p">)</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># this is if we want to get raw features (in the form {id: raw file})</span>
+                <span class="n">is_data</span> <span class="o">=</span> <span class="n">_adapters</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">is_name</span><span class="p">)</span><span class="o">.</span><span class="n">load_imgid2path</span><span class="p">(</span>
+                    <span class="n">config</span><span class="o">.</span><span class="n">datadir</span><span class="p">,</span> <span class="n">split</span><span class="o">=</span><span class="n">split</span>
+                <span class="p">)</span>
+                <span class="c1"># print(is_data)</span>
+            <span class="k">if</span> <span class="p">(</span>
+                <span class="n">is_name</span> <span class="ow">in</span> <span class="n">loaded_visndatasetadapters</span>
+                <span class="ow">and</span> <span class="n">is_split</span> <span class="ow">in</span> <span class="n">loaded_visndatasetadapters</span><span class="p">[</span><span class="n">is_name</span><span class="p">]</span>
+            <span class="p">):</span>
+                <span class="k">pass</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">loaded_visndatasetadapters</span><span class="p">[</span><span class="n">is_name</span><span class="p">][</span><span class="n">is_split</span><span class="p">]</span> <span class="o">=</span> <span class="n">is_data</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Added VisnDataset </span><span class="si">{</span><span class="n">is_name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">is_split</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">metadata_filedict</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">metadata_filedict</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">metadata_filedict</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">metadata_ids</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">metadata_filedict</span><span class="p">:</span>
+                <span class="n">metadata_ids</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">metadata_filedict</span><span class="p">[</span><span class="n">k</span><span class="p">]))</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;eval&quot;</span><span class="p">:</span> <span class="n">loaded_eval</span><span class="p">,</span>
+        <span class="s2">&quot;train&quot;</span><span class="p">:</span> <span class="n">loaded_train</span><span class="p">,</span>
+        <span class="s2">&quot;annotations&quot;</span><span class="p">:</span> <span class="n">loaded_annotations</span><span class="p">,</span>
+        <span class="s2">&quot;visndatasetadapters&quot;</span><span class="p">:</span> <span class="n">loaded_visndatasetadapters</span><span class="p">,</span>
+        <span class="s2">&quot;metadata_ids&quot;</span><span class="p">:</span> <span class="n">metadata_ids</span><span class="p">,</span>
+    <span class="p">}</span></div>
+
+
+<span class="c1"># provide overlap ids at some other point</span>
+<div class="viewcode-block" id="load_v"><a class="viewcode-back" href="../../../vltk.loader.html#vltk.loader.builder.load_v">[docs]</a><span class="k">def</span> <span class="nf">load_v</span><span class="p">(</span><span class="n">to_load</span><span class="p">,</span> <span class="n">train_ds</span><span class="p">,</span> <span class="n">eval_ds</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+    <span class="n">loaded_eval</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>  <span class="c1"># will be datasetk</span>
+    <span class="n">loaded_train</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>  <span class="c1"># will be datasetk</span>
+    <span class="n">loaded_annotations</span> <span class="o">=</span> <span class="n">defaultdict</span><span class="p">(</span><span class="nb">dict</span><span class="p">)</span>
+    <span class="n">metadata_ids</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="n">metadata_idxs</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">to_load</span><span class="o">.</span><span class="n">keys</span><span class="p">())):</span>
+        <span class="n">splits</span> <span class="o">=</span> <span class="n">split_handler</span><span class="p">(</span><span class="n">to_load</span><span class="p">[</span><span class="n">name</span><span class="p">])</span>  <span class="c1"># list looks like [&#39;trainval&#39;, &#39;dev&#39;]</span>
+        <span class="n">annotations</span> <span class="o">=</span> <span class="n">_adapters</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">datadir</span><span class="p">)</span>
+        <span class="n">loaded_annotations</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="o">=</span> <span class="n">annotations</span>
+        <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">splits</span><span class="p">):</span>
+            <span class="n">imgids2pathes</span> <span class="o">=</span> <span class="n">_adapters</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">name</span><span class="p">)</span><span class="o">.</span><span class="n">load_imgid2path</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">datadir</span><span class="p">,</span> <span class="n">split</span><span class="p">)</span>
+            <span class="n">dataset_metadata</span> <span class="o">=</span> <span class="n">annotations</span><span class="o">.</span><span class="n">get_metadata_counters</span><span class="p">()</span>
+            <span class="k">for</span> <span class="n">meta</span> <span class="ow">in</span> <span class="n">dataset_metadata</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">meta</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">metadata_ids</span><span class="p">:</span>
+                    <span class="n">metadata_ids</span><span class="p">[</span><span class="n">meta</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;&quot;</span><span class="p">:</span> <span class="n">config</span><span class="o">.</span><span class="n">lang</span><span class="o">.</span><span class="n">ignore_id</span><span class="p">}</span>
+                    <span class="n">metadata_idxs</span><span class="p">[</span><span class="n">meta</span><span class="p">]</span> <span class="o">=</span> <span class="mi">0</span>
+                <span class="k">for</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">dataset_metadata</span><span class="p">[</span><span class="n">meta</span><span class="p">]</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+                    <span class="k">if</span> <span class="n">l</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">metadata_ids</span><span class="p">[</span><span class="n">meta</span><span class="p">]:</span>
+                        <span class="n">metadata_ids</span><span class="p">[</span><span class="n">meta</span><span class="p">][</span><span class="n">l</span><span class="p">]</span> <span class="o">=</span> <span class="n">metadata_idxs</span><span class="p">[</span><span class="n">meta</span><span class="p">]</span>
+                        <span class="n">metadata_idxs</span><span class="p">[</span><span class="n">meta</span><span class="p">]</span> <span class="o">+=</span> <span class="mi">1</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">eval_ds</span> <span class="ow">and</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">eval_ds</span><span class="p">[</span><span class="n">name</span><span class="p">]:</span>
+                <span class="n">loaded_eval</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="n">split</span><span class="p">]</span> <span class="o">=</span> <span class="n">imgids2pathes</span>
+            <span class="k">if</span> <span class="n">name</span> <span class="ow">in</span> <span class="n">train_ds</span> <span class="ow">and</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">train_ds</span><span class="p">[</span><span class="n">name</span><span class="p">]:</span>
+                <span class="n">loaded_train</span><span class="p">[</span><span class="n">name</span><span class="p">][</span><span class="n">split</span><span class="p">]</span> <span class="o">=</span> <span class="n">imgids2pathes</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Added VisnDatasetAdapter </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">split</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">metadata_filedict</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">metadata_filedict</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">metadata_filedict</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">metadata_ids</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">metadata_filedict</span><span class="p">:</span>
+                <span class="n">metadata_ids</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">metadata_filedict</span><span class="p">[</span><span class="n">k</span><span class="p">]))</span>
+
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;train&quot;</span><span class="p">:</span> <span class="n">loaded_train</span><span class="p">,</span>
+        <span class="s2">&quot;eval&quot;</span><span class="p">:</span> <span class="n">loaded_eval</span><span class="p">,</span>
+        <span class="s2">&quot;annotations&quot;</span><span class="p">:</span> <span class="n">loaded_annotations</span><span class="p">,</span>
+        <span class="s2">&quot;metadata_ids&quot;</span><span class="p">:</span> <span class="n">metadata_ids</span><span class="p">,</span>
+    <span class="p">}</span></div>
+
+
+<div class="viewcode-block" id="split_handler"><a class="viewcode-back" href="../../../vltk.loader.html#vltk.loader.builder.split_handler">[docs]</a><span class="k">def</span> <span class="nf">split_handler</span><span class="p">(</span><span class="n">splits</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">splits</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="n">splits</span><span class="p">]</span>
+    <span class="n">unique_splits</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">splits</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">split</span> <span class="o">==</span> <span class="s2">&quot;testdev&quot;</span><span class="p">:</span>
+            <span class="n">unique_splits</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">split</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">valid</span> <span class="ow">in</span> <span class="n">SPLITALIASES</span><span class="p">:</span>
+                <span class="k">if</span> <span class="n">valid</span> <span class="ow">in</span> <span class="n">split</span><span class="p">:</span>
+                    <span class="n">unique_splits</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">valid</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s2">&quot;&quot;</span> <span class="ow">in</span> <span class="n">splits</span><span class="p">:</span>
+        <span class="n">unique_splits</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+    <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">unique_splits</span><span class="p">)</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Antonio Mendoza.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+    <!-- Theme Analytics -->
+    <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-83738774-2', 'auto');
+    
+    ga('send', 'pageview');
+    </script>
+
+    
+   
+
+</body>
+</html>

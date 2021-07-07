@@ -1,0 +1,550 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>vltk.loader.basedataset &mdash; VLTK: The Vision Language Toolkit 0.2 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> VLTK: The Vision Language Toolkit
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules.html">vltk</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">VLTK: The Vision Language Toolkit</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+          <li><a href="../loader.html">vltk.loader</a> &raquo;</li>
+        
+      <li>vltk.loader.basedataset</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for vltk.loader.basedataset</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">inspect</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">resource</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">ABCMeta</span>
+<span class="kn">from</span> <span class="nn">copy</span> <span class="kn">import</span> <span class="n">deepcopy</span>
+
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">vltk</span>
+<span class="kn">from</span> <span class="nn">datasets</span> <span class="kn">import</span> <span class="n">Dataset</span>
+<span class="c1"># disable logging from datasets</span>
+<span class="kn">from</span> <span class="nn">datasets.utils.logging</span> <span class="kn">import</span> <span class="n">set_verbosity_error</span>
+<span class="kn">from</span> <span class="nn">vltk.utils.adapters</span> <span class="kn">import</span> <span class="n">truncate_and_pad_list</span>
+<span class="kn">from</span> <span class="nn">vltk.utils.base</span> <span class="kn">import</span> <span class="n">convertids_recursive</span>
+
+<span class="c1"># note if we do not immport a pacakage correctly in this class, no loops or exps will be present</span>
+
+
+<span class="nb">__import__</span><span class="p">(</span><span class="s2">&quot;tokenizers&quot;</span><span class="p">)</span>
+<span class="n">TOKENIZERS</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="n">m</span><span class="p">[</span><span class="mi">0</span><span class="p">]:</span> <span class="n">m</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">m</span> <span class="ow">in</span> <span class="n">inspect</span><span class="o">.</span><span class="n">getmembers</span><span class="p">(</span><span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="s2">&quot;tokenizers&quot;</span><span class="p">],</span> <span class="n">inspect</span><span class="o">.</span><span class="n">isclass</span><span class="p">)</span>
+<span class="p">}</span>
+
+<span class="n">rlimit</span> <span class="o">=</span> <span class="n">resource</span><span class="o">.</span><span class="n">getrlimit</span><span class="p">(</span><span class="n">resource</span><span class="o">.</span><span class="n">RLIMIT_NOFILE</span><span class="p">)</span>
+<span class="n">resource</span><span class="o">.</span><span class="n">setrlimit</span><span class="p">(</span><span class="n">resource</span><span class="o">.</span><span class="n">RLIMIT_NOFILE</span><span class="p">,</span> <span class="p">(</span><span class="mi">6144</span><span class="p">,</span> <span class="n">rlimit</span><span class="p">[</span><span class="mi">1</span><span class="p">]))</span>
+
+<span class="n">set_verbosity_error</span><span class="p">()</span>
+
+<span class="n">VOCABPATH</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">),</span> <span class="s2">&quot;libdata/vocab.txt&quot;</span><span class="p">)</span>
+<span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;loader/&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+<span class="n">TOKENIZEDKEY</span> <span class="o">=</span> <span class="s2">&quot;encoded&quot;</span>
+<span class="k">global</span> <span class="n">TORCHCOLS</span>
+<span class="n">TORCHCOLS</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+<span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;TOKENIZERS_PARALLELISM&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;False&quot;</span>
+
+
+<div class="viewcode-block" id="SplitRangesVision"><a class="viewcode-back" href="../../../vltk.loader.html#vltk.loader.basedataset.SplitRangesVision">[docs]</a><span class="k">class</span> <span class="nc">SplitRangesVision</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nested_dict</span><span class="p">):</span>
+        <span class="c1"># takes nested dict where the top level is the dataset name</span>
+        <span class="c1"># the lower level keys are the split names</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">nested_dict</span> <span class="o">=</span> <span class="n">nested_dict</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">range2dataset</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subrange2dataset</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">range2split</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">uniq_imgs</span> <span class="o">=</span> <span class="p">()</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">dataset_len</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">for</span> <span class="n">dataset_name</span><span class="p">,</span> <span class="n">dataset_dict</span> <span class="ow">in</span> <span class="n">nested_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">cur_dataset_len</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">split_name</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">dataset_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">rng</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">+</span> <span class="n">start</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">subrange2dataset</span><span class="p">[</span><span class="n">rng</span><span class="p">]</span> <span class="o">=</span> <span class="n">dataset_name</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">range2split</span><span class="p">[</span><span class="n">rng</span><span class="p">]</span> <span class="o">=</span> <span class="n">split_name</span>
+                <span class="n">start</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+                <span class="n">cur_dataset_len</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">img_ids</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">imgids</span>
+                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                    <span class="n">img_ids</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span>
+
+                <span class="n">img_ids</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">img_ids</span><span class="p">)</span>
+
+                <span class="c1"># check once</span>
+
+                <span class="n">uniq_imgs</span> <span class="o">+=</span> <span class="n">img_ids</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">range2dataset</span><span class="p">[</span>
+                <span class="nb">range</span><span class="p">(</span><span class="n">dataset_len</span><span class="p">,</span> <span class="n">dataset_len</span> <span class="o">+</span> <span class="n">cur_dataset_len</span><span class="p">)</span>
+            <span class="p">]</span> <span class="o">=</span> <span class="n">dataset_name</span>
+            <span class="n">dataset_len</span> <span class="o">+=</span> <span class="n">cur_dataset_len</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_len</span> <span class="o">=</span> <span class="n">dataset_len</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">imgs</span> <span class="o">=</span> <span class="n">uniq_imgs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">uniq_imgs</span> <span class="o">=</span> <span class="n">uniq_imgs</span>
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">imgs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">x</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;index </span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s2"> is out of range 0 to </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">rng</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range2split</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">rng</span><span class="p">:</span>
+                <span class="n">visn_split</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">range2split</span><span class="p">[</span><span class="n">rng</span><span class="p">]</span>
+                <span class="n">visn_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subrange2dataset</span><span class="p">[</span><span class="n">rng</span><span class="p">]</span>
+                <span class="k">return</span> <span class="n">visn_name</span><span class="p">,</span> <span class="n">visn_split</span></div>
+
+
+<div class="viewcode-block" id="SplitRangesVL"><a class="viewcode-back" href="../../../vltk.loader.html#vltk.loader.basedataset.SplitRangesVL">[docs]</a><span class="k">class</span> <span class="nc">SplitRangesVL</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">nested_dict</span><span class="p">):</span>
+        <span class="c1"># takes nested dict where the top level is the dataset name</span>
+        <span class="c1"># the lower level keys are the split names</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">nested_dict</span> <span class="o">=</span> <span class="n">nested_dict</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">range2dataset</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subrange2dataset</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">range2split</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">uniq_imgs</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">dataset_len</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">dataset_name</span><span class="p">,</span> <span class="n">dataset_dict</span> <span class="ow">in</span> <span class="n">nested_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">cur_dataset_len</span> <span class="o">=</span> <span class="mi">0</span>
+            <span class="k">for</span> <span class="n">split_name</span><span class="p">,</span> <span class="n">data</span> <span class="ow">in</span> <span class="n">dataset_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+                <span class="n">rng</span> <span class="o">=</span> <span class="nb">range</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span> <span class="o">+</span> <span class="n">start</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">uniq_imgs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">data</span><span class="o">.</span><span class="n">imgids</span><span class="p">))</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">subrange2dataset</span><span class="p">[</span><span class="n">rng</span><span class="p">]</span> <span class="o">=</span> <span class="n">dataset_name</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">range2split</span><span class="p">[</span><span class="n">rng</span><span class="p">]</span> <span class="o">=</span> <span class="n">split_name</span>
+                <span class="n">start</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+                <span class="n">cur_dataset_len</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
+
+            <span class="bp">self</span><span class="o">.</span><span class="n">range2dataset</span><span class="p">[</span>
+                <span class="nb">range</span><span class="p">(</span><span class="n">dataset_len</span><span class="p">,</span> <span class="n">dataset_len</span> <span class="o">+</span> <span class="n">cur_dataset_len</span><span class="p">)</span>
+            <span class="p">]</span> <span class="o">=</span> <span class="n">dataset_name</span>
+            <span class="n">dataset_len</span> <span class="o">+=</span> <span class="n">cur_dataset_len</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_len</span> <span class="o">=</span> <span class="n">dataset_len</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">uniq_imgs</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">uniq_imgs</span><span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_len</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">x</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;index </span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s2"> is out of range 0 to </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">rng</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range2split</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">rng</span><span class="p">:</span>
+                <span class="n">lang_split</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">range2split</span><span class="p">[</span><span class="n">rng</span><span class="p">]</span>
+                <span class="n">langset_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">subrange2dataset</span><span class="p">[</span><span class="n">rng</span><span class="p">]</span>
+                <span class="c1"># note does not support matching mulitple vision datasets to a single split</span>
+                <span class="n">langset</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">nested_dict</span><span class="p">[</span><span class="n">langset_name</span><span class="p">][</span><span class="n">lang_split</span><span class="p">]</span>
+                <span class="n">vinset_info</span> <span class="o">=</span> <span class="n">langset</span><span class="o">.</span><span class="n">data_info</span><span class="p">[</span><span class="n">lang_split</span><span class="p">]</span>
+                <span class="n">visnset_name</span> <span class="o">=</span> <span class="nb">next</span><span class="p">(</span><span class="nb">iter</span><span class="p">(</span><span class="n">vinset_info</span><span class="o">.</span><span class="n">keys</span><span class="p">()))</span>
+                <span class="n">vinset_splits</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">vinset_info</span><span class="o">.</span><span class="n">values</span><span class="p">())[</span><span class="mi">0</span><span class="p">]</span>
+                <span class="k">return</span> <span class="p">(</span><span class="n">lang_split</span><span class="p">,</span> <span class="n">langset_name</span><span class="p">,</span> <span class="n">visnset_name</span><span class="p">,</span> <span class="n">vinset_splits</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="CollatedVLSets"><a class="viewcode-back" href="../../../vltk.loader.html#vltk.loader.basedataset.CollatedVLSets">[docs]</a><span class="k">class</span> <span class="nc">CollatedVLSets</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">args</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">range2listpos</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">uniq_imgs</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">a</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">uniq_imgs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="n">a</span><span class="o">.</span><span class="n">imgids</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">range2listpos</span><span class="p">[</span><span class="nb">range</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="o">+</span> <span class="n">start</span><span class="p">)]</span> <span class="o">=</span> <span class="n">i</span>
+            <span class="n">start</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+
+    <span class="c1"># TODO: better solution for more datasets</span>
+<div class="viewcode-block" id="CollatedVLSets.get"><a class="viewcode-back" href="../../../vltk.loader.html#vltk.loader.basedataset.CollatedVLSets.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">img_id</span><span class="p">,</span> <span class="n">return_dataset</span><span class="o">=</span><span class="kc">False</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">adapter</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">:</span>
+            <span class="c1"># print(adapter, img_id)</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">adapter</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">img_id</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="k">pass</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;image id not found in any  visndatasetadapter annotations&quot;</span><span class="p">)</span></div>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">x</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;index </span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s2"> is out of range 0 to </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">rng</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range2listpos</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">rng</span><span class="p">:</span>
+                <span class="n">listpos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">range2listpos</span><span class="p">[</span><span class="n">rng</span><span class="p">]</span>
+                <span class="n">listind</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="n">rng</span><span class="o">.</span><span class="n">start</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="n">listpos</span><span class="p">][</span><span class="n">listind</span><span class="p">]</span>
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="bp">self</span><span class="p">[</span><span class="n">x</span><span class="p">],</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">))))</span></div>
+
+
+<div class="viewcode-block" id="CollatedVisionSets"><a class="viewcode-back" href="../../../vltk.loader.html#vltk.loader.basedataset.CollatedVisionSets">[docs]</a><span class="k">class</span> <span class="nc">CollatedVisionSets</span><span class="p">:</span>
+    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">args</span> <span class="o">=</span> <span class="n">args</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">range2listpos</span> <span class="o">=</span> <span class="p">{}</span>
+        <span class="n">start</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">a</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">ABCMeta</span><span class="p">):</span>
+                <span class="k">continue</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">range2listpos</span><span class="p">[</span><span class="nb">range</span><span class="p">(</span><span class="n">start</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">a</span><span class="p">)</span> <span class="o">+</span> <span class="n">start</span><span class="p">)]</span> <span class="o">=</span> <span class="n">i</span>
+            <span class="n">start</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">a</span><span class="p">)</span>
+
+    <span class="c1"># TODO: better solution for more datasets</span>
+<div class="viewcode-block" id="CollatedVisionSets.get"><a class="viewcode-back" href="../../../vltk.loader.html#vltk.loader.basedataset.CollatedVisionSets.get">[docs]</a>    <span class="k">def</span> <span class="nf">get</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">img_id</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">adapter</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">:</span>
+            <span class="c1"># if not isinstance(adapter, Dataset):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">adapter</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">img_id</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                <span class="k">continue</span>
+        <span class="k">return</span> <span class="p">{}</span></div>
+
+        <span class="c1"># raise Exception(&quot;image id not found in any  visndatasetadapter annotations&quot;)</span>
+
+    <span class="k">def</span> <span class="fm">__getitem__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">x</span> <span class="o">&gt;=</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+            <span class="k">raise</span> <span class="ne">IndexError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;index </span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s2"> is out of range 0 to </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">rng</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">range2listpos</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">rng</span><span class="p">:</span>
+                <span class="n">listpos</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">range2listpos</span><span class="p">[</span><span class="n">rng</span><span class="p">]</span>
+                <span class="n">listind</span> <span class="o">=</span> <span class="n">x</span> <span class="o">-</span> <span class="n">rng</span><span class="o">.</span><span class="n">start</span>
+                <span class="k">return</span> <span class="p">(</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="n">listpos</span><span class="p">][</span><span class="n">listind</span><span class="p">],</span>
+                    <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">[</span><span class="n">listpos</span><span class="p">])</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">lower</span><span class="p">(),</span>
+                <span class="p">)</span>
+
+    <span class="k">def</span> <span class="fm">__len__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="nb">len</span><span class="p">(</span><span class="n">x</span><span class="p">),</span> <span class="bp">self</span><span class="o">.</span><span class="n">args</span><span class="p">))</span>
+
+    <span class="k">def</span> <span class="fm">__iter__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="nb">iter</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="bp">self</span><span class="p">[</span><span class="n">x</span><span class="p">],</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="p">))))</span></div>
+
+
+<div class="viewcode-block" id="BaseDataset"><a class="viewcode-back" href="../../../vltk.loader.html#vltk.loader.basedataset.BaseDataset">[docs]</a><span class="k">class</span> <span class="nc">BaseDataset</span><span class="p">(</span><span class="n">Dataset</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_init_tokenizer</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+        <span class="n">from_transformers</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">config</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span> <span class="o">=</span> <span class="n">TOKENIZERS</span><span class="p">[</span><span class="n">config</span><span class="o">.</span><span class="n">tokenizer</span><span class="p">](</span>
+                    <span class="n">VOCABPATH</span>
+                    <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">vocab_path_or_name</span> <span class="ow">is</span> <span class="kc">None</span>
+                    <span class="k">else</span> <span class="n">config</span><span class="o">.</span><span class="n">vocab_path_or_name</span><span class="p">,</span>
+                    <span class="n">lowercase</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">lowercase</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">special_tokens</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span>
+                        <span class="p">[</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">bos_token</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">eos_token</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">unk_token</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">sep_token</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">pad_token</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">cls_token</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">mask_token</span><span class="p">,</span>
+                        <span class="p">]</span>
+                    <span class="p">)</span>
+                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">bos_token</span> <span class="o">=</span> <span class="s2">&quot;[BOS]&quot;</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">eos_token</span> <span class="o">=</span> <span class="s2">&quot;[EOS]&quot;</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">unk_token</span> <span class="o">=</span> <span class="s2">&quot;[UNK]&quot;</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">sep_token</span> <span class="o">=</span> <span class="s2">&quot;[SEP]&quot;</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">pad_token</span> <span class="o">=</span> <span class="s2">&quot;[PAD]&quot;</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">cls_token</span> <span class="o">=</span> <span class="s2">&quot;[CLS]&quot;</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">mask_token</span> <span class="o">=</span> <span class="s2">&quot;[MASK]&quot;</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">special_tokens</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span>
+                        <span class="p">[</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">bos_token</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">eos_token</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">unk_token</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">sep_token</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">pad_token</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">cls_token</span><span class="p">,</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">mask_token</span><span class="p">,</span>
+                        <span class="p">]</span>
+                    <span class="p">)</span>
+
+                <span class="c1"># self.tokenizer.add_special_tokens(self.special_tokens)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">enable_truncation</span><span class="p">(</span><span class="n">max_length</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">max_seq_length</span><span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">enable_padding</span><span class="p">(</span><span class="n">length</span><span class="o">=</span><span class="n">config</span><span class="o">.</span><span class="n">max_seq_length</span><span class="p">)</span>
+                <span class="n">special_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span>
+                    <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">token_to_id</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">special_tokens</span><span class="p">]</span>
+                <span class="p">)</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">special_ids</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">special_ids</span><span class="p">)</span>
+            <span class="k">except</span> <span class="ne">KeyError</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                    <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">config</span><span class="o">.</span><span class="n">tokenizer</span><span class="si">}</span><span class="s2"> not available. Try one of: </span><span class="si">{</span><span class="n">TOKENIZERS</span><span class="o">.</span><span class="n">keys</span><span class="p">()</span><span class="si">}</span><span class="s2">.</span><span class="se">\</span>
+<span class="s2">                            OR pass a Tokenizer class from transformers&quot;</span>
+                <span class="p">)</span>
+            <span class="n">from_transformers</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span>
+                <span class="s2">&quot;/&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">VOCABPATH</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+                <span class="k">if</span> <span class="n">config</span><span class="o">.</span><span class="n">vocab_path_or_name</span> <span class="ow">is</span> <span class="kc">None</span>
+                <span class="k">else</span> <span class="n">config</span><span class="o">.</span><span class="n">vocab_path_or_name</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">special_tokens</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span>
+                <span class="p">[</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">bos_token</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">eos_token</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">unk_token</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">sep_token</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">pad_token</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">cls_token</span><span class="p">,</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">mask_token</span><span class="p">,</span>
+                <span class="p">]</span>
+            <span class="p">)</span>
+            <span class="n">special_ids</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span>
+                <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_tokens_to_ids</span><span class="p">(</span><span class="n">t</span><span class="p">)</span> <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">special_tokens</span><span class="p">]</span>
+            <span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">special_ids</span> <span class="o">=</span> <span class="n">deepcopy</span><span class="p">(</span><span class="n">special_ids</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">from_transformers</span> <span class="o">=</span> <span class="n">from_transformers</span>
+
+        <span class="n">all_ids</span> <span class="o">=</span> <span class="nb">tuple</span><span class="p">(</span><span class="n">i</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">get_vocab</span><span class="p">()</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">all_ids</span> <span class="o">=</span> <span class="n">all_ids</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">batch_size</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">is_train</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">eval_batch_size</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">train_batch_size</span>
+
+<div class="viewcode-block" id="BaseDataset.try_tensorify"><a class="viewcode-back" href="../../../vltk.loader.html#vltk.loader.basedataset.BaseDataset.try_tensorify">[docs]</a>    <span class="k">def</span> <span class="nf">try_tensorify</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entry</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">entry</span><span class="p">:</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">entry</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">):</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">entry</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">entry</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                    <span class="k">pass</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">entry</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">)</span> <span class="ow">and</span> <span class="n">k</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">metadata_ids</span><span class="p">:</span>
+                <span class="n">meta</span> <span class="o">=</span> <span class="n">entry</span><span class="p">[</span><span class="n">k</span><span class="p">]</span>
+                <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">entry</span><span class="p">[</span><span class="n">k</span><span class="p">][</span><span class="mi">0</span><span class="p">],</span> <span class="nb">str</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">entry</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="nb">list</span><span class="p">):</span>
+                    <span class="n">max_len</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">lang</span><span class="o">.</span><span class="n">max_visual_seq_length</span>
+                    <span class="n">meta</span> <span class="o">=</span> <span class="n">truncate_and_pad_list</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="n">max_len</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span>
+                <span class="n">entry</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">convertids_recursive</span><span class="p">(</span><span class="n">meta</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">metadata_ids</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+
+        <span class="k">return</span> <span class="n">entry</span></div>
+
+    <span class="k">def</span> <span class="nf">_update_placeholders</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">entry</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+        <span class="c1"># if self.all_same_keys:</span>
+        <span class="c1">#     return</span>
+        <span class="c1"># entry_keys =</span>
+        <span class="c1"># placeholders = self.placeholders</span>
+        <span class="c1"># entry_keys</span>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Antonio Mendoza.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+    <!-- Theme Analytics -->
+    <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+      (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+      m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-83738774-2', 'auto');
+    
+    ga('send', 'pageview');
+    </script>
+
+    
+   
+
+</body>
+</html>
