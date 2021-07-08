@@ -2,7 +2,8 @@ import json
 import os
 import pickle
 from abc import abstractmethod
-from collections import Counter, OrderedDict
+from collections import Counter, OrderedDict, defaultdict
+from pathlib import Path
 
 import datasets as ds
 import pyarrow
@@ -22,6 +23,7 @@ class VisnDataset(Adapter):
     }
     _meta_names = {"img_to_row_map", "object_frequencies", "vocab"}
     _is_annotation = True
+    _extensions = {"jpg", "png", "pdf", "jpeg"}
 
     @staticmethod
     def adjust_imgid(img_id, dataset_name=None):
@@ -49,12 +51,17 @@ class VisnDataset(Adapter):
         if not os.path.isdir(path):
             print(f"No path exists for: {path}")
             return files
-        for i in os.listdir(path):
-            fp = os.path.join(path, i)
+        for i in Path(path).glob("**/*"):
+            fp = str(i)
+            fp_split = fp.split(".")
+            ext = fp_split[-1]
+            if ext not in VisnDataset._extensions:
+                continue
+
             # TODO: confirm if I still want to prepend dataset name later
             # okay, so we will only add the dataset name if it is not already present
             # actually, lets not worry about this until we run into this issue
-            iid = i.split(".")[0]
+            iid = fp_split[0].split("/")[-1]
             # if name.casefold() not in iid.casefold():
             #     iid = f'{name}{vltk.delim}{i.split(".")[0]}'
             # iid = i.split(".")[0]
@@ -127,7 +134,7 @@ class VisnDataset(Adapter):
         # name refers to the dataset (class) name
         # object_dict = Counter()
         features = ds.Features(feature_dict)
-        imgid2row = OrderedDict()
+        imgid2rows = defaultdict(list)  # OrderedDict()
         extra_vocab = set()
         cur_size = 0
         cur_row = 0
@@ -147,9 +154,7 @@ class VisnDataset(Adapter):
             if vltk.text in entry:
                 extra_vocab.update(entry[vltk.text])
             meta_dict = VisnDataset._update_metadata(meta_dict, entry)
-            if img_id in imgid2row:
-                print(f"skipping {img_id}. Already written to table")
-            imgid2row[img_id] = cur_row
+            imgid2rows[img_id].append(cur_row)
             cur_row += 1
             if cur_size == 0:
                 for k, v in entry.items():
@@ -168,7 +173,7 @@ class VisnDataset(Adapter):
                 batch = features.encode_batch(cur_batch)
                 writer.write_batch(batch)
 
-        meta_dict["img_to_row_map"] = imgid2row
+        meta_dict["img_to_row_map"] = imgid2rows
         meta_dict["vocab"] = extra_vocab
         return writer, buffer, meta_dict
 

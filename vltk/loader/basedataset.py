@@ -174,6 +174,7 @@ class CollatedVisionSets:
 
         self.args = args
         self.range2listpos = {}
+        self.imgids = ()
         start = 0
         for i, a in enumerate(args):
             if isinstance(a, ABCMeta):

@@ -234,6 +234,7 @@ def load_v(to_load, train_ds, eval_ds, config):
         loaded_annotations[name] = annotations
         for split in sorted(splits):
             imgids2pathes = _adapters.get(name).load_imgid2path(config.datadir, split)
+
             dataset_metadata = annotations.get_metadata_counters()
             for meta in dataset_metadata:
                 if meta not in metadata_ids:

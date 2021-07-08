@@ -56,29 +56,42 @@ class VisionDataset(BaseDataset):
         **kwargs,
     ):
 
+        self.all_same_keys = all_same_keys
         self.tokenizer_in_visn_dataset = tokenizer_in_visn_dataset
         if tokenizer_in_visn_dataset:
             self._init_tokenizer(config.lang)
         self.is_train = is_train
         # self.annotationdict = annotationdict
-        self._init_annotation_dict(config, annotationdict)
         self.config = config
         self._init_image_processor(config)
         self._init_vision_processors(config)
-        self._init_box_cls_token(config)
         self.visndatasetadapterdict = visndatasetadapterdict
         self.metadata_ids = metadata_ids
-        self.img_id_to_path = {}
-        self.n_imgs = 0
         # later if we need
-        self.idx_to_imgid = {}
-        for imgsetsplits in list(visndatasetadapterdict.values()):
+        # print(len(set(annotationdict["funsdaug"].imgids)))
+        annotationdict, imgids2pathes, n_imgs = self._shrink_annotation_dicts(
+            annotationdict, visndatasetadapterdict
+        )
+        # print(len(set(annotationdict["funsdaug"].imgids)))
+
+        self._init_annotation_dict(config, annotationdict)
+        self.img_id_to_path = imgids2pathes
+        self.n_imgs = n_imgs
+
+    def _shrink_annotation_dicts(self, annotationdict, visndatasetadapterdict):
+        imgids2pathes = {}
+        n_imgs = 0
+        for name, imgsetsplits in visndatasetadapterdict.items():
+            annodata = annotationdict[name]
+            imgids = set()
             for imgids2files in imgsetsplits.values():
-                self.n_imgs += len(imgids2files)
-                self.img_id_to_path.update(imgids2files)
-        self.imgids = tuple(self.img_id_to_path.keys())
-        self.all_same_keys = all_same_keys
-        self.max_spanning_cols = kwargs.get("max_spanning_cols", None)
+                imgids.update(set(imgids2files.keys()))
+                imgids2pathes.update(imgids2files)
+            filtered_annos = annodata.imgid_filter(imgids, True)
+            n_imgs += len(filtered_annos)
+            # print("n_imgs", n_imgs)
+            annotationdict[name] = filtered_annos
+        return annotationdict, imgids2pathes, n_imgs
 
     @property
     def image(self):
@@ -87,18 +100,6 @@ class VisionDataset(BaseDataset):
     @property
     def annotations(self):
         return self._annotations
-
-    def _init_box_cls_token(self, config):
-        size = self.config.visn.size
-        if isinstance(size, tuple):
-            cls_box = [size[0], size[1], 0, 0]
-        else:
-            cls_box = [size, size, 0, 0]
-        self._cls_box = cls_box
-
-    @torch.no_grad()
-    def cls_box(self):
-        return torch.tensor([self._cls_box])
 
     def _init_vision_processors(self, config):
         vision_processors = (
@@ -151,7 +152,10 @@ class VisionDataset(BaseDataset):
     def _handle_image(self, entry):
         img_id = entry[vltk.imgid]
         if vltk.filepath not in entry:
-            filepath = self.img_id_to_path[img_id]
+            try:
+                filepath = self.img_id_to_path[img_id]
+            except KeyError:
+                raise Exception(entry)
             entry[vltk.filepath] = filepath
         else:
             filepath = entry[vltk.filepath]
@@ -179,23 +183,19 @@ class VisionDataset(BaseDataset):
 
     @torch.no_grad()
     def _handle_annotations(self, entry, replace_keys=None):
-        img_id = entry[vltk.imgid]
         skip_segmentation = (
             True
             if (vltk.size not in entry or self.config.ignore_segmentation)
             else False
         )
         # get annotations for image
-        entry.update(self.annotations.get(img_id))
+        # entry.update(self.annotations.get(img_id))
+
         if skip_segmentation and vltk.polygons in entry:
             entry.pop(vltk.polygons)
         if skip_segmentation and vltk.RLE in entry:
             entry.pop(vltk.RLE)
-        # add annotation labels to image
-        # if vltk.label in entry and not isinstance(entry[vltk.label], torch.Tensor):
-        #     word_labels = entry[vltk.label]
-        #     labels = torch.Tensor(self.answer_to_id[word_labels])
-        #     entry[vltk.label] = labels
+
         if vltk.objects in entry and not isinstance(entry[vltk.objects], torch.Tensor):
             word_labels = entry[vltk.objects]
             n_objects = len(word_labels)
@@ -295,10 +295,7 @@ class VisionDataset(BaseDataset):
 
     @torch.no_grad()
     def __getitem__(self, i):
-        if len(self.imgids) == len(self.annotations):
-            anno_dict, anno_dataset = self.annotations[i]
-        else:
-            anno_dict = self.annotations.get(self.imgids[i])
+        anno_dict, anno_dataset = self.annotations[i]
         anno_dict = self._handle_image(anno_dict)
         if self.annotations is not None:
             anno_dict = self._handle_annotations(anno_dict)
