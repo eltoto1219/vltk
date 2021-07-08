@@ -94,15 +94,20 @@ def batcher(iterable, n=64):
         yield iterable[ndx : min(ndx + n, l)]
 
 
-def try_load_json(filepath):
-    try:
-        with open(filepath) as f:
-            data = json.load(f)
-        return data
-    except json.decoder.JSONDecodeError:
-        with open(filepath) as f:
-            data = jsonlines.open(f)
-        return data
+def try_load(filepath):
+    ext = str(filepath).split(".")[-1]
+    if ext in ("json", "jsonl"):
+        try:
+            with open(filepath) as f:
+                data = json.load(f)
+            return data
+        except json.decoder.JSONDecodeError:
+            with open(filepath) as f:
+                data = jsonlines.open(f)
+            return data
+    elif "pdf" == ext:
+        return str(filepath)
+    raise Exception(ext)
     # try:
     #     with open(filepath) as f:
     #         entry = jsonlines.open(f)
@@ -370,16 +375,20 @@ def get_arrow_primitive(schema_value):
 
 
 def convertids_recursive(ls, objids):
+    ls = list(ls)
     # get deepest nested list
     if (
         isinstance(ls, collections.Iterable)
         and not isinstance(ls, str)
         and isinstance(ls[0], str)
     ):
-        return torch.Tensor(list(map(lambda x: objids[x], ls)))
+        ten = torch.Tensor(list(map(lambda x: objids[x], ls)))
+        return ten
     else:
         for idx, item in enumerate(ls):
-            ls[idx] = convertids_recursive(ls)
+            res = convertids_recursive(item, objids)
+            assert isinstance(res, torch.Tensor), (type(res), res)
+            ls[idx] = res
         try:
             ls = torch.stack(ls)
         except Exception:

@@ -67,6 +67,9 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
         self.visndatasetadapterdict = visndatasetadapterdict
         self.vl_idx_organizer = SplitRangesVL(visnlangdatasetadapterdict)
         self.visn_idx_organizer = SplitRangesVision(visndatasetadapterdict)
+        # raise Exception(
+        #     self.visn_idx_organizer.uniq_imgs, self.vl_idx_organizer.uniq_imgs
+        # )
         """
         TODO:
             I need to make sure all image ids are unique across image ids of various
@@ -147,8 +150,10 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
 
     def run_visnlang_processors(self, lang_entry, visn_entry, img_first):
         for processor in self.visnlang_processors:
-            entry = processor(lang_entry, visn_entry, img_first=img_first)
-        return entry
+            lang_entry, visn_entry = processor(
+                lang_entry, visn_entry, img_first=img_first
+            )
+        return lang_entry, visn_entry
 
     def _tighten_datasets(
         self,
@@ -242,6 +247,13 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
     def _do_map_img_first(self, i):
         img_id = self.uniq_imgs[i]
         text_info = self.datasets.get(img_id)
+        # try:
+        # except Exception:
+        #     for a in self.datasets.args:
+        #         print(set(a["imgid"]))
+        #     print("---")
+        #     text_info = self.datasets.get(str(img_id))
+        #     raise Exception(self.uniq_imgs, str(img_id))
         text_info.pop(vltk.imgid)
         text_info = self._handle_text_annotations(text_info, encode_batch=True)
         return text_info, img_id
@@ -334,6 +346,7 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
     def __getitem__(self, i):
         if self.config.img_first:
             text_info, img_id = self._do_map_img_first(i)
+            # raise Exception(len(self), img_id, i, self.uniq_imgs)
             (
                 visnset_name,
                 visnset_split,
@@ -417,7 +430,6 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
 
             self._handle_annotations(
                 anno_dict,
-                extra_features=extra_features,
                 replace_keys=self.replace_keys,
             )
 

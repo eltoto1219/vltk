@@ -7,7 +7,6 @@ import torch
 import torchvision.transforms.functional as FV
 import vltk
 from pycocotools import mask as coco_mask
-from skimage import measure
 from tqdm import tqdm
 from vltk.processing.image import (Image, get_pad, get_rawsize, get_scale,
                                    get_size)
@@ -19,7 +18,7 @@ ANS_CONVERT = json.load(open(os.path.join(PATH, "convert_answers.json")))
 CONTRACTION_CONVERT = json.load(open(os.path.join(PATH, "convert_answers.json")))
 
 
-def map_ocr_predictions(pred, tokenmap, gold=None):
+def map_ocr_predictions(pred, tokenmap, gold=None, boxes=None):
     golds = []
     preds = []
     accs = []
@@ -56,7 +55,26 @@ def map_ocr_predictions(pred, tokenmap, gold=None):
             split_p = torch.split(p[:tsum], t.cpu().tolist())
             true_preds = torch.stack([x.mode().values for x in split_p]).cpu().tolist()
             preds += true_preds
-        return preds
+        bboxes = None
+        if boxes is not None:
+            bboxes = []
+            for t, b in zip(tokenmap, boxes):
+                t = t[: t.argmin()]
+                total = 0
+                for i, v in enumerate(t):
+                    total += v
+                    if total >= len(b):
+                        break
+                t = t[:i]
+
+                tsum = sum(t)
+                split_b = torch.split(b[:tsum], t.cpu().tolist())
+                temp_boxes = []
+                for s in split_b:
+                    temp_boxes.append(s.tolist()[0])
+                true_boxes = temp_boxes
+                bboxes += true_boxes
+        return preds, bboxes
 
 
 def histogram_from_counter(counter):
@@ -72,10 +90,10 @@ def histogram_from_counter(counter):
     plt.show()
 
 
-def imagepoints_to_polygon(points):
-    img = imagepoints_to_mask(points)
-    polygon = mask_to_polygon(img)
-    return polygon
+# def imagepoints_to_polygon(points):
+#     img = imagepoints_to_mask(points)
+#     polygon = mask_to_polygon(img)
+#     return polygon
 
 
 # source: https://github.com/ksrath0re/clevr-refplus-rec/
@@ -100,14 +118,14 @@ def imagepoints_to_mask(points, size):
     return img
 
 
-def mask_to_polygon(mask):
-    contours = measure.find_contours(mask, 0.5)
-    seg = []
-    for contour in contours:
-        contour = np.flip(contour, axis=1)
-        segmentation = contour.ravel().tolist()
-        seg.append(segmentation)
-    return seg
+# def mask_to_polygon(mask):
+#     contours = measure.find_contours(mask, 0.5)
+#     seg = []
+#     for contour in contours:
+#         contour = np.flip(contour, axis=1)
+#         segmentation = contour.ravel().tolist()
+#         seg.append(segmentation)
+#     return seg
 
 
 def rescale_box(boxes, wh_scale):

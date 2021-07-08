@@ -92,7 +92,7 @@ def batcher(iterable, n=64):
         yield iterable[ndx : min(ndx + n, l)]
 
 
-def try_load_json(filepath):
+def try_load(filepath):
     try:
         with open(filepath) as f:
             yield json.load(f)

@@ -10,10 +10,10 @@ import pyarrow
 import vltk
 from datasets import ArrowWriter
 from tqdm import tqdm
-from vltk import ANNOTATION_DIR
+from vltk import ANNOTATION_DIR, SPLITALIASES
 from vltk.abc.adapter import Adapter
 from vltk.inspection import collect_args_to_func
-from vltk.utils.base import set_metadata
+from vltk.utils.base import set_metadata, try_load
 
 
 class VisnDataset(Adapter):
@@ -42,30 +42,40 @@ class VisnDataset(Adapter):
     @classmethod
     def load_imgid2path(cls, datadir, split):
         name = cls.__name__.lower()
-        path = os.path.join(datadir, name, split)
-        return VisnDataset.files(path, name)
+        return VisnDataset.files(datadir, name, split)
 
     @staticmethod
-    def files(path, name):
+    def files(path, name, split):
         files = {}
+        path = os.path.join(path, name)
         if not os.path.isdir(path):
             print(f"No path exists for: {path}")
             return files
-        for i in Path(path).glob("**/*"):
-            fp = str(i)
-            fp_split = fp.split(".")
-            ext = fp_split[-1]
-            if ext not in VisnDataset._extensions:
-                continue
+        for g_ext in VisnDataset._extensions:
+            for i in Path(path).glob("f**/*.{g_ext}"):
+                fp = str(i)
+                if os.path.isdir(fp):
+                    continue
+                stem, ext = fp.split(".")
+                if split == "":
+                    cont = False
+                    for spl in SPLITALIASES:
+                        if spl in stem:
+                            cont = True
+                            break
+                    if cont:
+                        continue
+                elif split not in fp:
+                    continue
 
-            # TODO: confirm if I still want to prepend dataset name later
-            # okay, so we will only add the dataset name if it is not already present
-            # actually, lets not worry about this until we run into this issue
-            iid = fp_split[0].split("/")[-1]
-            # if name.casefold() not in iid.casefold():
-            #     iid = f'{name}{vltk.delim}{i.split(".")[0]}'
-            # iid = i.split(".")[0]
-            files[iid] = fp
+                # TODO: confirm if I still want to prepend dataset name later
+                # okay, so we will only add the dataset name if it is not already present
+                # actually, lets not worry about this until we run into this issue
+                iid = stem.split("/")[-1]
+                # if name.casefold() not in iid.casefold():
+                #     iid = f'{name}{vltk.delim}{i.split(".")[0]}'
+                # iid = i.split(".")[0]
+                files[iid] = fp
         return files
 
     @classmethod
@@ -88,7 +98,6 @@ class VisnDataset(Adapter):
             searchdir, name=cls.__name__.lower(), annodir=ANNOTATION_DIR
         )
         files = cls._iter_files(searchdir)
-        # get into right format
         json_files = {}
         temp_splits = []
         print("loading annotations...")
@@ -102,11 +111,8 @@ class VisnDataset(Adapter):
                     split = spl
                     break
             temp_splits.append(split)
-            if "json" not in str(anno_file):
-                continue
-            if "caption" not in str(anno_file) and "question" not in str(anno_file):
-                anno_data = json.load(open(str(anno_file)))
-                json_files[str(anno_file).split("/")[-1]] = anno_data
+            anno_data = try_load(anno_file)
+            json_files[str(anno_file).split("/")[-1]] = anno_data
 
         kwargs["datadir"] = "/".join(searchdir.split("/")[:-2])
         forward_dict = collect_args_to_func(cls.forward, kwargs=kwargs)

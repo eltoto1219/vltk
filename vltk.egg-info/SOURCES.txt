@@ -6,6 +6,8 @@ tests/frcnn.py
 tests/frcnn_test.py
 tests/generic_test.py
 tests/test_adapter_extract.py
+tests/test_docvqa_extract.py
+tests/test_funsd_extract.py
 tests/test_imageset.py
 tests/test_model.py
 tests/visualizer_test.py
@@ -43,7 +45,9 @@ vltk/adapters/clevr.py
 vltk/adapters/clevrref.py
 vltk/adapters/coco2014.py
 vltk/adapters/cococaptions.py
+vltk/adapters/docvqa.py
 vltk/adapters/frcnn.py
+vltk/adapters/funsd.py
 vltk/adapters/gqa.py
 vltk/adapters/vgqa.py
 vltk/adapters/visualgenome.py

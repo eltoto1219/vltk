@@ -1940,10 +1940,8 @@ class FRCNN(nn.Module):
         )
 
     @torch.no_grad()
-    def inference(self, images, image_shapes, gt_boxes=None, proposals=None,
-            scales_yx=None, ignorey=None, **kwargs):
+    def inference(self, images, image_shapes, gt_boxes=None, proposals=None, scales_yx=None, ignorey=None, **kwargs):
         # run images through bacbone
-        original_sizes = image_shapes * scales_yx
         features = self.backbone(images)
 
         # generate proposals if none are available

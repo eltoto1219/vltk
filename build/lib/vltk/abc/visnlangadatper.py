@@ -185,7 +185,7 @@ class VisnLangDataset(Adapter):
             text_data = []
             print(f"loading json files from: {text_files}")
             for t in tqdm(text_files):
-                data = utils.try_load_json(t)
+                data = utils.try_load(t)
                 text_data.extend(data)
 
             # custom forward from user

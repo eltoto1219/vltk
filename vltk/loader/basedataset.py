@@ -75,9 +75,10 @@ class SplitRangesVision:
 
         self._len = dataset_len
         self.imgs = uniq_imgs
+        self.uniq_imgs = uniq_imgs
 
     def __len__(self):
-        return self._len
+        return len(self.imgs)
 
     def __getitem__(self, x):
         if x >= len(self):
@@ -98,12 +99,14 @@ class SplitRangesVL:
         self.range2dataset = {}
         self.subrange2dataset = {}
         self.range2split = {}
+        self.uniq_imgs = set()
         start = 0
         dataset_len = 0
         for dataset_name, dataset_dict in nested_dict.items():
             cur_dataset_len = 0
             for split_name, data in dataset_dict.items():
                 rng = range(start, len(data) + start)
+                self.uniq_imgs.update(set(data.imgids))
                 self.subrange2dataset[rng] = dataset_name
                 self.range2split[rng] = split_name
                 start += len(data)
@@ -115,6 +118,7 @@ class SplitRangesVL:
             dataset_len += cur_dataset_len
 
         self._len = dataset_len
+        self.uniq_imgs = tuple(self.uniq_imgs)
 
     def __len__(self):
         return self._len
@@ -139,16 +143,19 @@ class CollatedVLSets:
 
         self.args = args
         self.range2listpos = {}
+        self.uniq_imgs = set()
         start = 0
         for i, a in enumerate(args):
+            self.uniq_imgs.update(a.imgids)
             self.range2listpos[range(start, len(a) + start)] = i
             start += len(a)
 
     # TODO: better solution for more datasets
     def get(self, img_id, return_dataset=False):
         for adapter in self.args:
+            # print(adapter, img_id)
             try:
-                return adapter.get(img_id, return_dataset=return_dataset)
+                return adapter.get(img_id)
             except KeyError:
                 pass
         raise Exception("image id not found in any  visndatasetadapter annotations")

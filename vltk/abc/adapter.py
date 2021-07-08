@@ -17,6 +17,9 @@ from vltk.inspection import collect_args_to_func
 from vltk.utils.base import (flatten_stringlist, get_arrow_primitive,
                              set_metadata)
 
+IMGFILES = ("jpeg", "jpg", "png")
+SUFFIXES = ("pdf", "json", "jsonl", "txt", "csv", "tsv")
+
 
 class Adapter(ds.Dataset, metaclass=ABCMeta):
 
@@ -134,11 +137,12 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
                 setattr(filtered_self, "imgids", remaining)
             except Exception:
                 pass
+
             # setattr(filtered_self, "_img_to_row_map", new_map)
         else:
             setattr(filtered_self, "_img_to_row_map", dict(zip(remaining, idx_set)))
             setattr(filtered_self, "check_imgid_alignment", self.check_imgid_alignment)
-            setattr(filtered_self, "imgids", self.imgids)
+            setattr(filtered_self, "imgids", remaining)
 
         return filtered_self
 
@@ -188,11 +192,11 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
         assert os.path.isdir(searchdir)
         if name is not None:
             searchdir = os.path.join(searchdir, name)
-            assert os.path.isdir(searchdir)
+            assert os.path.isdir(searchdir), f"{searchdir} is not a dir"
         if annodir is not None:
-            searchdir = os.path.join(searchdir, annodir)
-            if not os.path.isdir(searchdir):
-                os.makedirs(searchdir, exist_ok=True)
+            tempdir = os.path.join(searchdir, annodir)
+            if not os.path.isdir(tempdir):
+                os.makedirs(tempdir, exist_ok=True)
             return searchdir, None
         final_paths = []
         valid_splits = []
@@ -203,7 +207,7 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
             final_paths.append(path)
             valid_splits.append(splt)
 
-        assert final_paths
+        assert final_paths, (searchdir, name, splits, annodir)
         return final_paths, valid_splits
 
     @staticmethod
@@ -217,14 +221,36 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
         return savepath
 
     @staticmethod
-    def _iter_files(searchdirs, valid_splits=None):
+    def _iter_files(searchdirs, valid_splits=None, iter_imgs=False):
+        text_files = []
         if isinstance(searchdirs, str):
             searchdirs = [searchdirs]
-        for s in searchdirs:
-            for f in os.listdir(s):
-                file = Path(os.path.join(s, f))
-                if file.stat().st_size > 0:
-                    yield Path(os.path.join(s, f))
+        for datadir in searchdirs:
+            iterfilter = IMGFILES if iter_imgs else SUFFIXES
+            for suffix in iterfilter:
+                for path in Path(datadir).glob(
+                    f"**/*.{suffix}",
+                ):
+                    path = str(path)
+                    if valid_splits is not None:
+                        split_in = False
+                        for split in valid_splits:
+                            if split in path:
+                                split_in = True
+                        if split_in:
+                            text_files.append(path)
+                    else:
+                        text_files.append(path)
+                    # if textset_name in path.lower():
+                    #     if split == "test" and "dev" in path:
+                    #         continue
+                    #     if split is None or split in path:
+                    #         text_files.append(path)
+
+        if not text_files:
+            return None
+        text_files = list(set(text_files))
+        return text_files
 
     @staticmethod
     def _build_schema(features_func, **kwargs):
@@ -262,6 +288,8 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
             path = os.path.join(filestem, ".arrow")
         else:
             path = filestem
+        if not os.path.isfile(path):
+            path = path.replace("/annotations/", "/")
         assert os.path.isfile(path), f"{path} does not exist"
         mmap = pyarrow.memory_map(path)
         f = pyarrow.ipc.open_stream(mmap)

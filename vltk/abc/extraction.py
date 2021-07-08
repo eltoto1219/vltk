@@ -137,15 +137,16 @@ class VisnExtraction(Adapter):
         batch_size = cls._batch_size
         cur_size = 0
         cur_batch = None
-        files = set(cls._iter_files(searchdirs))
+        files = set(cls._iter_files(searchdirs, iter_imgs=True))
         total_files = len(files)
         for i, path in tqdm(
             enumerate(files),
             file=sys.stdout,
             total=total_files,
         ):
-            split = path.parent.name
-            img_id = path.stem
+            path_list = path.split("/")
+            split = path_list[-2]
+            img_id = path_list[-1].split(".")[0]
             imgs_left = abs(i + 1 - total_files)
             if split not in valid_splits:
                 continue
