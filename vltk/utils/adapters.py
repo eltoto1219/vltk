@@ -6,6 +6,7 @@ import numpy as np
 import torch
 import torchvision.transforms.functional as FV
 import vltk
+from matplotlib.patches import Rectangle
 from pycocotools import mask as coco_mask
 from tqdm import tqdm
 from vltk.processing.image import (Image, get_pad, get_rawsize, get_scale,
@@ -77,16 +78,40 @@ def map_ocr_predictions(pred, tokenmap, gold=None, boxes=None):
         return preds, bboxes
 
 
-def histogram_from_counter(counter):
+def histogram_from_counter(counter, truncate_labs=False, min_freq=0, x_label=""):
     # credits to stack overflow
     # TODO: add credits to stack overflow for other functions that I am using form there
     import matplotlib.pyplot as plt
 
-    labels, values = zip(*counter.items())
+    alt_msg = ""
+    if "None" in counter:
+        n_none = counter["None"]
+        alt_msg = f"None: {n_none}"
+        counter.pop("None")
+    counter = sorted(list(counter.items()), key=lambda x: x[1])
+    n_bins = len(counter)
+    for i, (k, v) in enumerate(counter):
+        if v >= min_freq:
+            break
+    counter = counter[i:]
+
+    labels, values = zip(*counter)
+    if truncate_labs:
+        labels = [labels[0]] + ["" for x in labels[:-2]] + [labels[-1]]
     indexes = np.arange(len(labels))
     width = 1
     plt.bar(indexes, values, width)
-    plt.xticks(indexes + width * 0.5, labels)
+    plt.xticks(indexes + width * 0.5, labels, rotation=-10)
+    plt.ylabel("counts")
+    plt.xlabel(x_label)
+    plt.tight_layout()
+    extra = Rectangle((0, 0), 1, 1, fc="w", fill=False, edgecolor="none", linewidth=0)
+    plt.legend(
+        [
+            extra,
+        ],
+        (f"n_bins: {n_bins}; min_freq: {min_freq}" + f"; {alt_msg}",),
+    )
     plt.show()
 
 
