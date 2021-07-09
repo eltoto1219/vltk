@@ -2,7 +2,7 @@ import json
 import os
 import pickle
 from abc import abstractmethod
-from collections import Counter, OrderedDict
+from collections import Counter, OrderedDict, defaultdict
 from pathlib import Path
 
 import datasets as ds
@@ -23,6 +23,7 @@ class VisnDataset(Adapter):
     }
     _meta_names = {"img_to_row_map", "object_frequencies", "vocab"}
     _is_annotation = True
+    _extensions = {"jpg", "png", "pdf", "jpeg"}
 
     @staticmethod
     def adjust_imgid(img_id, dataset_name=None):
@@ -46,45 +47,35 @@ class VisnDataset(Adapter):
     @staticmethod
     def files(path, name, split):
         files = {}
-        if split:
-
-            for ext in ("png", "jpeg", "jpg"):
-                for path in Path(os.path.join(path, name)).glob(
-                    f"**/*.{ext}",
-                ):
-
-                    path = str(path)
-
-                    try:
-                        stem, ext = path.split(".")
-                    except Exception:
-                        continue
-                    if split not in stem:
-
-                        continue
-                    files[stem.split("/")[-1]] = path
-        else:
-            for ext in ("png", "jpeg", "jpg"):
-                for path in Path(os.path.join(path, name)).glob(
-                    f"**/*.{ext}",
-                ):
-
-                    path = str(path)
-                    try:
-                        stem, ext = path.split(".")
-                    except Exception:
-                        continue
+        path = os.path.join(path, name)
+        if not os.path.isdir(path):
+            print(f"No path exists for: {path}")
+            return files
+        for g_ext in VisnDataset._extensions:
+            for i in Path(path).glob("f**/*.{g_ext}"):
+                fp = str(i)
+                if os.path.isdir(fp):
+                    continue
+                stem, ext = fp.split(".")
+                if split == "":
                     cont = False
                     for spl in SPLITALIASES:
                         if spl in stem:
-                            raise Exception(spl, stem)
                             cont = True
                             break
                     if cont:
-                        raise Exception
                         continue
-                    files[stem.split("/")[-1]] = path
+                elif split not in fp:
+                    continue
 
+                # TODO: confirm if I still want to prepend dataset name later
+                # okay, so we will only add the dataset name if it is not already present
+                # actually, lets not worry about this until we run into this issue
+                iid = stem.split("/")[-1]
+                # if name.casefold() not in iid.casefold():
+                #     iid = f'{name}{vltk.delim}{i.split(".")[0]}'
+                # iid = i.split(".")[0]
+                files[iid] = fp
         return files
 
     @classmethod
@@ -149,7 +140,7 @@ class VisnDataset(Adapter):
         # name refers to the dataset (class) name
         # object_dict = Counter()
         features = ds.Features(feature_dict)
-        imgid2row = OrderedDict()
+        imgid2rows = defaultdict(list)  # OrderedDict()
         extra_vocab = set()
         cur_size = 0
         cur_row = 0
@@ -169,9 +160,7 @@ class VisnDataset(Adapter):
             if vltk.text in entry:
                 extra_vocab.update(entry[vltk.text])
             meta_dict = VisnDataset._update_metadata(meta_dict, entry)
-            if img_id in imgid2row:
-                print(f"skipping {img_id}. Already written to table")
-            imgid2row[img_id] = cur_row
+            imgid2rows[img_id].append(cur_row)
             cur_row += 1
             if cur_size == 0:
                 for k, v in entry.items():
@@ -190,7 +179,7 @@ class VisnDataset(Adapter):
                 batch = features.encode_batch(cur_batch)
                 writer.write_batch(batch)
 
-        meta_dict["img_to_row_map"] = imgid2row
+        meta_dict["img_to_row_map"] = imgid2rows
         meta_dict["vocab"] = extra_vocab
         return writer, buffer, meta_dict
 

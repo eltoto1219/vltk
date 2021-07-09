@@ -142,7 +142,7 @@ class OCRBoxFixed(VisnProcessor):
         )
         tokenboxes = truncate_and_pad_list(tokenboxes, max_len, [0, 0, 0, 0])
         tokenboxes = torch.tensor(tokenboxes)
-        tokenboxes = rescale_box(tokenboxes, scale)
+        tokenboxes = torch.clamp(rescale_box(tokenboxes, scale), min=0, max=1000)
         entry[vltk.tokenbox] = tokenboxes
         return entry
 

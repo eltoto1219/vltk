@@ -117,6 +117,8 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
             idx = 0
             idx_set = []
             for imgid, idxs in idx_groups.items():
+                if isinstance(idxs, int):
+                    raise Exception(idx_set, idxs, self)
                 idx_set.extend(idxs)
                 new_map[imgid] = list(map(lambda x: x[0] + idx, enumerate(idxs)))
                 idx += len(idxs)
@@ -126,9 +128,16 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
         setattr(filtered_self, "img_to_row_map", self.img_to_row_map)
         setattr(filtered_self, "get", self.get)
         if is_visnlang:
-            setattr(filtered_self, "data_info", self.data_info)
+            try:
+                setattr(filtered_self, "data_info", self.data_info)
+            except Exception:
+                pass
             setattr(filtered_self, "_img_to_row_map", new_map)
-            setattr(filtered_self, "imgids", remaining)
+            try:
+                setattr(filtered_self, "imgids", remaining)
+            except Exception:
+                pass
+
             # setattr(filtered_self, "_img_to_row_map", new_map)
         else:
             setattr(filtered_self, "_img_to_row_map", dict(zip(remaining, idx_set)))
