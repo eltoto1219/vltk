@@ -18,12 +18,12 @@ from vltk.utils.base import (flatten_stringlist, get_arrow_primitive,
                              set_metadata)
 
 IMGFILES = ("jpeg", "jpg", "png")
-SUFFIXES = ("pdf", "json", "jsonl", "txt", "csv", "tsv")
+SUFFIXES = ("pdf", "json", "jsonl", "csv", "tsv")
 
 
 class Adapter(ds.Dataset, metaclass=ABCMeta):
 
-    _extensions = ["json", "jsonl"]
+    _extensions = SUFFIXES
     _batch_size = 32
     _base_schema = {vltk.imgid: Features.Imgid}
     _id_keys = {vltk.imgid, vltk.qid, vltk.text}

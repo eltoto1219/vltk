@@ -107,7 +107,7 @@ def try_load(filepath):
             return data
     elif "pdf" == ext:
         return str(filepath)
-    raise Exception(ext)
+    raise Exception(ext, filepath)
     # try:
     #     with open(filepath) as f:
     #         entry = jsonlines.open(f)

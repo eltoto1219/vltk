@@ -23,7 +23,7 @@ class VisnDataset(Adapter):
     }
     _meta_names = {"img_to_row_map", "object_frequencies", "vocab"}
     _is_annotation = True
-    _extensions = {"jpg", "png", "pdf", "jpeg"}
+    _extensions = {"jpg", "png", "jpeg"}
 
     @staticmethod
     def adjust_imgid(img_id, dataset_name=None):
@@ -52,7 +52,7 @@ class VisnDataset(Adapter):
             print(f"No path exists for: {path}")
             return files
         for g_ext in VisnDataset._extensions:
-            for i in Path(path).glob("f**/*.{g_ext}"):
+            for i in Path(path).glob(f"**/*.{g_ext}"):
                 fp = str(i)
                 if os.path.isdir(fp):
                     continue

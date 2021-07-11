@@ -16,6 +16,9 @@ Polygons = ds.Sequence(
 # )
 
 
+Bool = ds.Value("bool")
+BoolList = ds.Sequence(length=-1, feature=ds.Value("bool"))
+
 RLE = ds.Sequence(length=-1, feature=ds.Value("float32"))
 
 FloatList = ds.Sequence(length=-1, feature=ds.Value("float32"))
