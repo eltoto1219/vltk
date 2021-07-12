@@ -270,6 +270,24 @@ class BaseDataset(Dataset):
                 special_ids = set(
                     [self.tokenizer.token_to_id(t) for t in self.special_tokens]
                 )
+                self.tokenizer.eos_id = self.tokenizer.token_to_id(
+                    self.tokenizer.eos_token
+                )
+                self.tokenizer.unk_id = self.tokenizer.token_to_id(
+                    self.tokenizer.unk_token
+                )
+                self.tokenizer.sep_id = self.tokenizer.token_to_id(
+                    self.tokenizer.sep_token
+                )
+                self.tokenizer.pad_id = self.tokenizer.token_to_id(
+                    self.tokenizer.pad_token
+                )
+                self.tokenizer.cls_id = self.tokenizer.token_to_id(
+                    self.tokenizer.cls_token
+                )
+                self.tokenizer.mask_id = self.tokenizer.token_to_id(
+                    self.tokenizer.mask_id
+                )
                 self.special_ids = deepcopy(special_ids)
             except KeyError:
                 raise Exception(
@@ -298,6 +316,24 @@ class BaseDataset(Dataset):
                 [self.tokenizer.convert_tokens_to_ids(t) for t in self.special_tokens]
             )
             self.special_ids = deepcopy(special_ids)
+            self.tokenizer.eos_id = self.tokenizer.convert_tokens_to_ids(
+                self.tokenizer.eos_token
+            )
+            self.tokenizer.unk_id = self.tokenizer.convert_tokens_to_ids(
+                self.tokenizer.unk_token
+            )
+            self.tokenizer.sep_id = self.tokenizer.convert_tokens_to_ids(
+                self.tokenizer.sep_token
+            )
+            self.tokenizer.pad_id = self.tokenizer.convert_tokens_to_ids(
+                self.tokenizer.pad_token
+            )
+            self.tokenizer.cls_id = self.tokenizer.convert_tokens_to_ids(
+                self.tokenizer.cls_token
+            )
+            self.tokenizer.mask_id = self.tokenizer.convert_tokens_to_ids(
+                self.tokenizer.mask_token
+            )
         self.from_transformers = from_transformers
 
         all_ids = tuple(i[1] for i in self.tokenizer.get_vocab().items())

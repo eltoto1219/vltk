@@ -19,7 +19,7 @@ ANS_CONVERT = json.load(open(os.path.join(PATH, "convert_answers.json")))
 CONTRACTION_CONVERT = json.load(open(os.path.join(PATH, "convert_answers.json")))
 
 
-def map_ocr_predictions(pred, tokenmap, gold=None, boxes=None):
+def map_ocr_predictions(pred, tokenmap, gold=None, boxes=None, ignore_id=-100):
     golds = []
     preds = []
     accs = []
@@ -38,6 +38,10 @@ def map_ocr_predictions(pred, tokenmap, gold=None, boxes=None):
             split_p = torch.split(p[:tsum], t.cpu().tolist())
             true_gold = torch.stack([x[0] for x in split_g]).cpu().tolist()
             true_preds = torch.stack([x.mode().values for x in split_p]).cpu().tolist()
+            for i in reversed(range(len(true_gold))):
+                if true_gold[i] == -100:
+                    true_gold.pop(i)
+                    true_preds.pop(i)
             accs += [(1 if p == g else 0) for p, g in zip(true_preds, true_gold)]
             preds += true_preds
             golds += true_gold
