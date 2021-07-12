@@ -2,16 +2,15 @@ import random
 
 import numpy as np
 import torch
-from vltk.vars import Vars as vltk
-from vltk import DATAPATH
 from vltk.inspection import import_funcs_from_file
+from vltk.vars import Vars as vltk
 
 
 class Data:
     def __init__(self):
         if "DATADICT" not in globals():
             global DATADICT
-            DATADICT = import_funcs_from_file(DATAPATH, pkg="vltk.processing")
+            DATADICT = import_funcs_from_file(vltk.DATAPATH, pkg="vltk.processing")
 
     def avail(self):
         return list(DATADICT.keys())

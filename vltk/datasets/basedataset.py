@@ -6,9 +6,9 @@ from abc import ABCMeta
 from copy import deepcopy
 
 import torch
-from vltk.vars import Vars as vltk
 from vltk.utils.adapters import truncate_and_pad_list
 from vltk.utils.base import convertids_recursive
+from vltk.vars import Vars as vltk
 
 from datasets import Dataset
 # disable logging from datasets
@@ -286,7 +286,7 @@ class BaseDataset(Dataset):
                     self.tokenizer.cls_token
                 )
                 self.tokenizer.mask_id = self.tokenizer.token_to_id(
-                    self.tokenizer.mask_id
+                    self.tokenizer.mask_token
                 )
                 self.special_ids = deepcopy(special_ids)
             except KeyError:

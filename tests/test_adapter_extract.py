@@ -1,7 +1,7 @@
 from transformers import RobertaTokenizerFast
 from vltk.adapters import Adapters
 from vltk.configs import DataConfig, LangConfig
-from vltk.datasets.builder import init_datasets
+from vltk.datasets.builder import build
 from vltk.processing import LangProcessor
 
 

@@ -6,12 +6,12 @@ import resource
 import sys
 
 import torch
-from vltk.vars import Vars as vltk
 from vltk.datasets.basedataset import (CollatedVLSets, SplitRangesVision,
                                        SplitRangesVL)
 from vltk.datasets.langdataset import LangDataset
 from vltk.datasets.visndataset import VisionDataset
 from vltk.processing import Processors, VisnLangProcessor
+from vltk.vars import Vars as vltk
 
 # disable logging from datasets
 from datasets.utils.logging import set_verbosity_error
@@ -35,6 +35,9 @@ os.environ["TOKENIZERS_PARALLELISM"] = "False"
 
 # TODO
 class VisionLanguageDataset(VisionDataset, LangDataset):
+    visn = set()
+    lang = set()
+
     def __init__(
         self,
         config,
@@ -43,7 +46,7 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
         annotationdict=None,  # conatains annotations for vision datasets
         metadata_ids=None,
         is_train=False,
-        all_same_keys=True,
+        batch_info=None,
         tokenizer_in_visn_dataset=False,
         replace_keys=None,
         **kwargs,
@@ -71,14 +74,13 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
         #     self.visn_idx_organizer.uniq_imgs, self.vl_idx_organizer.uniq_imgs
         # )
         """
-        TODO:
-            I need to make sure all image ids are unique across image ids of various
-            datasets. I do not need to worry about this problem now, but later when
-            relavent.
+        WARNING:
+            untested: ensure all image ids are unique across image ids of various
+            datasets.
 
-            I think the simplest thing to do in the future will be to add an "adjust image
+            the simplest thing to do in the future will be to add an "adjust image
             IDS" function in the vision adapter and not just the vision language adatper
-            That way, I can perform a check to make sure both are lined up
+            That way, a check can be performed to make sure both are lined up
         """
         self.uniq_imgs = self.visn_idx_organizer.imgs
         visnlangdatasetadapters = []
@@ -95,7 +97,7 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
         # set some other properties
         self.config = config
         self.replace_keys = replace_keys
-        self.all_same_keys = all_same_keys
+        self.batch_info = batch_info
         self.is_train = is_train
         self.metadata_ids = metadata_ids
         splits = self._check_uniq_splits()
@@ -112,21 +114,12 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
         self._init_vision_processors(config)
         self._init_lang_processors(config)
         self._init_visnlang_processors(config)
+
         # ======
 
-        """
-        TODO: figure out how to handle unique ids across datasets that do not refer to the
-        same image
-
-        figure out how to handle unique ids across datasets that do refer to the same
-        image
-
-
-        maybe keep track of which image vision dataset it came from?
-
-        idea: prepend dataset id to all images, maybe start prepending all splits aswell
-
-        """
+    def update_visn_lang_keys(self, lang_entry, visn_entry):
+        self.visn = self.visn.union(set(visn_entry.keys()))
+        self.lang = self.lang.union(set(lang_entry.keys()))
 
     def _init_visnlang_processors(self, config):
         visnlang_processors = (
@@ -264,77 +257,87 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
         text_info = self._handle_text_annotations(text_info, encode_batch=False)
         return text_info, img_id
 
-    def random_visn_feat(self):
-        rand_ind = random.randint(0, len(self.uniq_imgs) - 1)
-        img_id = self.uniq_imgs[rand_ind]
-        ts_name, ts_split = self.img2visnlangdatasetadapter[img_id]
-        visnlangdatasetadapter = self.visnlangdatasetadapterdict[ts_name][ts_split]
-        is_name, is_split = zip(*visnlangdatasetadapter.data_info[ts_split].items())
-        visndatasetadapter = self.visndatasetadapterdict[is_name[0]][is_split[0][0]]
-        img_info = visndatasetadapter.get(img_id)
-        if vltk.features in img_info:
-            feat = random.choice(img_info[vltk.features])
-            return feat
-        else:
-            return None
+    # def random_visn_feat(self):
+    #     rand_ind = random.randint(0, len(self.uniq_imgs) - 1)
+    #     img_id = self.uniq_imgs[rand_ind]
+    #     ts_name, ts_split = self.img2visnlangdatasetadapter[img_id]
+    #     visnlangdatasetadapter = self.visnlangdatasetadapterdict[ts_name][ts_split]
+    #     is_name, is_split = zip(*visnlangdatasetadapter.data_info[ts_split].items())
+    #     visndatasetadapter = self.visndatasetadapterdict[is_name[0]][is_split[0][0]]
+    #     img_info = visndatasetadapter.get(img_id)
+    #     if vltk.features in img_info:
+    #         feat = random.choice(img_info[vltk.features])
+    #         return feat
+    #     else:
+    #         return None
 
-    @staticmethod
-    # TODO: unfinished
-    def flatten_text(batch, flatten_keys=None):
-        raise Exception
-        if flatten_keys is None:
-            flatten_keys = {"input_ids", "type_ids", "text_attention_mask", "label"}
-        for f in flatten_keys:
-            flattened = None
-            key = batch[f]
-            for i in key:
-                if flattened is None:
-                    key[i] = flattened
-                else:
-                    flattened = torch.cat((flattened, key[i]), dim=0)
-            batch[f] = flattened
+    def transpose_vl(self, batch, max_size=512):
+        visn_keys = tuple(self.visn)
+        lang_keys = tuple(self.lang)
+        if not visn_keys or not lang_keys:
+            raise Exception(
+                f"User must iterate through the  loader atleast once to use this function: {self.visn & self.lang},\
+                {self.test}"
+            )
 
-    @staticmethod
-    # TODO: make sure i take into account segmentations because there are a different number of masks per image
-    def transpose(batch, device=None, max_size=36):
-        if isinstance(device, list):
-            device = device[0]
         # first we resize image according to how many examples that we need
-        n_sents_per_img = [len(i) for i in batch["input_ids"]]
-        for img_key, v in batch.keys():
+        val = None
+        for x in lang_keys:
+            val = batch.get(x, None)
+            if val is not None:
+                break
+        n_exs_per_img = [len(i) for i in val]
+
+        # process visn keys first
+        device = None
+        for visn_key in visn_keys:
+            v = batch.get(visn_key, None)
+            if v is None:
+                continue
             if not isinstance(v, list):
-                assert img_key in batch, f"{img_key} not in {list(batch.keys())}"
-                imgs = torch.cat(
+                visn_val = torch.cat(
                     [
                         i.unsqueeze(0).expand(min(n, max_size), *i.shape)
-                        for i, n in zip(batch.pop(img_key), n_sents_per_img)
+                        for i, n in zip(v, n_exs_per_img)
                     ],
                     dim=0,
                 )
-                batch[img_key] = imgs
-                if device is not None:
-                    batch[img_key] = batch[img_key].to(device)
-        # then we convert the other things in the dataset to torch tensors if we can
-        for k in batch:
+                batch[visn_key] = visn_val
+            else:
+                visn_val = [[v] * min(n, max_size) for i, n in zip(v, n_exs_per_img)]
+                batch[visn_key] = visn_val
+            if device is not None:
+                batch[visn_key] = batch[visn_key].to(device)
+
+        # now we flatten the nested lang keys
+        for lang_key in lang_keys:
+            v = batch.get(lang_key, None)
+            if v is None:
+                continue
             if isinstance(v, list):
-                if isinstance(batch[k][0], torch.Tensor):
-                    batch[k] = torch.cat(
-                        [
-                            j[: min(max_size, n)]
-                            for i, (j, n) in enumerate(zip(batch[k], n_sents_per_img))
-                        ],
+                if isinstance(v[0], torch.Tensor):
+                    lang_val = torch.cat(
+                        [j[: min(max_size, n)] for j, n in zip(v, n_exs_per_img)],
                         dim=0,
                     )
-                    if device is not None:
-                        batch[k] = batch[k].to(device)
-                elif isinstance(batch[k][0], str):
-                    new_v = []
+                    batch[lang_key] = lang_val
+                elif isinstance(v[0], str):
+                    lang_val = []
                     # here is also a part that we want to recude
-                    for i, n in zip(batch[k], n_sents_per_img):
+                    for i, n in zip(v, n_exs_per_img):
                         if n >= max_size:
                             n = min(n, max_size)
-                        new_v.extend(i * n)
-                    batch[k] = new_v
+                        lang_val.extend(i * n)
+                    batch[lang_key] = lang_val
+            else:
+                lang_val = torch.stack(
+                    [j[: min(max_size, n)] for j, n in zip(v, n_exs_per_img)],
+                    dim=0,
+                )
+                batch[lang_key] = lang_val
+
+        # raise Exception(batch)
+        return batch
 
     def __len__(self):
         if self.config.img_first:
@@ -381,8 +384,11 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
             )
 
             entry = {**text_info, **anno_dict}
-
+            # self.batch_info.update_visn_lang_keys(text_info, anno_dict)
+            self.update_visn_lang_keys(text_info, anno_dict)
             entry = self.try_tensorify(entry)
+            self.batch_info.update_entry_keys(entry)
+
             return entry
 
         else:
@@ -438,5 +444,8 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
             )
 
             entry = {**text_info, **anno_dict}
+            # self.batch_info.update_visn_lang_keys(text_info, anno_dict)
+            self.update_visn_lang_keys(text_info, anno_dict)
             entry = self.try_tensorify(entry)
+            self.batch_info.update_entry_keys(entry)
             return entry

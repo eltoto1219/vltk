@@ -118,7 +118,8 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
             idx_set = []
             for imgid, idxs in idx_groups.items():
                 if isinstance(idxs, int):
-                    raise Exception(idx_set, idxs, self)
+                    idxs = [idxs]
+                    # raise Exception(idx_set, idxs, self)
                 idx_set.extend(idxs)
                 new_map[imgid] = list(map(lambda x: x[0] + idx, enumerate(idxs)))
                 idx += len(idxs)

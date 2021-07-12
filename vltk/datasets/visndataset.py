@@ -52,12 +52,12 @@ class VisionDataset(BaseDataset):
         annotationdict=None,
         metadata_ids=None,
         is_train=False,
-        all_same_keys=True,
+        batch_info=None,
         tokenizer_in_visn_dataset=False,
         **kwargs,
     ):
 
-        self.all_same_keys = all_same_keys
+        self.batch_info = batch_info
         self.tokenizer_in_visn_dataset = tokenizer_in_visn_dataset
         if tokenizer_in_visn_dataset:
             self._init_tokenizer(config.lang)
@@ -197,26 +197,18 @@ class VisionDataset(BaseDataset):
         if skip_segmentation and vltk.RLE in entry:
             entry.pop(vltk.RLE)
 
-        if vltk.objects in entry and not isinstance(entry[vltk.objects], torch.Tensor):
-            word_labels = entry[vltk.objects]
-            n_objects = len(word_labels)
-            entry[vltk.n_objects] = torch.tensor(n_objects)
-            if n_objects == self.config.max_objects and self.config.add_cls_to_box:
-                word_labels[-1] = ""
-            word_labels += [""] * max(0, (self.config.max_objects - n_objects))
+        # if vltk.objects in entry and not isinstance(entry[vltk.objects], torch.Tensor):
+        #     word_labels = entry[vltk.objects]
+        #     n_objects = len(word_labels)
+        #     entry[vltk.n_objects] = torch.tensor(n_objects)
+        #     if n_objects == self.config.max_objects and self.config.add_cls_to_box:
+        #         word_labels[-1] = ""
+        #     word_labels += [""] * max(0, (self.config.max_objects - n_objects))
 
-            try:
-                labels = torch.Tensor(
-                    [self.metadata_ids[vltk.objects][l] for l in word_labels]
-                )
-            except:
-                raise Exception(
-                    self.metadata_ids,
-                    vltk.objects,
-                    word_labels,
-                    self.metadata_ids.keys(),
-                )
-            entry[vltk.objects] = labels
+        #     dic = self.metadata_ids[vltk.objects]
+        #     raise Exception(type(dic))
+        #     labels = torch.Tensor([dic[l] for l in word_labels])
+        #     entry[vltk.objects] = labels
 
         # run vision processors
         entry = self.run_vision_processors(entry)
@@ -310,4 +302,5 @@ class VisionDataset(BaseDataset):
         if self.annotations is not None:
             anno_dict = self._handle_annotations(anno_dict)
         anno_dict = self.try_tensorify(anno_dict)
+        self.batch_info.update_entry_keys(anno_dict)
         return anno_dict

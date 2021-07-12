@@ -1,11 +1,65 @@
+import json
 from copy import deepcopy
 from typing import Dict, List, Union
 
 import torch
-from vltk.vars import Vars as vltk
 from torch.utils.data import DataLoader
 from vltk.datasets.visndataset import VisionDataset
 from vltk.datasets.visnlangdataset import VisionLanguageDataset
+from vltk.vars import Vars as vltk
+
+
+class BatchInfo:
+    def __init__(self):
+        self.uniq_keys = set()
+        self.min_spanning_keys = set()
+        self.sparse_keys = set()
+        self.visn_keys = set()
+        self.lang_keys = set()
+
+    def update_entry_keys(self, entry):
+        entry_keys = set(entry.keys())
+        self.uniq_keys = self.uniq_keys.union(entry_keys)
+        if not self.min_spanning_keys:
+            self.min_spanning_keys = self.min_spanning_keys.union(entry_keys)
+        else:
+            self.min_spanning_keys = self.min_spanning_keys.intersection(entry_keys)
+        self.sparse_keys = self.uniq_keys - self.min_spanning_keys
+
+    def update_visn_lang_keys(self, lang_entry, visn_entry):
+        self.visn_keys = self.visn_keys.union(set(visn_entry.keys()))
+        self.lang_keys = self.lang_keys.union(set(lang_entry.keys()))
+
+    def clear(self):
+        self.uniq_keys.clear()
+        self.min_spanning_keys.clear()
+        self.sparse_keys.clear()
+        raise Exception(self.visn)
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __str__(self):
+        # rep = str(
+        rep = json.dumps(
+            {
+                "uniq_keys": list(self.uniq_keys),
+                "min_spanning_keys": list(self.min_spanning_keys),
+                "sparse_keys": list(self.sparse_keys),
+                "visn_keys": list(self.visn_keys),
+                "lang_keys": list(self.lang_keys),
+            },
+            indent=4,
+        )
+        return rep
+
+    @property
+    def visn(self):
+        return self.visn_keys
+
+    @property
+    def lang(self):
+        return self.lang_keys
 
 
 def collate(
@@ -15,8 +69,11 @@ def collate(
     all_same_keys: bool = True,
     max_spanning_cols: Union[None, set] = None,
     collate_simple: bool = True,
+    batch_info: BatchInfo = None,
 ) -> Dict[str, torch.Tensor]:
 
+    # raise Exception(batch_info)
+    # batch_info.clear()
     if all_same_keys:
         return collate_homogeneous(columns, pad, img_first)
     else:
@@ -59,27 +116,6 @@ def collate_heterogenous(
             batch[k] = [i.get(k, None) for i in columns if i is not None]
 
     return batch
-
-
-# def collate_heterogenous(
-#     columns: List[Dict[str, torch.Tensor]],
-#     pad: bool = True,
-#     img_first=False,
-#     max_spanning_cols: Union[None, set] = None,
-# ):
-#     raise Exception
-#     batch = {}
-#     for k in max_spanning_cols:
-#         try:
-
-#             batch[k] = torch.stack([i.get(k) for i in columns if i is not None])
-#         except Exception:
-
-#             batch[k] = [i.get(k, "") for i in columns if i is not None]
-
-#     return batch
-
-#     pass
 
 
 def check_all_keys_same(config, visnlangdict=None, visndict=None, annodict=None):
@@ -201,10 +237,12 @@ class VisionLanguageLoader(DataLoader):
             replace_keys,
         ) = check_all_keys_same(config, visnlangdict, visndict, annodict)
         kwargs["max_spanning_cols"] = max_spanning_cols
+        batch_info = BatchInfo()
+        self.batch_info = batch_info
         dataset = VisionLanguageDataset(
             config=config,
             is_train=is_train,
-            all_same_keys=all_same_keys,
+            batch_info=batch_info,
             tokenizer_in_visn_dataset=tokenizer_in_visn_dataset,
             **kwargs,
         )
@@ -217,6 +255,7 @@ class VisionLanguageLoader(DataLoader):
                 all_same_keys=all_same_keys,
                 max_spanning_cols=max_spanning_cols,
                 collate_simple=config.collate_simple,
+                batch_info=batch_info,
             ),
             drop_last=drop_last,
             pin_memory=pin_memory,
@@ -224,6 +263,9 @@ class VisionLanguageLoader(DataLoader):
             shuffle=shuffle,
             batch_size=dataset.batch_size,
         )
+
+    def transpose_vl(self, batch, max_size=512):
+        return self.dataset.transpose_vl(batch, max_size)
 
 
 class VisionLoader(DataLoader):
@@ -239,6 +281,7 @@ class VisionLoader(DataLoader):
         visnlangdict = kwargs.get("visnlangdatasetadapterdict", None)
         annodict = kwargs.get("annotationdict", None)
         visndict = kwargs.get("visndatasetadapterdict", None)
+        batch_info = BatchInfo()
 
         (
             all_same_keys,
@@ -249,7 +292,7 @@ class VisionLoader(DataLoader):
         dataset = VisionDataset(
             config=config,
             is_train=is_train,
-            all_same_keys=all_same_keys,
+            batch_info=batch_info,
             tokenizer_in_visn_dataset=tokenizer_in_visn_dataset,
             **kwargs,
         )
@@ -263,6 +306,7 @@ class VisionLoader(DataLoader):
                 all_same_keys=all_same_keys,
                 max_spanning_cols=max_spanning_cols,
                 collate_simple=config.collate_simple,
+                batch_info=batch_info,
             ),
             drop_last=drop_last,
             pin_memory=pin_memory,
