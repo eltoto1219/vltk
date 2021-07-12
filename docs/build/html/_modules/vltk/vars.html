@@ -1,0 +1,314 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>vltk.vars &mdash; VLTK: The Vision Language Toolkit 0.2 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> VLTK: The Vision Language Toolkit
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../modules.html">VLTK Modules</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">VLTK: The Vision Language Toolkit</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../index.html">Module code</a> &raquo;</li>
+        
+      <li>vltk.vars</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for vltk.vars</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">os</span>
+
+
+<div class="viewcode-block" id="Vars"><a class="viewcode-back" href="../../vltk.html#vltk.vars.Vars">[docs]</a><span class="k">class</span> <span class="nc">Vars</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    ALL BOXES ARE EXPECTED TO GO IN: (X, Y, W, H) FORMAT</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="c1"># pathes</span>
+    <span class="n">ANNOTATION_DIR</span> <span class="o">=</span> <span class="s2">&quot;annotations&quot;</span>
+    <span class="n">BASEPATH</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">),</span> <span class="s2">&quot;.&quot;</span><span class="p">))</span>
+    <span class="n">VISIONLANG</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">BASEPATH</span><span class="p">,</span> <span class="s2">&quot;adapters/visionlang&quot;</span><span class="p">)</span>
+    <span class="n">VISION</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">BASEPATH</span><span class="p">,</span> <span class="s2">&quot;adapters/vision&quot;</span><span class="p">)</span>
+    <span class="n">EXTRACTION</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">BASEPATH</span><span class="p">,</span> <span class="s2">&quot;adapters/vision&quot;</span><span class="p">)</span>
+    <span class="n">ADAPTERS</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">BASEPATH</span><span class="p">,</span> <span class="s2">&quot;adapters&quot;</span><span class="p">)</span>
+    <span class="n">PROCESSORS</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">BASEPATH</span><span class="p">,</span> <span class="s2">&quot;processing&quot;</span><span class="p">)</span>
+    <span class="n">SIMPLEPATH</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">BASEPATH</span><span class="p">,</span> <span class="s2">&quot;experiment&quot;</span><span class="p">)</span>
+    <span class="n">MODELPATH</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">BASEPATH</span><span class="p">,</span> <span class="s2">&quot;modeling&quot;</span><span class="p">)</span>
+    <span class="n">LOOPPATH</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">BASEPATH</span><span class="p">,</span> <span class="s2">&quot;loop&quot;</span><span class="p">)</span>
+    <span class="n">SCHEDPATH</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">BASEPATH</span><span class="p">,</span> <span class="s2">&quot;processing/sched.py&quot;</span><span class="p">)</span>
+    <span class="n">DATAPATH</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">BASEPATH</span><span class="p">,</span> <span class="s2">&quot;processing/data.py&quot;</span><span class="p">)</span>
+    <span class="n">LABELPROCPATH</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">BASEPATH</span><span class="p">,</span> <span class="s2">&quot;processing/label.py&quot;</span><span class="p">)</span>
+    <span class="n">IMAGEPROCPATH</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">BASEPATH</span><span class="p">,</span> <span class="s2">&quot;processing/image.py&quot;</span><span class="p">)</span>
+    <span class="n">OPTIMPATH</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">BASEPATH</span><span class="p">,</span> <span class="s2">&quot;processing/optim.py&quot;</span><span class="p">)</span>
+
+    <span class="c1"># special deliminator</span>
+    <span class="n">delim</span> <span class="o">=</span> <span class="s2">&quot;^&quot;</span>
+    <span class="n">tokenmap</span> <span class="o">=</span> <span class="s2">&quot;tokenmap&quot;</span>
+    <span class="c1"># common keys across library</span>
+    <span class="n">span</span> <span class="o">=</span> <span class="s2">&quot;span&quot;</span>
+    <span class="n">n_objects</span> <span class="o">=</span> <span class="s2">&quot;n_objects&quot;</span>
+    <span class="n">objects</span> <span class="o">=</span> <span class="s2">&quot;objects&quot;</span>
+    <span class="n">type_ids</span> <span class="o">=</span> <span class="s2">&quot;type_ids&quot;</span>
+    <span class="n">input_ids</span> <span class="o">=</span> <span class="s2">&quot;input_ids&quot;</span>
+    <span class="n">tokenboxes</span> <span class="o">=</span> <span class="s2">&quot;tokenboxes&quot;</span>
+    <span class="n">text_attention_mask</span> <span class="o">=</span> <span class="s2">&quot;text_attention_mask&quot;</span>
+    <span class="n">rawsize</span> <span class="o">=</span> <span class="s2">&quot;rawsize&quot;</span>
+    <span class="n">padsize</span> <span class="o">=</span> <span class="s2">&quot;padsize&quot;</span>
+    <span class="n">size</span> <span class="o">=</span> <span class="s2">&quot;size&quot;</span>
+    <span class="n">polygons</span> <span class="o">=</span> <span class="s2">&quot;poly&quot;</span>
+    <span class="n">RLE</span> <span class="o">=</span> <span class="s2">&quot;RLE&quot;</span>
+    <span class="n">segmentations</span> <span class="o">=</span> <span class="s2">&quot;segmentations&quot;</span>
+    <span class="n">boxes</span> <span class="o">=</span> <span class="s2">&quot;box&quot;</span>
+    <span class="n">imgid</span> <span class="o">=</span> <span class="s2">&quot;imgid&quot;</span>
+    <span class="n">labels</span> <span class="o">=</span> <span class="s2">&quot;labels&quot;</span>
+    <span class="n">label</span> <span class="o">=</span> <span class="s2">&quot;label&quot;</span>
+    <span class="n">text</span> <span class="o">=</span> <span class="s2">&quot;text&quot;</span>
+    <span class="n">scores</span> <span class="o">=</span> <span class="s2">&quot;scores&quot;</span>
+    <span class="n">score</span> <span class="o">=</span> <span class="s2">&quot;score&quot;</span>
+    <span class="n">img</span> <span class="o">=</span> <span class="s2">&quot;image&quot;</span>
+    <span class="n">filepath</span> <span class="o">=</span> <span class="s2">&quot;filepath&quot;</span>
+    <span class="n">features</span> <span class="o">=</span> <span class="s2">&quot;features&quot;</span>
+    <span class="n">split</span> <span class="o">=</span> <span class="s2">&quot;split&quot;</span>
+    <span class="n">scale</span> <span class="o">=</span> <span class="s2">&quot;wh_scale&quot;</span>
+    <span class="n">boxtensor</span> <span class="o">=</span> <span class="s2">&quot;boxtensor&quot;</span>
+    <span class="n">area</span> <span class="o">=</span> <span class="s2">&quot;area&quot;</span>
+    <span class="n">size</span> <span class="o">=</span> <span class="s2">&quot;size&quot;</span>
+    <span class="n">qid</span> <span class="o">=</span> <span class="s2">&quot;qid&quot;</span>
+
+    <span class="n">SPLITALIASES</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;test&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;dev&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;eval&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;val&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;validation&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;evaluation&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;train&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+
+    <span class="nd">@property</span>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">VLOVERLAP</span><span class="p">():</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">text</span><span class="p">:</span> <span class="s2">&quot;vtext&quot;</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">labels</span><span class="p">:</span> <span class="s2">&quot;vlabels&quot;</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">label</span><span class="p">:</span> <span class="s2">&quot;vlabel&quot;</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">scores</span><span class="p">:</span> <span class="s2">&quot;vscores&quot;</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">score</span><span class="p">:</span> <span class="s2">&quot;vscore&quot;</span><span class="p">,</span>
+        <span class="p">}</span>
+
+    <span class="c1"># dataset selection values</span>
+    <span class="n">VLDATA</span> <span class="o">=</span> <span class="mi">0</span>
+    <span class="n">VDATA</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="n">LDATA</span> <span class="o">=</span> <span class="mi">2</span>
+
+    <span class="nd">@property</span>
+    <span class="nd">@staticmethod</span>
+    <span class="k">def</span> <span class="nf">SUPPORTEDNAMES</span><span class="p">():</span>
+        <span class="k">return</span> <span class="p">{</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">type_ids</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">input_ids</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">text_attention_mask</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">rawsize</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">size</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">segmentation</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">box</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">imgid</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">label</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">text</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">score</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">label</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">text</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">score</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">img</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">filepath</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">features</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">split</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">scale</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">boxtensor</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">area</span><span class="p">,</span>
+            <span class="n">Vars</span><span class="o">.</span><span class="n">size</span><span class="p">,</span>
+        <span class="p">}</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Antonio Mendoza.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

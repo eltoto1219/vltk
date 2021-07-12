@@ -2,7 +2,7 @@ import random
 
 import numpy as np
 import torch
-import vltk
+from vltk.vars import Vars as vltk
 from vltk import DATAPATH
 from vltk.inspection import import_funcs_from_file
 

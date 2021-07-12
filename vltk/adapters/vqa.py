@@ -1,6 +1,6 @@
 from collections import Counter
 
-import vltk
+from vltk.vars import Vars as vltk
 from vltk import Features, adapters
 from vltk.utils.adapters import clean_label, soft_score
 
@@ -13,19 +13,22 @@ class VQA(adapters.VisnLangDataset):
         "test": {"coco2014": ["test"]},
     }
 
+    @staticmethod
     def schema():
         # img id and score are assumed to be default features
         return {
-            vltk.qid: Features.String,
-            vltk.label: Features.StringList,
-            vltk.score: Features.FloatList,
+            vltk.qid: Features.String(),
+            vltk.label: Features.StringList(),
+            vltk.score: Features.FloatList(),
         }
 
+    @staticmethod
     def adjust_imgid(imgid, vdset_name, vdset_split):
         # length of COCO ids are are always length 12
         imgid = f'{"COCO"}_{vdset_split[0].lower()}{2014}_{"".join(["0"] * (12 - len(imgid)))}{imgid}'
         return imgid
 
+    @staticmethod
     def forward(json_files, split, min_label_frequency=9):
         batch_entries = []
         all_questions = []

@@ -3,20 +3,22 @@ import os
 
 import cv2
 import matplotlib.pyplot as plt
-import vltk
 from tqdm import tqdm
 from vltk import Features, adapters
+from vltk.vars import Vars as vltk
 
 
 class FUNSD(adapters.VisnDataset):
+    @staticmethod
     def schema():
         return {
-            vltk.tokenbox: Features.Box,
-            vltk.text: Features.StringList,
-            vltk.label: Features.StringList,
+            vltk.tokenbox: Features.Box(),
+            vltk.text: Features.StringList(),
+            vltk.label: Features.StringList(),
             # "linking": Features.NestedIntList,
         }
 
+    @staticmethod
     def forward(json_files, splits, datadir=None):
         imgids = set()
         annos = []

@@ -5,7 +5,7 @@ from collections import defaultdict
 import numpy as np
 import torch
 import torchvision.transforms.functional as FV
-import vltk
+from vltk.vars import Vars as vltk
 from matplotlib.patches import Rectangle
 from pycocotools import mask as coco_mask
 from tqdm import tqdm

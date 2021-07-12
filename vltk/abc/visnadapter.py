@@ -7,13 +7,12 @@ from pathlib import Path
 
 import datasets as ds
 import pyarrow
-import vltk
 from datasets import ArrowWriter
 from tqdm import tqdm
-from vltk import ANNOTATION_DIR, SPLITALIASES
 from vltk.abc.adapter import Adapter
 from vltk.inspection import collect_args_to_func
 from vltk.utils.base import set_metadata, try_load
+from vltk.vars import Vars as vltk
 
 
 class VisnDataset(Adapter):
@@ -59,7 +58,7 @@ class VisnDataset(Adapter):
                 stem, ext = fp.split(".")
                 if split == "":
                     cont = False
-                    for spl in SPLITALIASES:
+                    for spl in vltk.SPLITALIASES:
                         if spl in stem:
                             cont = True
                             break
@@ -95,7 +94,7 @@ class VisnDataset(Adapter):
         # lets work on doing the annotations first
         total_annos = {}
         searchdir, _ = cls._get_valid_search_pathes(
-            searchdir, name=cls.__name__.lower(), annodir=ANNOTATION_DIR
+            searchdir, name=cls.__name__.lower(), annodir=vltk.ANNOTATION_DIR
         )
         files = cls._iter_files(searchdir)
         json_files = {}

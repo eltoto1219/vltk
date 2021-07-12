@@ -1,7 +1,7 @@
 from itertools import chain
 
 import torch
-import vltk
+from vltk.vars import Vars as vltk
 from vltk.processing import VisnLangProcessor
 from vltk.utils.adapters import truncate_and_pad_list
 

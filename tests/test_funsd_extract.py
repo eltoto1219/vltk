@@ -3,7 +3,7 @@ import os
 from transformers import BertTokenizerFast, RobertaTokenizerFast
 from vltk.adapters import Adapters
 from vltk.configs import DataConfig, LangConfig, VisionConfig
-from vltk.loader import build
+from vltk.datasets import build
 
 if __name__ == "__main__":
     datadir = os.path.join(os.environ["HOME"], "data")

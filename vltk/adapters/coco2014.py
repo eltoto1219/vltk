@@ -1,17 +1,19 @@
 from collections import defaultdict
 
-import vltk
 from vltk import Features, adapters
+from vltk.vars import Vars as vltk
 
 
 class Coco2014(adapters.VisnDataset):
+    @staticmethod
     def schema():
         return {
-            vltk.box: Features.Box,
-            vltk.polygons: Features.Polygons,
-            vltk.objects: Features.StringList,
+            vltk.box: Features.Box(),
+            vltk.polygons: Features.Polygons(),
+            vltk.objects: Features.StringList(),
         }
 
+    @staticmethod
     def forward(json_files, splits):
 
         total_annos = {}

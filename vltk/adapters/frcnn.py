@@ -1,5 +1,5 @@
 import torch
-import vltk
+from vltk.vars import Vars as vltk
 from PIL import Image
 from vltk import Features, adapters
 from vltk.configs import VisionConfig
@@ -21,6 +21,7 @@ class FRCNN(adapters.VisnExtraction):
         }
     )
 
+    @staticmethod
     def setup():
         from vltk import compat
         from vltk.modeling.frcnn import FRCNN as FasterRCNN
@@ -29,14 +30,16 @@ class FRCNN(adapters.VisnExtraction):
         model_config = compat.Config.from_pretrained("unc-nlp/frcnn-vg-finetuned")
         return FasterRCNN.from_pretrained(weights, model_config), model_config
 
+    @staticmethod
     def schema(max_detections=36, visual_dim=2048):
         return {
-            "attr_ids": Features.Ids,
-            "object_ids": Features.Ids,
+            "attr_ids": Features.Ids(),
+            "object_ids": Features.Ids(),
             vltk.features: Features.Features3D(max_detections, visual_dim),
-            vltk.box: Features.Box,
+            vltk.box: Features.Box(),
         }
 
+    @staticmethod
     def forward(model, entry):
 
         size = entry[vltk.size]

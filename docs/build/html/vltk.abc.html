@@ -1,0 +1,341 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>vltk.abc package &mdash; VLTK: The Vision Language Toolkit 0.2 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="vltk.adapters package" href="vltk.adapters.html" />
+    <link rel="prev" title="vltk package" href="vltk.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> VLTK: The Vision Language Toolkit
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">VLTK Modules</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="vltk.html">vltk package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="vltk.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4 current"><a class="current reference internal" href="#">vltk.abc package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="vltk.adapters.html">vltk.adapters package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="vltk.datasets.html">vltk.datasets package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="vltk.processing.html">vltk.processing package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="vltk.utils.html">vltk.utils package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="vltk.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="vltk.html#module-vltk.configs">vltk.configs module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="vltk.html#module-vltk.features">vltk.features module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="vltk.html#module-vltk.vars">vltk.vars module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="vltk.html#module-vltk">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">VLTK: The Vision Language Toolkit</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="modules.html">VLTK Modules</a> &raquo;</li>
+        
+          <li><a href="vltk.html">vltk package</a> &raquo;</li>
+        
+      <li>vltk.abc package</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/vltk.abc.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="vltk-abc-package">
+<h1>vltk.abc package<a class="headerlink" href="#vltk-abc-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="vltk-abc-adapter-module">
+<h2>vltk.abc.adapter module<a class="headerlink" href="#vltk-abc-adapter-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="vltk-abc-checkpoint-module">
+<h2>vltk.abc.checkpoint module<a class="headerlink" href="#vltk-abc-checkpoint-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-vltk.abc.config">
+<span id="vltk-abc-config-module"></span><h2>vltk.abc.config module<a class="headerlink" href="#module-vltk.abc.config" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.abc.config.Config">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.abc.config.</span></span><span class="sig-name descname"><span class="pre">Config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/config.html#Config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.config.Config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.config.Config.dump_json">
+<span class="sig-name descname"><span class="pre">dump_json</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/config.html#Config.dump_json"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.config.Config.dump_json" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.config.Config.dump_yaml">
+<span class="sig-name descname"><span class="pre">dump_yaml</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/config.html#Config.dump_yaml"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.config.Config.dump_yaml" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.config.Config.from_dict">
+<em class="property"><span class="pre">classmethod</span> </em><span class="sig-name descname"><span class="pre">from_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/config.html#Config.from_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.config.Config.from_dict" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.config.Config.handle_iterables">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">handle_iterables</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/config.html#Config.handle_iterables"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.config.Config.handle_iterables" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.config.Config.list_subconfigs">
+<span class="sig-name descname"><span class="pre">list_subconfigs</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/config.html#Config.list_subconfigs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.config.Config.list_subconfigs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.config.Config.load">
+<em class="property"><span class="pre">classmethod</span> </em><span class="sig-name descname"><span class="pre">load</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fp_name_dict</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/config.html#Config.load"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.config.Config.load" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.config.Config.parse">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">parse</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arg</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/config.html#Config.parse"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.config.Config.parse" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.config.Config.to_dict">
+<span class="sig-name descname"><span class="pre">to_dict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/config.html#Config.to_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.config.Config.to_dict" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.config.Config.update">
+<span class="sig-name descname"><span class="pre">update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">updates</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/config.html#Config.update"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.config.Config.update" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="vltk-abc-extraction-module">
+<h2>vltk.abc.extraction module<a class="headerlink" href="#vltk-abc-extraction-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-vltk.abc.processor">
+<span id="vltk-abc-processor-module"></span><h2>vltk.abc.processor module<a class="headerlink" href="#module-vltk.abc.processor" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.abc.processor.LangProcessor">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.abc.processor.</span></span><span class="sig-name descname"><span class="pre">LangProcessor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/processor.html#LangProcessor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.processor.LangProcessor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#vltk.abc.processor.Processor" title="vltk.abc.processor.Processor"><code class="xref py py-class docutils literal notranslate"><span class="pre">vltk.abc.processor.Processor</span></code></a></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.abc.processor.Processor">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.abc.processor.</span></span><span class="sig-name descname"><span class="pre">Processor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/processor.html#Processor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.processor.Processor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py property">
+<dt class="sig sig-object py" id="vltk.abc.processor.Processor.keys">
+<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">keys</span></span><a class="headerlink" href="#vltk.abc.processor.Processor.keys" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.abc.processor.VisnLangProcessor">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.abc.processor.</span></span><span class="sig-name descname"><span class="pre">VisnLangProcessor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/processor.html#VisnLangProcessor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.processor.VisnLangProcessor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#vltk.abc.processor.Processor" title="vltk.abc.processor.Processor"><code class="xref py py-class docutils literal notranslate"><span class="pre">vltk.abc.processor.Processor</span></code></a></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.abc.processor.VisnProcessor">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.abc.processor.</span></span><span class="sig-name descname"><span class="pre">VisnProcessor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/processor.html#VisnProcessor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.processor.VisnProcessor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#vltk.abc.processor.Processor" title="vltk.abc.processor.Processor"><code class="xref py py-class docutils literal notranslate"><span class="pre">vltk.abc.processor.Processor</span></code></a></p>
+</dd></dl>
+
+</div>
+<div class="section" id="vltk-abc-visnadapter-module">
+<h2>vltk.abc.visnadapter module<a class="headerlink" href="#vltk-abc-visnadapter-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="vltk-abc-visnlangadatper-module">
+<h2>vltk.abc.visnlangadatper module<a class="headerlink" href="#vltk-abc-visnlangadatper-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-vltk.abc">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-vltk.abc" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="vltk.adapters.html" class="btn btn-neutral float-right" title="vltk.adapters package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="vltk.html" class="btn btn-neutral float-left" title="vltk package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Antonio Mendoza.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

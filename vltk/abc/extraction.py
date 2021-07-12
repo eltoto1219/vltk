@@ -7,9 +7,9 @@ from collections import OrderedDict
 import datasets as ds
 import pyarrow
 import torch
-import vltk
 from datasets import ArrowWriter
 from tqdm import tqdm
+from vltk.vars import Vars as vltk
 from vltk.abc.adapter import Adapter
 from vltk.configs import VisionConfig
 from vltk.inspection import collect_args_to_func

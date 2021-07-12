@@ -1,6 +1,6 @@
 from collections import Counter
 
-import vltk
+from vltk.vars import Vars as vltk
 from vltk import Features, adapters
 from vltk.utils.adapters import clean_label
 
@@ -13,8 +13,8 @@ class VGQA(adapters.VisnLangDataset):
     def schema():
         # img id and score are assumed to be default features
         return {
-            vltk.qid: Features.String,
-            vltk.label: Features.StringList,
+            vltk.qid: Features.String(),
+            vltk.label: Features.StringList(),
         }
 
     def adjust_imgid(imgid, vdset_name, vdset_split):

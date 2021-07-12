@@ -8,7 +8,6 @@ from typing import List
 import datasets
 import datasets as ds
 import pyarrow
-import vltk
 from datasets import ArrowWriter
 from tqdm import tqdm
 from vltk import Features
@@ -16,13 +15,14 @@ from vltk.abc.adapter import Adapter
 from vltk.inspection import collect_args_to_func
 from vltk.utils import base as utils
 from vltk.utils.base import get_list_primitive
+from vltk.vars import Vars as vltk
 
 
 class VisnLangDataset(Adapter):
     _extensions = ["json", "jsonl"]
     _base_features = {
-        vltk.imgid: Features.String,
-        vltk.text: Features.String,
+        vltk.imgid: Features.String(),
+        vltk.text: Features.String(),
         # vltk.score: ds.Sequence(length=-1, feature=ds.Value("float32")),
     }
     _meta_names = ["answer_frequencies", "img_to_row_map"]

@@ -1,0 +1,598 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>vltk.utils.base &mdash; VLTK: The Vision Language Toolkit 0.2 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../../genindex.html" />
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../../index.html" class="icon icon-home"> VLTK: The Vision Language Toolkit
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules.html">VLTK Modules</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">VLTK: The Vision Language Toolkit</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+      <li>vltk.utils.base</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for vltk.utils.base</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">collections</span>
+<span class="kn">import</span> <span class="nn">contextlib</span>
+<span class="kn">import</span> <span class="nn">importlib</span>
+<span class="kn">import</span> <span class="nn">inspect</span>
+<span class="kn">import</span> <span class="nn">json</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">smtplib</span>
+<span class="kn">import</span> <span class="nn">subprocess</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+<span class="kn">from</span> <span class="nn">collections.abc</span> <span class="kn">import</span> <span class="n">Iterable</span>
+<span class="kn">from</span> <span class="nn">datetime</span> <span class="kn">import</span> <span class="n">datetime</span>
+<span class="kn">from</span> <span class="nn">email.message</span> <span class="kn">import</span> <span class="n">EmailMessage</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">Tuple</span><span class="p">,</span> <span class="n">Union</span>
+
+<span class="kn">import</span> <span class="nn">datasets</span>
+<span class="kn">import</span> <span class="nn">jsonlines</span>
+<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">pyarrow</span>
+<span class="kn">import</span> <span class="nn">torch</span>
+<span class="kn">import</span> <span class="nn">yaml</span>
+<span class="kn">from</span> <span class="nn">torch</span> <span class="kn">import</span> <span class="n">nn</span>
+
+<span class="n">PATH</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">),</span> <span class="s2">&quot;..&quot;</span><span class="p">)),</span> <span class="s2">&quot;libdata&quot;</span>
+<span class="p">)</span>
+
+
+<span class="c1"># merge dictionaries</span>
+<div class="viewcode-block" id="mergedicts"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.mergedicts">[docs]</a><span class="k">def</span> <span class="nf">mergedicts</span><span class="p">(</span><span class="n">dict1</span><span class="p">,</span> <span class="n">dict2</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">set</span><span class="p">(</span><span class="n">dict1</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="o">.</span><span class="n">union</span><span class="p">(</span><span class="n">dict2</span><span class="o">.</span><span class="n">keys</span><span class="p">()):</span>
+        <span class="k">if</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">dict1</span> <span class="ow">and</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">dict2</span><span class="p">:</span>
+            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dict1</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">dict2</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="nb">dict</span><span class="p">):</span>
+                <span class="k">yield</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="n">mergedicts</span><span class="p">(</span><span class="n">dict1</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">dict2</span><span class="p">[</span><span class="n">k</span><span class="p">])))</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="c1"># If one of the values is not a dict, you can&#39;t continue merging it.</span>
+                <span class="c1"># Value from second dict overrides one in first and we move on.</span>
+                <span class="k">yield</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">dict2</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+                <span class="c1"># Alternatively, replace this with exception raiser to alert you of value conflicts</span>
+        <span class="k">elif</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">dict1</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">dict1</span><span class="p">[</span><span class="n">k</span><span class="p">])</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="p">(</span><span class="n">k</span><span class="p">,</span> <span class="n">dict2</span><span class="p">[</span><span class="n">k</span><span class="p">])</span></div>
+
+
+<div class="viewcode-block" id="update_config_with_logdir"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.update_config_with_logdir">[docs]</a><span class="k">def</span> <span class="nf">update_config_with_logdir</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">flags</span><span class="p">,</span> <span class="n">name</span><span class="p">,</span> <span class="n">datasets</span><span class="p">):</span>
+    <span class="k">if</span> <span class="s2">&quot;base_logdir&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">flags</span><span class="p">:</span>
+        <span class="n">baselogdir</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">base_logdir</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">baselogdir</span> <span class="o">=</span> <span class="n">flags</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;base_logdir&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="s2">&quot;rel_logdir&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">flags</span><span class="p">:</span>
+        <span class="n">specifications</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;year&quot;</span><span class="p">,</span> <span class="s2">&quot;month&quot;</span><span class="p">,</span> <span class="s2">&quot;day&quot;</span><span class="p">,</span> <span class="s2">&quot;hour&quot;</span><span class="p">]</span>
+        <span class="n">date</span> <span class="o">=</span> <span class="n">datetime</span><span class="o">.</span><span class="n">now</span><span class="p">()</span>
+        <span class="n">date</span> <span class="o">=</span> <span class="s2">&quot;:&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="nb">str</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">date</span><span class="p">,</span> <span class="n">s</span><span class="p">))</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">specifications</span><span class="p">])</span>
+        <span class="n">rellogdir</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">_&quot;</span> <span class="o">+</span> <span class="n">date</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">rellogdir</span> <span class="o">=</span> <span class="n">flags</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;rel_logdir&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">rellogdir</span> <span class="o">==</span> <span class="n">baselogdir</span><span class="p">:</span>
+        <span class="n">rellogdir</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+
+    <span class="n">config</span><span class="o">.</span><span class="n">update</span><span class="p">(</span>
+        <span class="p">{</span>
+            <span class="s2">&quot;logdir&quot;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">baselogdir</span><span class="p">,</span> <span class="n">rellogdir</span><span class="p">),</span>
+            <span class="s2">&quot;rel_logdir&quot;</span><span class="p">:</span> <span class="n">rellogdir</span><span class="p">,</span>
+            <span class="s2">&quot;base_logdir&quot;</span><span class="p">:</span> <span class="n">baselogdir</span><span class="p">,</span>
+        <span class="p">}</span>
+    <span class="p">)</span></div>
+
+
+<span class="c1"># this is to update metadata on dataset objects</span>
+<div class="viewcode-block" id="set_metadata"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.set_metadata">[docs]</a><span class="k">def</span> <span class="nf">set_metadata</span><span class="p">(</span><span class="n">tbl</span><span class="p">,</span> <span class="n">tbl_meta</span><span class="o">=</span><span class="p">{}):</span>
+    <span class="n">fields</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">f</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">tbl</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">names</span><span class="p">):</span>
+        <span class="n">fields</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tbl</span><span class="o">.</span><span class="n">schema</span><span class="p">[</span><span class="n">i</span><span class="p">])</span>
+
+    <span class="n">tbl_metadata</span> <span class="o">=</span> <span class="n">tbl</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">metadata</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">tbl_meta</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
+            <span class="n">tbl_metadata</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+        <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="nb">set</span><span class="p">):</span>
+            <span class="n">tbl_metadata</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">tbl_metadata</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">)</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;utf-8&quot;</span><span class="p">)</span>
+
+    <span class="n">schema</span> <span class="o">=</span> <span class="n">pyarrow</span><span class="o">.</span><span class="n">schema</span><span class="p">(</span><span class="n">fields</span><span class="p">,</span> <span class="n">metadata</span><span class="o">=</span><span class="n">tbl_metadata</span><span class="p">)</span>
+    <span class="n">tbl</span> <span class="o">=</span> <span class="n">pyarrow</span><span class="o">.</span><span class="n">Table</span><span class="o">.</span><span class="n">from_arrays</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">tbl</span><span class="o">.</span><span class="n">itercolumns</span><span class="p">()),</span> <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">tbl</span></div>
+
+
+<div class="viewcode-block" id="batcher"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.batcher">[docs]</a><span class="k">def</span> <span class="nf">batcher</span><span class="p">(</span><span class="n">iterable</span><span class="p">,</span> <span class="n">n</span><span class="o">=</span><span class="mi">64</span><span class="p">):</span>
+    <span class="n">l</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">iterable</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">ndx</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="n">l</span><span class="p">,</span> <span class="n">n</span><span class="p">):</span>
+        <span class="k">yield</span> <span class="n">iterable</span><span class="p">[</span><span class="n">ndx</span> <span class="p">:</span> <span class="nb">min</span><span class="p">(</span><span class="n">ndx</span> <span class="o">+</span> <span class="n">n</span><span class="p">,</span> <span class="n">l</span><span class="p">)]</span></div>
+
+
+<div class="viewcode-block" id="try_load"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.try_load">[docs]</a><span class="k">def</span> <span class="nf">try_load</span><span class="p">(</span><span class="n">filepath</span><span class="p">):</span>
+    <span class="n">ext</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">ext</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;json&quot;</span><span class="p">,</span> <span class="s2">&quot;jsonl&quot;</span><span class="p">):</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">data</span>
+        <span class="k">except</span> <span class="n">json</span><span class="o">.</span><span class="n">decoder</span><span class="o">.</span><span class="n">JSONDecodeError</span><span class="p">:</span>
+            <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+                <span class="n">data</span> <span class="o">=</span> <span class="n">jsonlines</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
+            <span class="k">return</span> <span class="n">data</span>
+    <span class="k">elif</span> <span class="s2">&quot;pdf&quot;</span> <span class="o">==</span> <span class="n">ext</span><span class="p">:</span>
+        <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
+    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">ext</span><span class="p">)</span></div>
+    <span class="c1"># try:</span>
+    <span class="c1">#     with open(filepath) as f:</span>
+    <span class="c1">#         entry = jsonlines.open(f)</span>
+    <span class="c1">#         yield entry</span>
+    <span class="c1"># except Exception:</span>
+    <span class="c1">#     with open(filepath) as f:</span>
+    <span class="c1">#         data = json.load(f)</span>
+    <span class="c1">#     return data</span>
+
+
+<div class="viewcode-block" id="clean_imgid"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.clean_imgid">[docs]</a><span class="k">def</span> <span class="nf">clean_imgid</span><span class="p">(</span><span class="n">img_id</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">img_id</span><span class="p">)</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="load_arrow"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.load_arrow">[docs]</a><span class="k">def</span> <span class="nf">load_arrow</span><span class="p">(</span><span class="n">dset_to_arrow_fp</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">fields</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">Tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">],</span> <span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">fields</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">fields</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="n">arrow_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">dset</span> <span class="ow">in</span> <span class="n">dset_to_arrow_fp</span><span class="p">:</span>
+        <span class="n">arrow_fp</span> <span class="o">=</span> <span class="n">dset_to_arrow_fp</span><span class="p">[</span><span class="n">dset</span><span class="p">]</span>
+        <span class="n">arrow</span> <span class="o">=</span> <span class="n">datasets</span><span class="o">.</span><span class="n">Dataset</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="n">arrow_fp</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">fields</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">fields</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">fields</span><span class="p">)</span>
+        <span class="n">arrow</span><span class="o">.</span><span class="n">set_format</span><span class="p">(</span><span class="nb">type</span><span class="o">=</span><span class="s2">&quot;numpy&quot;</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">fields</span><span class="p">)</span>
+        <span class="n">arrow_dict</span><span class="p">[</span><span class="n">dset</span><span class="p">]</span> <span class="o">=</span> <span class="n">arrow</span>
+    <span class="k">return</span> <span class="n">arrow_dict</span></div>
+
+
+<div class="viewcode-block" id="clip_img_ids"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.clip_img_ids">[docs]</a><span class="k">def</span> <span class="nf">clip_img_ids</span><span class="p">(</span><span class="n">img_ids</span><span class="p">,</span> <span class="n">percent_data</span><span class="o">=</span><span class="mf">1.0</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">percent_data</span> <span class="o">!=</span> <span class="mf">1.0</span><span class="p">:</span>
+        <span class="n">stop_int</span> <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="nb">int</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ceil</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">img_ids</span><span class="p">)</span> <span class="o">*</span> <span class="n">percent_data</span><span class="p">)))</span>
+        <span class="n">img_ids</span> <span class="o">=</span> <span class="n">img_ids</span><span class="p">[:</span><span class="n">stop_int</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">img_ids</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span>
+    <span class="k">return</span> <span class="n">img_ids</span></div>
+
+
+<div class="viewcode-block" id="dummy_context"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.dummy_context">[docs]</a><span class="nd">@contextlib</span><span class="o">.</span><span class="n">contextmanager</span>
+<span class="k">def</span> <span class="nf">dummy_context</span><span class="p">():</span>
+    <span class="k">yield</span> <span class="kc">None</span></div>
+
+
+<div class="viewcode-block" id="send_email"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.send_email">[docs]</a><span class="k">def</span> <span class="nf">send_email</span><span class="p">(</span><span class="n">address</span><span class="p">,</span> <span class="n">message</span><span class="p">,</span> <span class="n">failure</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+    <span class="n">sender</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;HOSTNAME&quot;</span><span class="p">,</span> <span class="s2">&quot;localhost&quot;</span><span class="p">)</span>
+    <span class="n">msg</span> <span class="o">=</span> <span class="n">EmailMessage</span><span class="p">()</span>
+    <span class="n">msg</span><span class="o">.</span><span class="n">set_content</span><span class="p">(</span><span class="n">message</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">failure</span><span class="p">:</span>
+        <span class="n">msg</span><span class="p">[</span><span class="s2">&quot;Subject&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;MLLIB failure!&quot;</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">msg</span><span class="p">[</span><span class="s2">&quot;Subject&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;MLLIB success!&quot;</span>
+    <span class="n">msg</span><span class="p">[</span><span class="s2">&quot;From&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">sender</span>
+    <span class="n">msg</span><span class="p">[</span><span class="s2">&quot;To&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">address</span><span class="p">]</span>
+    <span class="n">s</span> <span class="o">=</span> <span class="n">smtplib</span><span class="o">.</span><span class="n">SMTP</span><span class="p">(</span><span class="s2">&quot;localhost&quot;</span><span class="p">)</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">send_message</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+    <span class="n">s</span><span class="o">.</span><span class="n">quit</span><span class="p">()</span></div>
+
+
+<div class="viewcode-block" id="unflatten_dict"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.unflatten_dict">[docs]</a><span class="k">def</span> <span class="nf">unflatten_dict</span><span class="p">(</span><span class="n">dictionary</span><span class="p">):</span>
+    <span class="n">resultDict</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">dictionary</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">parts</span> <span class="o">=</span> <span class="n">key</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">)</span>
+        <span class="n">d</span> <span class="o">=</span> <span class="n">resultDict</span>
+        <span class="k">for</span> <span class="n">part</span> <span class="ow">in</span> <span class="n">parts</span><span class="p">[:</span><span class="o">-</span><span class="mi">1</span><span class="p">]:</span>
+            <span class="k">if</span> <span class="n">part</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">d</span><span class="p">:</span>
+                <span class="n">d</span><span class="p">[</span><span class="n">part</span><span class="p">]</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">()</span>
+            <span class="n">d</span> <span class="o">=</span> <span class="n">d</span><span class="p">[</span><span class="n">part</span><span class="p">]</span>
+        <span class="n">d</span><span class="p">[</span><span class="n">parts</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="n">value</span>
+    <span class="k">return</span> <span class="n">resultDict</span></div>
+
+
+<div class="viewcode-block" id="load_yaml"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.load_yaml">[docs]</a><span class="k">def</span> <span class="nf">load_yaml</span><span class="p">(</span><span class="n">flags</span><span class="p">:</span> <span class="nb">dict</span><span class="p">):</span>
+    <span class="c1"># allow flags to overwrite keys present in yaml file</span>
+    <span class="k">if</span> <span class="s2">&quot;yaml&quot;</span> <span class="ow">in</span> <span class="n">flags</span><span class="p">:</span>
+        <span class="n">yaml_path</span> <span class="o">=</span> <span class="n">flags</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="s2">&quot;yaml&quot;</span><span class="p">)</span>
+        <span class="n">loaded</span> <span class="o">=</span> <span class="n">yaml</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="nb">open</span><span class="p">(</span><span class="n">yaml_path</span><span class="p">),</span> <span class="n">Loader</span><span class="o">=</span><span class="n">yaml</span><span class="o">.</span><span class="n">Loader</span><span class="p">)</span>
+        <span class="n">updated_flags</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">mergedicts</span><span class="p">(</span><span class="n">loaded</span><span class="p">,</span> <span class="n">flags</span><span class="p">))</span>
+        <span class="k">return</span> <span class="n">updated_flags</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">flags</span></div>
+
+
+<div class="viewcode-block" id="convert_jax_to_torch_weights"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.convert_jax_to_torch_weights">[docs]</a><span class="k">def</span> <span class="nf">convert_jax_to_torch_weights</span><span class="p">(</span>
+    <span class="n">torch_dict</span><span class="p">,</span> <span class="n">jax_dict</span><span class="p">,</span> <span class="n">torch_encoder_weight_name</span><span class="o">=</span><span class="s2">&quot;transformer&quot;</span>
+<span class="p">):</span>
+
+    <span class="n">torch_to_jax_alias</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="p">(</span><span class="s2">&quot;bias&quot;</span><span class="p">,</span> <span class="s2">&quot;bias&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;norm1&quot;</span><span class="p">,</span> <span class="s2">&quot;LayerNorm_0&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;norm2&quot;</span><span class="p">,</span> <span class="s2">&quot;LayerNorm_2&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;norm&quot;</span><span class="p">,</span> <span class="s2">&quot;encoder_norm&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;weight&quot;</span><span class="p">,</span> <span class="s2">&quot;kernel&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;weight&quot;</span><span class="p">,</span> <span class="s2">&quot;scale&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;transformer&quot;</span><span class="p">,</span> <span class="s2">&quot;Transformer&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;encoder_layers.&quot;</span><span class="p">,</span> <span class="s2">&quot;encoderblock_&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;attn&quot;</span><span class="p">,</span> <span class="s2">&quot;MultiHeadDotProductAttention_1&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;out&quot;</span><span class="p">,</span> <span class="s2">&quot;out&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;query&quot;</span><span class="p">,</span> <span class="s2">&quot;query&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;key&quot;</span><span class="p">,</span> <span class="s2">&quot;key&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;value&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;mlp&quot;</span><span class="p">,</span> <span class="s2">&quot;MlpBlock_3&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;fc1&quot;</span><span class="p">,</span> <span class="s2">&quot;Dense_0&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;fc2&quot;</span><span class="p">,</span> <span class="s2">&quot;Dense_1&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;pos_embedding&quot;</span><span class="p">,</span> <span class="s2">&quot;posembed_input&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;cls_token&quot;</span><span class="p">,</span> <span class="s2">&quot;cls&quot;</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">&quot;classifier&quot;</span><span class="p">,</span> <span class="s2">&quot;head&quot;</span><span class="p">),</span>
+    <span class="p">]</span>
+    <span class="c1"># pos embdedding = n_patches +  1 (for cls token)</span>
+
+    <span class="n">jax_flattened_weights</span> <span class="o">=</span> <span class="n">flatten_dict</span><span class="p">(</span><span class="n">jax_dict</span><span class="p">,</span> <span class="n">parent_key</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+    <span class="n">jax_dict_renamed</span> <span class="o">=</span> <span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">()</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">jax_flattened_weights</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="k">for</span> <span class="p">(</span><span class="n">tn</span><span class="p">,</span> <span class="n">jn</span><span class="p">)</span> <span class="ow">in</span> <span class="n">torch_to_jax_alias</span><span class="p">:</span>
+            <span class="n">k</span> <span class="o">=</span> <span class="n">k</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="n">jn</span><span class="p">,</span> <span class="n">tn</span><span class="p">)</span>
+        <span class="n">jax_dict_renamed</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">tensor</span><span class="p">(</span><span class="n">v</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>  <span class="c1"># .tolist()</span>
+    <span class="k">for</span> <span class="n">j</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="nb">sorted</span><span class="p">(</span><span class="n">jax_dict_renamed</span><span class="p">),</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">torch_dict</span><span class="p">)):</span>
+        <span class="k">if</span> <span class="n">j</span> <span class="o">!=</span> <span class="n">t</span><span class="p">:</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">j</span><span class="p">,</span> <span class="n">t</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">jax_dict_renamed</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span> <span class="o">!=</span> <span class="n">torch_dict</span><span class="p">[</span><span class="n">t</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">:</span>
+            <span class="n">jshape</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">jax_dict_renamed</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="n">tshape</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">torch_dict</span><span class="p">[</span><span class="n">t</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">jshape</span><span class="p">)</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span><span class="n">tshape</span><span class="p">)</span>
+            <span class="k">if</span> <span class="nb">sum</span><span class="p">(</span><span class="n">jshape</span><span class="p">)</span> <span class="o">==</span> <span class="nb">sum</span><span class="p">(</span><span class="n">tshape</span><span class="p">):</span>
+                <span class="n">ind_map</span> <span class="o">=</span> <span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">jshape</span><span class="p">)</span>
+                <span class="n">seen_inds</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+                <span class="n">added_inds</span> <span class="o">=</span> <span class="nb">set</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">ji</span><span class="p">,</span> <span class="n">jv</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">jshape</span><span class="p">):</span>
+                    <span class="k">for</span> <span class="n">ti</span><span class="p">,</span> <span class="n">tv</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">tshape</span><span class="p">):</span>
+                        <span class="k">if</span> <span class="n">jv</span> <span class="o">==</span> <span class="n">tv</span><span class="p">:</span>
+                            <span class="k">if</span> <span class="n">ji</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">seen_inds</span> <span class="ow">and</span> <span class="n">ti</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">added_inds</span><span class="p">:</span>
+                                <span class="n">ind_map</span><span class="p">[</span><span class="n">ti</span><span class="p">]</span> <span class="o">=</span> <span class="n">ji</span>
+                                <span class="n">seen_inds</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">ji</span><span class="p">)</span>
+                                <span class="n">added_inds</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">ti</span><span class="p">)</span>
+                <span class="k">try</span><span class="p">:</span>
+                    <span class="n">new_val</span> <span class="o">=</span> <span class="n">jax_dict_renamed</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">permute</span><span class="p">(</span><span class="o">*</span><span class="nb">tuple</span><span class="p">(</span><span class="n">ind_map</span><span class="p">))</span>
+                <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                        <span class="n">ind_map</span><span class="p">,</span> <span class="n">jax_dict_renamed</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">torch_dict</span><span class="p">[</span><span class="n">j</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">j</span>
+                    <span class="p">)</span>
+                <span class="k">assert</span> <span class="n">new_val</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">torch_dict</span><span class="p">[</span><span class="n">t</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="p">(</span>
+                    <span class="n">new_val</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+                    <span class="n">torch_dict</span><span class="p">[</span><span class="n">t</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span>
+                    <span class="n">ind_map</span><span class="p">,</span>
+                    <span class="n">jshape</span><span class="p">,</span>
+                <span class="p">)</span>
+                <span class="n">jax_dict_renamed</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_val</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;SKIPPIG: mismatched </span><span class="si">{</span><span class="n">j</span><span class="p">,</span> <span class="n">t</span><span class="si">}</span><span class="s2">, shapes </span><span class="si">{</span><span class="n">jshape</span><span class="p">,</span> <span class="n">tshape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">jax_dict_renamed</span><span class="p">[</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">torch_dict</span><span class="p">[</span><span class="n">t</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="nb">len</span><span class="p">([</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">jax_dict_renamed</span> <span class="k">if</span> <span class="n">torch_encoder_weight_name</span> <span class="ow">in</span> <span class="n">x</span><span class="p">])</span> <span class="o">==</span> <span class="nb">len</span><span class="p">(</span>
+        <span class="p">[</span><span class="n">x</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">torch_dict</span> <span class="k">if</span> <span class="n">torch_encoder_weight_name</span> <span class="ow">in</span> <span class="n">x</span><span class="p">]</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">jax_dict_renamed</span></div>
+
+
+<div class="viewcode-block" id="flatten_dict"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.flatten_dict">[docs]</a><span class="k">def</span> <span class="nf">flatten_dict</span><span class="p">(</span><span class="n">d</span><span class="p">,</span> <span class="n">parent_key</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="s2">&quot;.&quot;</span><span class="p">):</span>
+    <span class="n">items</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">d</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+        <span class="n">new_key</span> <span class="o">=</span> <span class="n">parent_key</span> <span class="o">+</span> <span class="n">sep</span> <span class="o">+</span> <span class="n">k</span> <span class="k">if</span> <span class="n">parent_key</span> <span class="k">else</span> <span class="n">k</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">MutableMapping</span><span class="p">):</span>
+            <span class="n">items</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">flatten_dict</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">new_key</span><span class="p">,</span> <span class="n">sep</span><span class="o">=</span><span class="n">sep</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">items</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">new_key</span><span class="p">,</span> <span class="n">v</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">collections</span><span class="o">.</span><span class="n">OrderedDict</span><span class="p">(</span><span class="n">items</span><span class="p">)</span></div>
+
+
+<span class="c1"># tensor equality</span>
+<div class="viewcode-block" id="tensor_equality"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.tensor_equality">[docs]</a><span class="k">def</span> <span class="nf">tensor_equality</span><span class="p">(</span><span class="n">a</span><span class="p">,</span> <span class="n">b</span><span class="p">):</span>
+
+    <span class="n">n1</span> <span class="o">=</span> <span class="n">a</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+    <span class="n">n2</span> <span class="o">=</span> <span class="n">b</span><span class="o">.</span><span class="n">numpy</span><span class="p">()</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">n1</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">n2</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">n1</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">:</span><span class="mi">5</span><span class="p">])</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">n2</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="p">:</span><span class="mi">5</span><span class="p">])</span>
+    <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">allclose</span><span class="p">(</span>
+        <span class="n">n1</span><span class="p">,</span> <span class="n">n2</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">0.1</span>
+    <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">sum</span><span class="p">([</span><span class="mi">1</span> <span class="k">for</span> <span class="n">x</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">isclose</span><span class="p">(</span><span class="n">n1</span><span class="p">,</span> <span class="n">n2</span><span class="p">,</span> <span class="n">rtol</span><span class="o">=</span><span class="mf">0.01</span><span class="p">,</span> <span class="n">atol</span><span class="o">=</span><span class="mf">0.1</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span> <span class="k">if</span> <span class="n">x</span> <span class="o">==</span> <span class="kc">False</span><span class="p">])</span><span class="o">/</span><span class="nb">len</span><span class="p">(</span><span class="n">n1</span><span class="o">.</span><span class="n">flatten</span><span class="p">())</span><span class="o">*</span><span class="mi">100</span><span class="si">:</span><span class="s2">.4f</span><span class="si">}</span><span class="s2"> % element-wise mismatch&quot;</span>
+    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;tensors are all good&quot;</span><span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="isprimitive"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.isprimitive">[docs]</a><span class="k">def</span> <span class="nf">isprimitive</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+    <span class="k">if</span> <span class="p">(</span>
+        <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span>
+        <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">bool</span><span class="p">)</span>
+        <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+        <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span>
+    <span class="p">):</span>
+        <span class="k">return</span> <span class="kc">True</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="kc">False</span></div>
+
+
+<div class="viewcode-block" id="on_children"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.on_children">[docs]</a><span class="k">def</span> <span class="nf">on_children</span><span class="p">(</span><span class="n">obj</span><span class="p">:</span> <span class="nb">object</span><span class="p">,</span> <span class="n">findtype</span><span class="o">=</span><span class="nb">int</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="c1"># if object is dict</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="nb">dict</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">findtype</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">obj</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+            <span class="n">new_v</span> <span class="o">=</span> <span class="n">on_children</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">findtype</span><span class="o">=</span><span class="n">findtype</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="n">func</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">new_v</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">obj</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_v</span>
+    <span class="c1"># if the object is a primitive</span>
+    <span class="k">elif</span> <span class="n">isprimitive</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">findtype</span><span class="p">):</span>
+        <span class="k">return</span> <span class="kc">None</span>
+    <span class="c1"># if the object is iterable</span>
+    <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">findtype</span><span class="p">):</span>
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">obj</span><span class="p">):</span>
+            <span class="n">new_v</span> <span class="o">=</span> <span class="n">on_children</span><span class="p">(</span><span class="n">v</span><span class="p">,</span> <span class="n">findtype</span><span class="o">=</span><span class="n">findtype</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="n">func</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">new_v</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">obj</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">new_v</span>
+    <span class="c1"># if the object is not a findtype, iterable, dictionary, or prim</span>
+    <span class="k">elif</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">findtype</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s2">&quot;__dict__&quot;</span><span class="p">):</span>
+        <span class="k">raise</span> <span class="ne">Exception</span>
+    <span class="c1"># if the object is the find type</span>
+    <span class="k">elif</span> <span class="n">func</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">out</span> <span class="o">=</span> <span class="n">func</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">out</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="n">out</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">obj</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">return</span> <span class="n">obj</span></div>
+
+
+<div class="viewcode-block" id="change_device"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.change_device">[docs]</a><span class="k">def</span> <span class="nf">change_device</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span><span class="p">):</span>
+    <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">device</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="n">device</span> <span class="o">==</span> <span class="s2">&quot;cpu&quot;</span>
+    <span class="n">device</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">device</span><span class="p">(</span><span class="n">device</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">on_children</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="n">findtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span> <span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="o">.</span><span class="n">to</span><span class="p">(</span><span class="n">device</span><span class="p">))</span></div>
+
+
+<div class="viewcode-block" id="check_device"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.check_device">[docs]</a><span class="k">def</span> <span class="nf">check_device</span><span class="p">(</span><span class="n">batch</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">on_children</span><span class="p">(</span>
+        <span class="n">batch</span><span class="p">,</span>
+        <span class="n">findtype</span><span class="o">=</span><span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">,</span>
+        <span class="n">func</span><span class="o">=</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="p">(</span><span class="nb">print</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">x</span><span class="o">.</span><span class="n">device</span><span class="p">)</span> <span class="k">if</span> <span class="n">x</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">x</span><span class="p">),</span>
+    <span class="p">)</span></div>
+
+
+<div class="viewcode-block" id="get_list_primitive"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.get_list_primitive">[docs]</a><span class="k">def</span> <span class="nf">get_list_primitive</span><span class="p">(</span><span class="n">ls</span><span class="p">):</span>
+
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ls</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">Iterable</span><span class="p">)</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ls</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">get_list_primitive</span><span class="p">(</span><span class="n">ls</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">ls</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="kc">None</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">return</span> <span class="nb">type</span><span class="p">(</span><span class="n">ls</span><span class="p">)</span></div>
+
+
+<span class="c1"># stack overflow credit</span>
+<div class="viewcode-block" id="flatten_stringlist"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.flatten_stringlist">[docs]</a><span class="k">def</span> <span class="nf">flatten_stringlist</span><span class="p">(</span><span class="n">container</span><span class="p">):</span>
+    <span class="k">if</span> <span class="n">container</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="p">[]</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">container</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">container</span><span class="p">]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">container</span><span class="p">:</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="nb">list</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">)):</span>
+            <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">flatten_stringlist</span><span class="p">(</span><span class="n">i</span><span class="p">):</span>
+                <span class="k">yield</span> <span class="n">j</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="k">yield</span> <span class="n">i</span></div>
+
+
+<div class="viewcode-block" id="get_arrow_primitive"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.get_arrow_primitive">[docs]</a><span class="k">def</span> <span class="nf">get_arrow_primitive</span><span class="p">(</span><span class="n">schema_value</span><span class="p">):</span>
+    <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">schema_value</span><span class="p">,</span> <span class="s2">&quot;feature&quot;</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">get_arrow_primitive</span><span class="p">(</span><span class="n">schema_value</span><span class="o">.</span><span class="n">feature</span><span class="p">)</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">schema_value</span><span class="o">.</span><span class="n">dtype</span></div>
+
+
+<div class="viewcode-block" id="convertids_recursive"><a class="viewcode-back" href="../../../vltk.utils.html#vltk.utils.base.convertids_recursive">[docs]</a><span class="k">def</span> <span class="nf">convertids_recursive</span><span class="p">(</span><span class="n">ls</span><span class="p">,</span> <span class="n">objids</span><span class="p">):</span>
+    <span class="n">ls</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">ls</span><span class="p">)</span>
+    <span class="c1"># get deepest nested list</span>
+    <span class="k">if</span> <span class="p">(</span>
+        <span class="nb">isinstance</span><span class="p">(</span><span class="n">ls</span><span class="p">,</span> <span class="n">collections</span><span class="o">.</span><span class="n">Iterable</span><span class="p">)</span>
+        <span class="ow">and</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ls</span><span class="p">,</span> <span class="nb">str</span><span class="p">)</span>
+        <span class="ow">and</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">ls</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="nb">str</span><span class="p">)</span>
+    <span class="p">):</span>
+        <span class="n">ten</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">objids</span><span class="p">[</span><span class="n">x</span><span class="p">],</span> <span class="n">ls</span><span class="p">)))</span>
+        <span class="k">return</span> <span class="n">ten</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="k">for</span> <span class="n">idx</span><span class="p">,</span> <span class="n">item</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">ls</span><span class="p">):</span>
+            <span class="n">res</span> <span class="o">=</span> <span class="n">convertids_recursive</span><span class="p">(</span><span class="n">item</span><span class="p">,</span> <span class="n">objids</span><span class="p">)</span>
+            <span class="k">assert</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">res</span><span class="p">,</span> <span class="n">torch</span><span class="o">.</span><span class="n">Tensor</span><span class="p">),</span> <span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">res</span><span class="p">),</span> <span class="n">res</span><span class="p">)</span>
+            <span class="n">ls</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">res</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="n">ls</span> <span class="o">=</span> <span class="n">torch</span><span class="o">.</span><span class="n">stack</span><span class="p">(</span><span class="n">ls</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+            <span class="k">pass</span>
+        <span class="k">return</span> <span class="n">ls</span></div>
+</pre></div>
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Antonio Mendoza.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

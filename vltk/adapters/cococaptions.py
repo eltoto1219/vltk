@@ -1,4 +1,4 @@
-import vltk
+from vltk.vars import Vars as vltk
 from tqdm import tqdm
 from vltk import adapters
 
@@ -9,9 +9,11 @@ class COCOCaptions(adapters.VisnLangDataset):
         "val": {"coco2014": ["val"]},
     }
 
+    @staticmethod
     def schema():
         return {}
 
+    @staticmethod
     def forward(json_files, split, min_label_frequency=2):
         batch_entries = []
         id2imgid = {}

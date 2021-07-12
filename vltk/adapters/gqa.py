@@ -1,8 +1,8 @@
 from collections import Counter
 
-import vltk
 from vltk import Features, adapters
 from vltk.utils.adapters import clean_label
+from vltk.vars import Vars as vltk
 
 
 class GQA(adapters.VisnLangDataset):
@@ -16,9 +16,11 @@ class GQA(adapters.VisnLangDataset):
 
     filters = ["unbalanced", "train"]
 
+    @staticmethod
     def schema():
-        return {vltk.label: Features.StringList, "layout": Features.StringList}
+        return {vltk.label: Features.StringList(), "layout": Features.StringList()}
 
+    @staticmethod
     def forward(json_files, split, min_label_frequency=2):
         skipped = 0
         label_frequencies = Counter()

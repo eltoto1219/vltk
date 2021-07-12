@@ -51,7 +51,7 @@ setup(
         "vltk/modeling",
         "vltk/modeling/configs",
         "vltk/adapters/",
-        "vltk/legacy",
+        "vltk/datasets",
         "vltk/processing",
         "vltk/abc",
     ],

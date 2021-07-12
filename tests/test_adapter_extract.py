@@ -1,7 +1,7 @@
 from transformers import RobertaTokenizerFast
 from vltk.adapters import Adapters
 from vltk.configs import DataConfig, LangConfig
-from vltk.loader import build
+from vltk.datasets.builder import init_datasets
 from vltk.processing import LangProcessor
 
 
@@ -52,7 +52,7 @@ if __name__ == "__main__":
             # ignore segmentation annotations from being prcoessed with the COCO dataset
             ignore_segmentation=True,
         )
-        train, val = build(config)
+        train, val = init_datasets(config)
         for b in train:
             print(b.keys())
             pass

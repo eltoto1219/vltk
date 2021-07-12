@@ -1,20 +1,23 @@
 from collections import defaultdict
 
 import numpy as np
-import vltk
-from vltk import Features, adapters
+from vltk import Features
+from vltk.vars import Vars as vltk
+from vltk import adapters
 
 
 class CLEVR(adapters.VisnDataset):
+    @staticmethod
     def schema(dim=3):
         return {
             "positions": Features.Features2D(d=dim),
-            "colors": Features.StringList,
-            "shapes": Features.StringList,
-            "sizes": Features.StringList,
-            "materials": Features.StringList,
+            "colors": Features.StringList(),
+            "shapes": Features.StringList(),
+            "sizes": Features.StringList(),
+            "materials": Features.StringList(),
         }
 
+    @staticmethod
     def forward(json_files, splits):
         entries = defaultdict(dict)
         for filepath, js in json_files.items():

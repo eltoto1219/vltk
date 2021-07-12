@@ -1,7 +1,7 @@
 import gc
 from collections import defaultdict
 
-import vltk
+from vltk.vars import Vars as vltk
 from tqdm import tqdm
 from vltk import Features, adapters
 from vltk.adapters import Adapters
@@ -13,16 +13,18 @@ collect = 1000
 # data source: https://github.com/ccvl/clevr-refplus-dataset-gen
 # https://cs.jhu.edu/~cxliu/data/clevr_ref+_1.0.zip
 class CLEVRREF(adapters.VisnDataset):
+    @staticmethod
     def schema():
         return {
-            vltk.RLE: Features.RLE,
-            "colors": Features.StringList,
-            "shapes": Features.StringList,
-            "sizes": Features.StringList,
-            "materials": Features.StringList,
-            vltk.box: Features.Box,
+            vltk.RLE: Features.RLE(),
+            "colors": Features.StringList(),
+            "shapes": Features.StringList(),
+            "sizes": Features.StringList(),
+            "materials": Features.StringList(),
+            vltk.box: Features.Box(),
         }
 
+    @staticmethod
     def forward(json_files, splits):
         # default box order: x, y, h, w
         entries = defaultdict(dict)

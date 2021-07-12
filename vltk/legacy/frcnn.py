@@ -1,4 +1,4 @@
-import vltk
+from vltk.vars import Vars as vltk
 from vltk import Features, compat
 from vltk.adapters import VisnExtraction
 from vltk.configs import ProcessorConfig

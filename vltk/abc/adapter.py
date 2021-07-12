@@ -10,12 +10,12 @@ from typing import List
 
 import datasets as ds
 import pyarrow
-import vltk
 from datasets import ArrowWriter, Dataset
 from vltk import Features
 from vltk.inspection import collect_args_to_func
 from vltk.utils.base import (flatten_stringlist, get_arrow_primitive,
                              set_metadata)
+from vltk.vars import Vars as vltk
 
 IMGFILES = ("jpeg", "jpg", "png")
 SUFFIXES = ("pdf", "json", "jsonl", "txt", "csv", "tsv")
@@ -25,7 +25,7 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
 
     _extensions = ["json", "jsonl"]
     _batch_size = 32
-    _base_schema = {vltk.imgid: Features.Imgid}
+    _base_schema = {vltk.imgid: Features.Imgid()}
     _id_keys = {vltk.imgid, vltk.qid, vltk.text}
     _is_annotation = False
     _is_feature = False
@@ -329,9 +329,13 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
             path = os.path.join(path, dataset_name)
         path = os.path.join(path, cls.__name__.lower())
         if cls._is_annotation:
-            path = os.path.join(
-                path, f"{vltk.ANNOTATION_DIR}/{vltk.ANNOTATION_DIR}.arrow"
-            )
+
+            temppath = os.path.join(path, f"{vltk.ANNOTATION_DIR}.arrow")
+            if not os.path.exists(temppath):
+                temppath = os.path.join(
+                    path, f"{vltk.ANNOTATION_DIR}/{vltk.ANNOTATION_DIR}.arrow"
+                )
+            path = temppath
             (pa_table, meta_dict, path) = Adapter._load_one_arrow(path, meta_names)
             return cls(arrow_table=pa_table, split=split, meta_dict=meta_dict)
         elif split is not None:

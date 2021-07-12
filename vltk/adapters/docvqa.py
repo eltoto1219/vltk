@@ -3,7 +3,7 @@ import os
 from collections import defaultdict
 
 import numpy as np
-import vltk
+from vltk.vars import Vars as vltk
 from tqdm import tqdm
 from vltk import Features, adapters
 from vltk.utils.adapters import get_span_via_jaccard
@@ -45,10 +45,12 @@ class DocVQA(adapters.VisnLangDataset):
         height = abs(new_y2 - new_y1)
         return [x1, y1, width, height]
 
+    @staticmethod
     def schema():
         # img id, label, and score are assumed to be default features
-        return {vltk.label: Features.StringList}  # vltk.span: Features.Span,
+        return {vltk.label: Features.StringList()}  # vltk.span: Features.Span,
 
+    @staticmethod
     def forward(json_files, split, datadir=None):
         total = 0
         skipped = 0
@@ -148,11 +150,12 @@ class DocVQA(adapters.VisnLangDataset):
 
 
 class DocVQAVisn(adapters.VisnDataset):
+    @staticmethod
     def schema():
         return {
-            vltk.box: Features.Box,
-            vltk.tokenbox: Features.Box,
-            vltk.text: Features.StringList,
+            vltk.box: Features.Box(),
+            vltk.tokenbox: Features.Box(),
+            vltk.text: Features.StringList(),
         }
 
     @staticmethod
@@ -166,6 +169,7 @@ class DocVQAVisn(adapters.VisnDataset):
         height = abs(new_y2 - new_y1)
         return [x1, y1, width, height]
 
+    @staticmethod
     def forward(json_files, splits, datadir=None):
         imgids = set()
         annos = []
