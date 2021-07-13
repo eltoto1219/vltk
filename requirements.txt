@@ -6,7 +6,7 @@ chardet
 click
 cycler
 Cython
-datasets 1.9.0
+datasets==1.9.0
 dill
 einops
 filelock
@@ -52,7 +52,7 @@ toml
 torch
 torchvision
 tqdm
-transformers 4.8.2
+transformers==4.8.2
 typed-ast
 typing-extensions
 urllib3
