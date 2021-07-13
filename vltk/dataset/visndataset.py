@@ -4,6 +4,7 @@ import json
 import os
 import resource
 import sys
+from collections import defaultdict
 from itertools import chain
 
 import torch
@@ -66,6 +67,12 @@ class VisionDataset(BaseDataset):
         self.metadata_ids = metadata_ids
         # later if we need
         # print(len(set(annotationdict["funsdaug"].imgids)))
+        self.annotationdict = annotationdict
+        self.metadata_counts = defaultdict(dict)
+        for name in annotationdict:
+            for meta_name, meta_counts in annotationdict[name]._meta_dict.items():
+                self.metadata_counts[name][meta_name] = meta_counts
+
         annotationdict, imgids2pathes, n_imgs = self._shrink_annotation_dicts(
             annotationdict, visndatasetadapterdict
         )

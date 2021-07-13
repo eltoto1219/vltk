@@ -3,11 +3,11 @@ from copy import deepcopy
 from typing import Dict, List, Union
 
 import torch
+import vltk.vars as vltk
 from torch.utils.data import DataLoader
 from vltk.configs import DataConfig
 from vltk.dataset.visndataset import VisionDataset
 from vltk.dataset.visnlangdataset import VisionLanguageDataset
-import vltk.vars as vltk
 
 
 class BatchInfo:
@@ -35,7 +35,6 @@ class BatchInfo:
         self.uniq_keys.clear()
         self.min_spanning_keys.clear()
         self.sparse_keys.clear()
-        raise Exception(self.visn)
 
     def __repr__(self):
         return self.__str__()
@@ -70,12 +69,12 @@ def collate(
     batch_info: BatchInfo = None,
 ) -> Dict[str, torch.Tensor]:
 
-    # raise Exception(batch_info)
-    # batch_info.clear()
     if all_same_keys:
-        return collate_homogeneous(columns, config)
+        batch = collate_homogeneous(columns, config)
     else:
-        return collate_heterogenous(columns, config, batch_info)
+        batch = collate_heterogenous(columns, config, batch_info)
+    batch_info.clear()
+    return batch
 
 
 def collate_homogeneous(
@@ -89,7 +88,10 @@ def collate_homogeneous(
             try:
                 batch[k] = torch.stack([i.get(k) for i in columns if i is not None])
             except Exception:
-                raise Exception(k)
+                raise Exception(
+                    "Each batch entry should all have the same keys in  `collate_homogeneous`",
+                    f"Found sparse key: `{k}` that is only present in some entries. Try removing this key",
+                )
 
         else:
             batch[k] = [i.get(k, None) for i in columns if i is not None]
