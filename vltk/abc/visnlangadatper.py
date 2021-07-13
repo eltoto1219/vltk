@@ -8,14 +8,14 @@ from typing import List
 import datasets
 import datasets as ds
 import pyarrow
+import vltk.vars as vltk
 from datasets import ArrowWriter
 from tqdm import tqdm
-from vltk import Features
 from vltk.abc.adapter import Adapter
+from vltk.features import Features
 from vltk.inspection import collect_args_to_func
 from vltk.utils import base as utils
 from vltk.utils.base import get_list_primitive
-from vltk.vars import Vars as vltk
 
 
 class VisnLangDataset(Adapter):

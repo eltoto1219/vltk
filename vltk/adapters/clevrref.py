@@ -1,13 +1,11 @@
-import gc
 from collections import defaultdict
 
-from vltk.vars import Vars as vltk
+import vltk.vars as vltk
 from tqdm import tqdm
-from vltk import Features, adapters
+from vltk import adapters
 from vltk.adapters import Adapters
 from vltk.configs import DataConfig
-
-collect = 1000
+from vltk.features import Features
 
 
 # data source: https://github.com/ccvl/clevr-refplus-dataset-gen
@@ -69,8 +67,6 @@ class CLEVRREF(adapters.VisnDataset):
                     vltk.box: boxes,
                     vltk.imgid: imgid,
                 }
-                if i % collect == 0:
-                    gc.collect()
 
         return [v for v in entries.values()]
 

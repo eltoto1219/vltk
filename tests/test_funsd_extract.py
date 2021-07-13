@@ -1,13 +1,13 @@
 import os
 
 from transformers import BertTokenizerFast, RobertaTokenizerFast
+from vltk import build
 from vltk.adapters import Adapters
 from vltk.configs import DataConfig, LangConfig, VisionConfig
-from vltk.datasets import build
 
 if __name__ == "__main__":
-    datadir = os.path.join(os.environ["HOME"], "data")
-    Adapters().get("funsd").extract(datadir)
+    datadir = os.path.join(os.environ["HOME"], "demodata")
+    # Adapters().get("funsd").extract(datadir)
     config = DataConfig(
         # lang=LangConfig(tokenizer="BertWordPieceTokenizer"),
         train_datasets=[["funsd", "train"]],
@@ -21,6 +21,8 @@ if __name__ == "__main__":
         eval_batch_size=2,
         add_visual_cls=True,
         ignore_image=True,
+        reextract=True,
+        redownload=False,
     )
 
     train_loader, val_loader = build(config)

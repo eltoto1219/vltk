@@ -1,7 +1,9 @@
 from collections import defaultdict
 
-from vltk import Features, adapters
-from vltk.vars import Vars as vltk
+
+from vltk.features import Features
+from vltk import adapters
+import vltk.vars as vltk
 
 
 class Coco2014(adapters.VisnDataset):

@@ -1,9 +1,9 @@
 from collections import defaultdict
 
 import numpy as np
-from vltk import Features
-from vltk.vars import Vars as vltk
+import vltk.vars as vltk
 from vltk import adapters
+from vltk.features import Features
 
 
 class CLEVR(adapters.VisnDataset):

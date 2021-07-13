@@ -2,7 +2,7 @@ import timeit
 from collections import defaultdict
 
 import datasets as ds
-from vltk.vars import Vars as vltk
+import vltk.vars as vltk
 from tqdm import tqdm
 from vltk.adapters import VisnDataset
 from vltk.processing.label import clean_imgid_default

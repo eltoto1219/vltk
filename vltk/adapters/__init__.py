@@ -2,8 +2,7 @@ import inspect
 import os
 import sys
 
-import __main__
-from vltk.vars import Vars as vltk
+import vltk.vars as vltk
 from vltk.abc.adapter import Adapter
 from vltk.abc.extraction import VisnExtraction
 from vltk.abc.visnadapter import VisnDataset

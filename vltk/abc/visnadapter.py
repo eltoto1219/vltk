@@ -7,12 +7,12 @@ from pathlib import Path
 
 import datasets as ds
 import pyarrow
+import vltk.vars as vltk
 from datasets import ArrowWriter
 from tqdm import tqdm
 from vltk.abc.adapter import Adapter
 from vltk.inspection import collect_args_to_func
 from vltk.utils.base import set_metadata, try_load
-from vltk.vars import Vars as vltk
 
 
 class VisnDataset(Adapter):
@@ -52,10 +52,10 @@ class VisnDataset(Adapter):
             return files
         for g_ext in VisnDataset._extensions:
             for i in Path(path).glob(f"**/*.{g_ext}"):
-                fp = str(i)
-                if os.path.isdir(fp):
+                if i.is_dir():
                     continue
-                stem, ext = fp.split(".")
+                stem = i.stem
+                fp = str(i)
                 if split == "":
                     cont = False
                     for spl in vltk.SPLITALIASES:
@@ -70,11 +70,10 @@ class VisnDataset(Adapter):
                 # TODO: confirm if I still want to prepend dataset name later
                 # okay, so we will only add the dataset name if it is not already present
                 # actually, lets not worry about this until we run into this issue
-                iid = stem.split("/")[-1]
                 # if name.casefold() not in iid.casefold():
                 #     iid = f'{name}{vltk.delim}{i.split(".")[0]}'
                 # iid = i.split(".")[0]
-                files[iid] = fp
+                files[stem] = fp
         return files
 
     @classmethod

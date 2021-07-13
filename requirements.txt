@@ -6,7 +6,7 @@ chardet
 click
 cycler
 Cython
-datasets
+datasets 1.9.0
 dill
 einops
 filelock
@@ -52,16 +52,14 @@ toml
 torch
 torchvision
 tqdm
-transformers
+transformers 4.8.2
 typed-ast
 typing-extensions
 urllib3
 wget
 wrapt
 xxhash
-scikit-image
 sphinx
 sphinx_rtd_theme
 recommonmark
-sphinx-material
 

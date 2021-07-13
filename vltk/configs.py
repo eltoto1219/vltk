@@ -155,8 +155,8 @@ class DataConfig(config.Config):
     lang_processors: Union[None, List[str]] = None
     visn_processors: Union[None, List[str]] = None
     visnlang_processors: Union[None, List[str]] = None
-    visn: Union[config.Config] = None
-    lang: Union[config.Config] = None
+    visn: Union[VisionConfig, dict] = {}
+    lang: Union[LangConfig, dict] = {}
     labels: Union[None, str] = None
     eval_datasets = None
     train_datasets = None
@@ -170,7 +170,6 @@ class DataConfig(config.Config):
     num_workers: int = 8
     drop_last: bool = True
     pin_memory: bool = False
-    max_objects: int = 36
     percent: int = 1.0
     collate_simple: bool = True
     ignore_annotations: bool = False
@@ -179,6 +178,8 @@ class DataConfig(config.Config):
     ignore_image: bool = False
     metadata_filedict: Union[None, Dict[str, str]] = None
     add_visual_cls: bool = True
+    reextract = False
+    redownload = False
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

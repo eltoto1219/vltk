@@ -1,4 +1,4 @@
-from vltk.vars import Vars as vltk
+import vltk.vars as vltk
 from tqdm import tqdm
 from vltk import adapters
 

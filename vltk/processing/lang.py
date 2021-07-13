@@ -3,7 +3,7 @@ import random
 import numpy as np
 import torch
 from vltk.inspection import import_funcs_from_file
-from vltk.vars import Vars as vltk
+import vltk.vars as vltk
 
 
 class Data:

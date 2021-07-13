@@ -1,7 +1,8 @@
 from collections import Counter
 
-from vltk.vars import Vars as vltk
-from vltk import Features, adapters
+import vltk.vars as vltk
+from vltk import adapters
+from vltk.features import Features
 from vltk.utils.adapters import clean_label, soft_score
 
 

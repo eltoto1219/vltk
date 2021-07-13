@@ -1,8 +1,12 @@
 from collections import Counter
 
-from vltk import Features, adapters
+from vltk.features import Features
+from vltk import adapters
+
+
+from vltk.features import Features
 from vltk.utils.adapters import clean_label
-from vltk.vars import Vars as vltk
+import vltk.vars as vltk
 
 
 class GQA(adapters.VisnLangDataset):

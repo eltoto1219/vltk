@@ -1,7 +1,7 @@
 from itertools import chain
 
 import torch
-from vltk.vars import Vars as vltk
+import vltk.vars as vltk
 from vltk.processing import VisnProcessor
 from vltk.utils.adapters import rescale_box, truncate_and_pad_list
 

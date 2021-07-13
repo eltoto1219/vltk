@@ -1,7 +1,7 @@
 from transformers import RobertaTokenizerFast
 from vltk.adapters import Adapters
 from vltk.configs import DataConfig, LangConfig
-from vltk.datasets.builder import init_datasets
+from vltk.dataset.builder import init_datasets
 from vltk.processing import LangProcessor
 
 
@@ -31,6 +31,5 @@ if __name__ == "__main__":
     for i, b in enumerate(train):
         if i == 0:
             continue
-        # b = train.transpose_vl(b)
-        print(b)
+        b = train.transpose_vl(b)
         break

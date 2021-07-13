@@ -1,4 +1,4 @@
-from vltk.vars import Vars as vltk
+import vltk.vars as vltk
 from vltk.abc.processor import (LangProcessor, Processor, VisnLangProcessor,
                                 VisnProcessor)
 from vltk.inspection import get_classes

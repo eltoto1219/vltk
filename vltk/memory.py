@@ -5,6 +5,7 @@ import subprocess
 import torch
 
 
+# from facebook detectron
 def handle_cuda_oom(func, *args, kwargs_1, kwargs_2):
     """
     A context which ignores CUDA OOM exception from pytorch.

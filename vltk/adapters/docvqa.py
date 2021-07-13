@@ -3,9 +3,10 @@ import os
 from collections import defaultdict
 
 import numpy as np
-from vltk.vars import Vars as vltk
+import vltk.vars as vltk
 from tqdm import tqdm
-from vltk import Features, adapters
+from vltk.features import Features
+from vltk import adapters
 from vltk.utils.adapters import get_span_via_jaccard
 
 """

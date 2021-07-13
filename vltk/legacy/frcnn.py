@@ -1,5 +1,6 @@
-from vltk.vars import Vars as vltk
-from vltk import Features, compat
+import vltk.vars as vltk
+from vltk.features import Features
+from vltk import compat
 from vltk.adapters import VisnExtraction
 from vltk.configs import ProcessorConfig
 from vltk.modeling.frcnn import FRCNN as FasterRCNN

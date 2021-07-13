@@ -1,7 +1,8 @@
 import torch
-from vltk.vars import Vars as vltk
+import vltk.vars as vltk
 from PIL import Image
-from vltk import Features, adapters
+from vltk.features import Features
+from vltk import adapters
 from vltk.configs import VisionConfig
 from vltk.utils.adapters import rescale_box
 

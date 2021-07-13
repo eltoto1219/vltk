@@ -1,11 +1,13 @@
 from collections import Counter
 
-from vltk.vars import Vars as vltk
-from vltk import Features, adapters
+import vltk.vars as vltk
+from vltk import adapters
+from vltk.adapters import Adapters
+from vltk.features import Features
 from vltk.utils.adapters import clean_label
 
 
-class VGQA(adapters.VisnLangDataset):
+class VGQA(adapters.VisnDataset):
     data_info = {
         "train": {"visualgenome": ["train"]},
     }

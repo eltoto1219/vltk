@@ -3,19 +3,23 @@ import json
 import logging as logger
 import os
 import pickle
+import shutil
+import sys
+import zipfile
 from abc import ABCMeta, abstractmethod
 from collections import Counter, defaultdict
 from pathlib import Path
-from typing import List
+from typing import List, Union
 
 import datasets as ds
 import pyarrow
+import vltk.vars as vltk
+import wget
 from datasets import ArrowWriter, Dataset
-from vltk import Features
+from vltk.features import Features
 from vltk.inspection import collect_args_to_func
 from vltk.utils.base import (flatten_stringlist, get_arrow_primitive,
                              set_metadata)
-from vltk.vars import Vars as vltk
 
 IMGFILES = ("jpeg", "jpg", "png")
 SUFFIXES = ("pdf", "json", "jsonl", "csv", "tsv")
@@ -23,6 +27,15 @@ SUFFIXES = ("pdf", "json", "jsonl", "csv", "tsv")
 
 class Adapter(ds.Dataset, metaclass=ABCMeta):
 
+    filters: Union[List, None] = None
+    """
+    Adapter Property that stores a list of string that indicate which patterns
+    should be avoided when the Adapter searches for relavant files.
+    """
+    urls: Union[List, str, None] = None
+    """Adapter Property that stores a list of string or just a string which link to
+    download urls.
+    """
     _extensions = SUFFIXES
     _batch_size = 32
     _base_schema = {vltk.imgid: Features.Imgid()}
@@ -64,6 +77,77 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
             else:
                 setattr(self, "meta_" + k_decoded, v)
         setattr(self, "_meta_dict", meta_dict)
+
+    @classmethod
+    def download(cls, datadir):
+        name = cls.__name__.lower()
+        assert (
+            cls.urls is not None
+        ), f"Cannot re/download {name} because the property: `urls`\
+                is not defined. Please define this property as a string or a list of strings\
+                in the adapter"
+        urls = cls.urls
+        if isinstance(urls, str):
+            urls = [urls]
+
+        def bar_progress(current, total, width=80):
+            progress_message = "Downloading: %d%% [%d / %d] bytes" % (
+                current / total * 100,
+                current,
+                total,
+            )
+            # Don't use print() as it will print in new line every time.
+            sys.stdout.write("\r" + progress_message)
+            sys.stdout.flush()
+
+        path = Path(os.path.join(datadir, name))
+        temppath = Path(os.path.join(datadir, f"temp_{name}"))
+        name_list = []
+        try:
+            if path.exists():
+                temppath.mkdir()
+                for f in path.glob("**/*"):
+                    newpath = temppath.joinpath(f.name)
+                    f.rename(newpath)
+
+                if not path.exists():
+                    path.mkdir()
+            else:
+                path.mkdir()
+            for link in urls:
+                print(f"Downloading {link}")
+                filename = wget.download(link, bar=bar_progress, out=str(path))
+                print()
+                if ".zip" not in filename:
+                    name = Path(filename).name
+                    shutil.move(filename, os.path.join(path, name))
+                else:
+                    with zipfile.ZipFile(filename, "r") as zip_ref:
+                        print(f"Extracting {filename}")
+                        zip_ref.extractall(path)
+                        name_list += zip_ref.namelist()
+                os.remove(filename)
+            shutil.rmtree(str(temppath), ignore_errors=True)
+            shutil.rmtree(os.path.join(str(path), "__MACOSX"), ignore_errors=True)
+        except Exception as e:
+            # now remove temppath
+            if temppath.exists():
+                ###
+                for f in temppath.glob("**/*"):
+                    newpath = path.joinpath(f.name)
+                    f.rename(newpath)
+                ###
+                if temppath.exists():
+                    try:
+                        os.rmdir(str(temppath))
+                    except Exception:
+                        raise Exception(
+                            f"{temppath} was made in a failed download attempt. Attempting to remove path,\
+                                 but, {temppath} is not empty."
+                        )
+            raise Exception(
+                f"Download Failed: {e}. Moving {str(temppath)} back to {str(path)}"
+            )
 
     @property
     def meta_dict(self):
@@ -190,14 +274,13 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
             splits = vltk.SPLITALIASES
         elif isinstance(splits, str):
             splits = [splits]
-        assert os.path.isdir(searchdir)
+        assert os.path.isdir(
+            searchdir
+        ), f"The specificed datadir, {searchdir}, does not exist"
         if name is not None:
             searchdir = os.path.join(searchdir, name)
             assert os.path.isdir(searchdir), f"{searchdir} is not a dir"
         if annodir is not None:
-            tempdir = os.path.join(searchdir, annodir)
-            if not os.path.isdir(tempdir):
-                os.makedirs(tempdir, exist_ok=True)
             return searchdir, None
         final_paths = []
         valid_splits = []
@@ -284,7 +367,7 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
         return (table, dset.info, meta_dict)
 
     @staticmethod
-    def _load_one_arrow(filestem, meta_names):
+    def _load_one_arrow(filestem, meta_names, config=None, name=None):
         if ".arrow" not in filestem:
             path = os.path.join(filestem, ".arrow")
         else:
@@ -292,6 +375,11 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
         if not os.path.isfile(path):
             path = path.replace("/annotations/", "/")
         assert os.path.isfile(path), f"{path} does not exist"
+        # this is where we do the re-extract
+        # if not os.path.isfile(path) or (
+        #     config is not None and config.reextract and name is not None
+        # ):
+        #     datadir = config.datadir
         mmap = pyarrow.memory_map(path)
         f = pyarrow.ipc.open_stream(mmap)
         pa_table = f.read_all()
@@ -309,21 +397,25 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
         return (pa_table, meta_dict, path)
 
     @staticmethod
-    def _load_many_arrows(stem, meta_names):
+    def _load_many_arrows(stem, meta_names, config=None):
         split_list = []
         for split in vltk.SPLITALIASES:
             temppath = os.path.join(stem, f"{split}.arrow")
             if not os.path.isfile(temppath):
                 continue
-            pa_table, meta_dict, path = Adapter._load_one_arrow(temppath, meta_names)
+            pa_table, meta_dict, path = Adapter._load_one_arrow(
+                temppath, meta_names, config=config
+            )
             split_list.append((pa_table, meta_dict, split))
         return split_list
 
     @classmethod
-    def load(cls, path, split=None, dataset_name=None):
+    def load(cls, path, split=None, dataset_name=None, config=None):
         meta_names = cls._meta_names
         if ".arrow" in path:
-            (pa_table, meta_dict, path) = Adapter._load_one_arrow(path, meta_names)
+            (pa_table, meta_dict, path) = Adapter._load_one_arrow(
+                path, meta_names, config=config
+            )
             return cls(arrow_table=pa_table, split=split, meta_dict=meta_dict)
         # to return visual features
         if dataset_name is not None:
@@ -337,15 +429,19 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
                     path, f"{vltk.ANNOTATION_DIR}/{vltk.ANNOTATION_DIR}.arrow"
                 )
             path = temppath
-            (pa_table, meta_dict, path) = Adapter._load_one_arrow(path, meta_names)
+            (pa_table, meta_dict, path) = Adapter._load_one_arrow(
+                path, meta_names, config=config
+            )
             return cls(arrow_table=pa_table, split=split, meta_dict=meta_dict)
         elif split is not None:
             path = os.path.join(path, f"{split}.arrow")
-            (pa_table, meta_dict, path) = Adapter._load_one_arrow(path, meta_names)
+            (pa_table, meta_dict, path) = Adapter._load_one_arrow(
+                path, meta_names, config=config
+            )
             return cls(arrow_table=pa_table, split=split, meta_dict=meta_dict)
         else:
             arrow_dict = {}
-            split_list = Adapter._load_many_arrows(path, meta_names)
+            split_list = Adapter._load_many_arrows(path, meta_names, config=config)
             for sl in split_list:
                 (pa_table, meta_dict, split) = sl
                 arrow_dict[split] = cls(
