@@ -58,20 +58,24 @@ class VisionDataset(BaseDataset):
         self.tokenizer_in_visn_dataset = tokenizer_in_visn_dataset
         if tokenizer_in_visn_dataset:
             self._init_tokenizer(config.lang)
+        else:
+            self.tokenizer = None
+            self.from_transformers = None
         self.is_train = is_train
         # self.annotationdict = annotationdict
         self.config = config
-        self._init_image_processor(config)
-        self._init_vision_processors(config)
-        self.visndatasetadapterdict = visndatasetadapterdict
         self.metadata_ids = metadata_ids
-        # later if we need
-        # print(len(set(annotationdict["funsdaug"].imgids)))
         self.annotationdict = annotationdict
         self.metadata_counts = defaultdict(dict)
         for name in annotationdict:
             for meta_name, meta_counts in annotationdict[name]._meta_dict.items():
                 self.metadata_counts[name][meta_name] = meta_counts
+
+        self._init_image_processor(config)
+        self._init_vision_processors(config)
+        self.visndatasetadapterdict = visndatasetadapterdict
+        # later if we need
+        # print(len(set(annotationdict["funsdaug"].imgids)))
 
         annotationdict, imgids2pathes, n_imgs = self._shrink_annotation_dicts(
             annotationdict, visndatasetadapterdict
@@ -123,6 +127,7 @@ class VisionDataset(BaseDataset):
                 tokenizer=self.tokenizer,
                 from_transformers=self.from_transformers,
                 config=self.config,
+                metadata_ids=self.metadata_ids,
             )
             for x in vision_processors
         ]
@@ -200,93 +205,8 @@ class VisionDataset(BaseDataset):
         if skip_segmentation and vltk.RLE in entry:
             entry.pop(vltk.RLE)
 
-        # if vltk.objects in entry and not isinstance(entry[vltk.objects], torch.Tensor):
-        #     word_labels = entry[vltk.objects]
-        #     n_objects = len(word_labels)
-        #     entry[vltk.n_objects] = torch.tensor(n_objects)
-        #     if n_objects == self.config.max_objects and self.config.add_cls_to_box:
-        #         word_labels[-1] = ""
-        #     word_labels += [""] * max(0, (self.config.max_objects - n_objects))
-
-        #     dic = self.metadata_ids[vltk.objects]
-        #     raise Exception(type(dic))
-        #     labels = torch.Tensor([dic[l] for l in word_labels])
-        #     entry[vltk.objects] = labels
-
         # run vision processors
         entry = self.run_vision_processors(entry)
-
-        # only loop through annotations processed by vltk
-        for k in self._supported:
-            if k not in entry or isinstance(entry[k], torch.Tensor):
-                continue
-            # v = entry[k]
-            if k == vltk.polygons and not skip_segmentation:
-                size = entry[vltk.size]
-                if vltk.rawsize not in entry:
-                    rawsize = size
-                else:
-                    rawsize = entry[vltk.rawsize]
-                segs = torch.stack(
-                    list(
-                        map(
-                            lambda x: resize_binary_mask(
-                                seg_to_mask(x, *rawsize), size
-                            ),
-                            entry.pop(k),
-                        ),
-                    )
-                )
-
-                segs = segs[: min(len(segs), self.config.lang.max_visual_seq_length)]
-                segs = torch.nn.functional.pad(
-                    segs,
-                    (0, 0, 0, 0, 0, self.config.lang.max_visual_seq_length - len(segs)),
-                )
-                entry[vltk.segmentation] = segs
-            elif k == vltk.RLE and not skip_segmentation:
-
-                # s = time.time()
-                segs = torch.stack(
-                    list(
-                        map(
-                            lambda x: resize_binary_mask(
-                                imagepoints_to_mask(x, entry[vltk.rawsize]),
-                                torch.as_tensor(entry[vltk.size]),
-                            ),
-                            entry.pop(k),
-                        )
-                    )
-                )
-                segs = segs[: min(len(segs), self.config.lang.max_visual_seq_length)]
-                segs = torch.nn.functional.pad(
-                    segs,
-                    (0, 0, 0, 0, 0, self.config.lang.max_visual_seq_length - len(segs)),
-                )
-                entry[vltk.segmentation] = segs
-
-            elif k == vltk.box:
-                pass
-                # values = v
-                # if k == vltk.box:
-                #     if self.config.add_cls_to_box:
-                #         values = values[: min(len(values), self.config.max_objects)]
-                #     else:
-                #         values = values[: min(len(values), self.config.max_objects - 1)]
-
-                # values = torch.tensor(v)
-
-                # if vltk.scale in entry:
-                #     values = rescale_box(values, entry[vltk.scale])
-
-                # if self.config.add_cls_to_box:
-                #     values = torch.cat((values, self.cls_box()), dim=0)
-
-                # values = torch.nn.functional.pad(
-                #     values,
-                #     (0, 0, 0, self.config.max_objects - len(values)),
-                # )
-                # entry[k] = values
 
         if replace_keys is not None:
             for r in replace_keys:

@@ -50,10 +50,14 @@ def extract(
             if not exists or config.reextract:
                 is_annotations = _adapters.get(name)
                 # is_annotations = is_annotations.extract(datadir)
+                # is_annotations = is_annotations.extract(datadir)
                 try:
                     is_annotations = is_annotations.extract(datadir)
                 except TypeError as e:
-                    print(f"Warning: No Annotations for {name}. Reason: {e}")
+                    if "object is not iterable" not in e:
+                        print(f"Warning: No Annotations for {name}.")
+                    else:
+                        raise Exception(e)
                 extracted[name] = is_annotations
                 return extracted
             else:

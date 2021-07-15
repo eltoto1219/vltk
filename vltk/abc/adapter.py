@@ -5,6 +5,7 @@ import os
 import pickle
 import shutil
 import sys
+import tarfile
 import zipfile
 from abc import ABCMeta, abstractmethod
 from collections import Counter, defaultdict
@@ -118,15 +119,28 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
                 print(f"Downloading {link}")
                 filename = wget.download(link, bar=bar_progress, out=str(path))
                 print()
-                if ".zip" not in filename:
-                    name = Path(filename).name
-                    shutil.move(filename, os.path.join(path, name))
-                else:
+
+                if ".tar.gz" in filename:
+                    with tarfile.open(filename) as tar_ref:
+                        print(f"Extracting {filename}")
+                        res = tar_ref.extractall(path)
+                        # name_list += tar_ref.namelist()
+                    # except tarfile.ReadError:
+                    #     with zipfile.ZipFile(filename, "r") as zip_ref:
+                    #         print(f"Extracting {filename}")
+                    #         zip_ref.extractall(path)
+                    #         name_list += zip_ref.namelist()
+                elif ".zip" in filename:
+                    # raise Exception(filename)
                     with zipfile.ZipFile(filename, "r") as zip_ref:
                         print(f"Extracting {filename}")
                         zip_ref.extractall(path)
                         name_list += zip_ref.namelist()
-                os.remove(filename)
+                else:
+                    raise Exception(f"{filename} is not a zip file or tarball")
+                    # name = Path(filename).name
+                    # shutil.move(filename, os.path.join(path, name))
+                    # os.remove(filename)
             shutil.rmtree(str(temppath), ignore_errors=True)
             shutil.rmtree(os.path.join(str(path), "__MACOSX"), ignore_errors=True)
         except Exception as e:

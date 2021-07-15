@@ -66,6 +66,7 @@ class LangDataset(BaseDataset):
                 tokenizer=self.tokenizer,
                 from_transformers=self.from_transformers,
                 config=self.config,
+                metadata_ids=self.metadata_ids,
             )
             for x in lang_processors
         ]

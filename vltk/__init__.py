@@ -4,6 +4,7 @@ from vltk.abc.extraction import VisnExtraction
 from vltk.abc.visnadapter import VisnDataset
 from vltk.abc.visnlangadatper import VisnLangDataset
 from vltk.adapters import Adapters
+from vltk.configs import DataConfig, LangConfig, VisionConfig
 # from vltk.datasets import build
 from vltk.dataset.builder import init_datasets
 from vltk.features import Features

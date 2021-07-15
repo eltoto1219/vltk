@@ -131,7 +131,15 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
             filter(lambda x: x.__bases__[0] == VisnLangProcessor, visnlang_processors)
         )
 
-        self.visnlang_processors = [x(config=self.config) for x in visnlang_processors]
+        self.visnlang_processors = [
+            x(
+                config=self.config,
+                metadata_ids=self.metadata_ids,
+                from_transformers=self.from_transformers,
+                tokenizer=self.tokenizer,
+            )
+            for x in visnlang_processors
+        ]
 
         self.visnlang_processor_keys = ()
         for x in self.visnlang_processor_keys:

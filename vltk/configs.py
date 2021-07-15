@@ -164,7 +164,7 @@ class DataConfig(config.Config):
     eval_batch_size = 32
     train_batch_size = 64
     extractor: Union[None, str] = None
-    datadir: str = "/playpen1/home/avmendoz/data"
+    datadir: str = None
     img_first: bool = False
     shuffle: bool = True
     num_workers: int = 8

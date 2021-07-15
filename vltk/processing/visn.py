@@ -3,7 +3,57 @@ from itertools import chain
 import torch
 import vltk.vars as vltk
 from vltk.processing import VisnProcessor
-from vltk.utils.adapters import rescale_box, truncate_and_pad_list
+from vltk.utils.adapters import (imagepoints_to_mask, rescale_box,
+                                 resize_binary_mask, seg_to_mask,
+                                 truncate_and_pad_list)
+
+
+class PolygonProcessor(VisnProcessor):
+    def forward(self, entry, **kwargs):
+        polykey = vltk.polygons
+        size = entry[vltk.size]
+        if vltk.rawsize not in entry:
+            rawsize = size
+        else:
+            rawsize = entry[vltk.rawsize]
+        segs = torch.stack(
+            list(
+                map(
+                    lambda x: resize_binary_mask(seg_to_mask(x, *rawsize), size),
+                    entry.pop(polykey),
+                ),
+            )
+        )
+
+        segs = segs[: min(len(segs), self.config.lang.max_visual_seq_length)]
+        segs = torch.nn.functional.pad(
+            segs,
+            (0, 0, 0, 0, 0, self.config.lang.max_visual_seq_length - len(segs)),
+        )
+        entry[vltk.segmentation] = segs
+        return entry
+
+
+class RLEProcessor(VisnProcessor):
+    def forward(self, entry, **kwargs):
+        rlekey = vltk.RLE
+        segs = torch.stack(
+            list(
+                map(
+                    lambda x: resize_binary_mask(
+                        imagepoints_to_mask(x, entry[vltk.rawsize]),
+                        torch.as_tensor(entry[vltk.size]),
+                    ),
+                    entry.pop(rlekey),
+                )
+            )
+        )
+        segs = segs[: min(len(segs), self.config.lang.max_visual_seq_length)]
+        segs = torch.nn.functional.pad(
+            segs,
+            (0, 0, 0, 0, 0, self.config.lang.max_visual_seq_length - len(segs)),
+        )
+        entry[vltk.segmentation] = segs
 
 
 class AuxTokenize(VisnProcessor):

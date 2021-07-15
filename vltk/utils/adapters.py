@@ -4,13 +4,13 @@ from collections import defaultdict
 
 import numpy as np
 import torch
-import torchvision.transforms.functional as FV
 import vltk.vars as vltk
 from matplotlib.patches import Rectangle
+from PIL import Image
 from pycocotools import mask as coco_mask
+from torchvision.transforms.functional import resize
 from tqdm import tqdm
-from vltk.processing.image import (Image, get_pad, get_rawsize, get_scale,
-                                   get_size)
+from vltk.processing.image import get_pad, get_rawsize, get_scale, get_size
 
 PATH = os.path.join(
     os.path.abspath(os.path.join(os.path.dirname(__file__), "..")), "libdata"
@@ -171,12 +171,12 @@ def rescale_box(boxes, wh_scale):
     return boxes
 
 
-def seg_to_mask(segmentation, h, w):
+def seg_to_mask(segmentation, w, h):
     segmentation = coco_mask.decode(coco_mask.frPyObjects(segmentation, h, w))
     if len(segmentation.shape) < 3:
         segmentation = segmentation[..., None]
     segmentation = np.any(segmentation, axis=-1).astype(np.uint8)
-    return segmentation
+    return torch.from_numpy(segmentation).bool()
 
 
 # def resize_mask(mask, transforms_dict):
@@ -187,15 +187,16 @@ def seg_to_mask(segmentation, h, w):
 
 
 def resize_binary_mask(array, img_size, pad_size=None):
-    if not isinstance(array, torch.Tensor):
-        array = torch.from_numpy(array)
-
     img_size = (img_size[0], img_size[1])
+    # raise Exception(img_size)
     if array.shape != img_size:
-        array = torch.as_tensor(FV.resize(array.unsqueeze(0), img_size).squeeze(0))
+        array = array.unsqueeze(0).unsqueeze(0)
+        array = resize(array, img_size)
+        array = array.squeeze(0).squeeze(0)
+
         return array
     else:
-        return array
+        return torch.from_numpy(array)
 
 
 def uncompress_mask(compressed, size):
