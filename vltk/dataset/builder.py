@@ -49,11 +49,11 @@ def extract(
                 )
             if not exists or config.reextract:
                 is_annotations = _adapters.get(name)
+                # is_annotations = is_annotations.extract(datadir)
                 try:
-                    # try:
                     is_annotations = is_annotations.extract(datadir)
-                except Exception:
-                    print(f"Warning: No Annotations for {name}")
+                except TypeError as e:
+                    print(f"Warning: No Annotations for {name}. Reason: {e}")
                 extracted[name] = is_annotations
                 return extracted
             else:
