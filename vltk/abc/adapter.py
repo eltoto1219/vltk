@@ -211,6 +211,7 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
             idx_set = list((map(lambda idx: self.get_idx(idx), remaining)))
         filtered_self = self.select(idx_set)
         setattr(filtered_self, "img_to_row_map", self.img_to_row_map)
+        setattr(filtered_self, "get_metadata_counters", self.get_metadata_counters)
         setattr(filtered_self, "get", self.get)
         if is_visnlang:
             try:
