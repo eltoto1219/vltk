@@ -2,7 +2,7 @@ tests
 vltk
 vltk/abc
 vltk/adapters/
-vltk/datasets
+vltk/dataset
 vltk/modeling
 vltk/modeling/configs
 vltk/processing
