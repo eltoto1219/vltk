@@ -190,9 +190,17 @@ def resize_binary_mask(array, img_size, pad_size=None):
     img_size = (img_size[0], img_size[1])
     # raise Exception(img_size)
     if array.shape != img_size:
-        array = array.unsqueeze(0).unsqueeze(0)
+        if array.dim() == 2:
+            array = array.unsqueeze(0).unsqueeze(0)
+        else:
+            array = array.unsqueeze(0)
+
         array = resize(array, img_size)
-        array = array.squeeze(0).squeeze(0)
+
+        if array.dim() == 2:
+            array = array.squeeze(0).squeeze(0)
+        else:
+            array = array.squeeze(0)
 
         return array
     else:
