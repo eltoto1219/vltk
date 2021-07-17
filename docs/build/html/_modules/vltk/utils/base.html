@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>vltk.utils.base &mdash; VLTK: The Vision Language Toolkit 0.2 documentation</title>
+  <title>vltk.utils.base &mdash; VLTK: The Vision Language Toolkit 1.0.2 documentation</title>
   
 
   
@@ -138,6 +138,8 @@
         
           <li><a href="../../index.html">Module code</a> &raquo;</li>
         
+          <li><a href="../../vltk.html">vltk</a> &raquo;</li>
+        
       <li>vltk.utils.base</li>
     
     
@@ -263,7 +265,7 @@
             <span class="k">return</span> <span class="n">data</span>
     <span class="k">elif</span> <span class="s2">&quot;pdf&quot;</span> <span class="o">==</span> <span class="n">ext</span><span class="p">:</span>
         <span class="k">return</span> <span class="nb">str</span><span class="p">(</span><span class="n">filepath</span><span class="p">)</span>
-    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">ext</span><span class="p">)</span></div>
+    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">ext</span><span class="p">,</span> <span class="n">filepath</span><span class="p">)</span></div>
     <span class="c1"># try:</span>
     <span class="c1">#     with open(filepath) as f:</span>
     <span class="c1">#         entry = jsonlines.open(f)</span>

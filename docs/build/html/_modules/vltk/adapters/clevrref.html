@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>vltk.adapters.clevrref &mdash; VLTK: The Vision Language Toolkit 0.2 documentation</title>
+  <title>vltk.adapters.clevrref &mdash; VLTK: The Vision Language Toolkit 1.0.2 documentation</title>
   
 
   
@@ -138,6 +138,8 @@
         
           <li><a href="../../index.html">Module code</a> &raquo;</li>
         
+          <li><a href="../../vltk.html">vltk</a> &raquo;</li>
+        
           <li><a href="../adapters.html">vltk.adapters</a> &raquo;</li>
         
       <li>vltk.adapters.clevrref</li>
@@ -156,16 +158,14 @@
            <div itemprop="articleBody">
             
   <h1>Source code for vltk.adapters.clevrref</h1><div class="highlight"><pre>
-<span></span><span class="kn">import</span> <span class="nn">gc</span>
-<span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
+<span></span><span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">defaultdict</span>
 
-<span class="kn">import</span> <span class="nn">vltk</span>
+<span class="kn">import</span> <span class="nn">vltk.vars</span> <span class="k">as</span> <span class="nn">vltk</span>
 <span class="kn">from</span> <span class="nn">tqdm</span> <span class="kn">import</span> <span class="n">tqdm</span>
-<span class="kn">from</span> <span class="nn">vltk</span> <span class="kn">import</span> <span class="n">Features</span><span class="p">,</span> <span class="n">adapters</span>
+<span class="kn">from</span> <span class="nn">vltk</span> <span class="kn">import</span> <span class="n">adapters</span>
 <span class="kn">from</span> <span class="nn">vltk.adapters</span> <span class="kn">import</span> <span class="n">Adapters</span>
 <span class="kn">from</span> <span class="nn">vltk.configs</span> <span class="kn">import</span> <span class="n">DataConfig</span>
-
-<span class="n">collect</span> <span class="o">=</span> <span class="mi">1000</span>
+<span class="kn">from</span> <span class="nn">vltk.features</span> <span class="kn">import</span> <span class="n">Features</span>
 
 
 <span class="c1"># data source: https://github.com/ccvl/clevr-refplus-dataset-gen</span>
@@ -227,8 +227,6 @@
                     <span class="n">vltk</span><span class="o">.</span><span class="n">box</span><span class="p">:</span> <span class="n">boxes</span><span class="p">,</span>
                     <span class="n">vltk</span><span class="o">.</span><span class="n">imgid</span><span class="p">:</span> <span class="n">imgid</span><span class="p">,</span>
                 <span class="p">}</span>
-                <span class="k">if</span> <span class="n">i</span> <span class="o">%</span> <span class="n">collect</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
-                    <span class="n">gc</span><span class="o">.</span><span class="n">collect</span><span class="p">()</span>
 
         <span class="k">return</span> <span class="p">[</span><span class="n">v</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">entries</span><span class="o">.</span><span class="n">values</span><span class="p">()]</span></div></div>
 

@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>Overview: module code &mdash; VLTK: The Vision Language Toolkit 1.0.2 documentation</title>
+  <title>vltk &mdash; VLTK: The Vision Language Toolkit 1.0.2 documentation</title>
   
 
   
@@ -136,7 +136,9 @@
     
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
         
-      <li>Overview: module code</li>
+          <li><a href="index.html">Module code</a> &raquo;</li>
+        
+      <li>vltk</li>
     
     
       <li class="wy-breadcrumbs-aside">
@@ -151,36 +153,35 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
             
-  <h1>All modules for which code is available</h1>
-<ul><li><a href="vltk.html">vltk</a></li>
-<ul><li><a href="vltk/abc/adapter.html">vltk.abc.adapter</a></li>
-<li><a href="vltk/abc/config.html">vltk.abc.config</a></li>
-<li><a href="vltk/abc/extraction.html">vltk.abc.extraction</a></li>
-<li><a href="vltk/abc/processor.html">vltk.abc.processor</a></li>
-<li><a href="vltk/abc/visnadapter.html">vltk.abc.visnadapter</a></li>
-<li><a href="vltk/abc/visnlangadatper.html">vltk.abc.visnlangadatper</a></li>
-<li><a href="vltk/adapters.html">vltk.adapters</a></li>
-<ul><li><a href="vltk/adapters/clevr.html">vltk.adapters.clevr</a></li>
-<li><a href="vltk/adapters/clevrref.html">vltk.adapters.clevrref</a></li>
-<li><a href="vltk/adapters/coco2014.html">vltk.adapters.coco2014</a></li>
-<li><a href="vltk/adapters/cococaptions.html">vltk.adapters.cococaptions</a></li>
-<li><a href="vltk/adapters/docvqa.html">vltk.adapters.docvqa</a></li>
-<li><a href="vltk/adapters/frcnn.html">vltk.adapters.frcnn</a></li>
-<li><a href="vltk/adapters/funsd.html">vltk.adapters.funsd</a></li>
-<li><a href="vltk/adapters/gqa.html">vltk.adapters.gqa</a></li>
-<li><a href="vltk/adapters/vgqa.html">vltk.adapters.vgqa</a></li>
-<li><a href="vltk/adapters/visualgenome.html">vltk.adapters.visualgenome</a></li>
-<li><a href="vltk/adapters/vqa.html">vltk.adapters.vqa</a></li>
-</ul><li><a href="vltk/configs.html">vltk.configs</a></li>
-<li><a href="vltk/features.html">vltk.features</a></li>
-<li><a href="vltk/processing.html">vltk.processing</a></li>
-<ul><li><a href="vltk/processing/image.html">vltk.processing.image</a></li>
-<li><a href="vltk/processing/lang.html">vltk.processing.lang</a></li>
-<li><a href="vltk/processing/visn.html">vltk.processing.visn</a></li>
-<li><a href="vltk/processing/visnlang.html">vltk.processing.visnlang</a></li>
-</ul><li><a href="vltk/utils/adapters.html">vltk.utils.adapters</a></li>
-<li><a href="vltk/utils/base.html">vltk.utils.base</a></li>
-</ul></ul>
+  <h1>Source code for vltk</h1><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">setuptools</span> <span class="kn">import</span> <span class="n">setup</span>
+
+<span class="kn">from</span> <span class="nn">vltk.abc.extraction</span> <span class="kn">import</span> <span class="n">VisnExtraction</span>
+<span class="kn">from</span> <span class="nn">vltk.abc.visnadapter</span> <span class="kn">import</span> <span class="n">VisnDataset</span>
+<span class="kn">from</span> <span class="nn">vltk.abc.visnlangadatper</span> <span class="kn">import</span> <span class="n">VisnLangDataset</span>
+<span class="kn">from</span> <span class="nn">vltk.adapters</span> <span class="kn">import</span> <span class="n">Adapters</span>
+<span class="kn">from</span> <span class="nn">vltk.configs</span> <span class="kn">import</span> <span class="n">DataConfig</span><span class="p">,</span> <span class="n">LangConfig</span><span class="p">,</span> <span class="n">VisionConfig</span>
+<span class="c1"># from vltk.datasets import build</span>
+<span class="kn">from</span> <span class="nn">vltk.dataset.builder</span> <span class="kn">import</span> <span class="n">init_datasets</span>
+<span class="kn">from</span> <span class="nn">vltk.features</span> <span class="kn">import</span> <span class="n">Features</span>
+<span class="kn">from</span> <span class="nn">vltk.processing</span> <span class="kn">import</span> <span class="p">(</span><span class="n">LangProcessor</span><span class="p">,</span> <span class="n">Processors</span><span class="p">,</span> <span class="n">VisnLangProcessor</span><span class="p">,</span>
+                             <span class="n">VisnProcessor</span><span class="p">)</span>
+<span class="kn">from</span> <span class="nn">vltk.vars</span> <span class="kn">import</span> <span class="o">*</span>
+
+
+<div class="viewcode-block" id="build"><a class="viewcode-back" href="../vltk.html#vltk.build">[docs]</a><span class="k">def</span> <span class="nf">build</span><span class="p">(</span><span class="n">config</span><span class="p">):</span>
+    <span class="k">return</span> <span class="n">init_datasets</span><span class="p">(</span><span class="n">config</span><span class="p">)</span></div>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">ALL BOXES ARE EXPECTED TO GO IN: (X, Y, W, H) FORMAT</span>
+<span class="sd">&quot;&quot;&quot;</span>
+
+
+<span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">:)</span>
+<span class="sd">&quot;&quot;&quot;</span>
+</pre></div>
 
            </div>
            

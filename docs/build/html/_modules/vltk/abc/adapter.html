@@ -1,227 +1,203 @@
 
+
 <!DOCTYPE html>
-
-<html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta http-equiv="x-ua-compatible" content="ie=edge">
-  <meta name="lang:clipboard.copy" content="Copy to clipboard">
-  <meta name="lang:clipboard.copied" content="Copied to clipboard">
-  <meta name="lang:search.language" content="en">
-  <meta name="lang:search.pipeline.stopwords" content="True">
-  <meta name="lang:search.pipeline.trimmer" content="True">
-  <meta name="lang:search.result.none" content="No matching documents">
-  <meta name="lang:search.result.one" content="1 matching document">
-  <meta name="lang:search.result.other" content="# matching documents">
-  <meta name="lang:search.tokenizer" content="[\s\-]+">
-
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
   
-    <link href="https://fonts.gstatic.com/" rel="preconnect" crossorigin>
-    <link href="https://fonts.googleapis.com/css?family=Roboto+Mono:400,500,700|Roboto:300,400,400i,700&display=fallback" rel="stylesheet">
-
-    <style>
-      body,
-      input {
-        font-family: "Roboto", "Helvetica Neue", Helvetica, Arial, sans-serif
-      }
-
-      code,
-      kbd,
-      pre {
-        font-family: "Roboto Mono", "Courier New", Courier, monospace
-      }
-    </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>vltk.abc.adapter &mdash; VLTK: The Vision Language Toolkit 1.0.2 documentation</title>
   
 
-  <link rel="stylesheet" href="../../../_static/stylesheets/application.css"/>
-  <link rel="stylesheet" href="../../../_static/stylesheets/application-palette.css"/>
-  <link rel="stylesheet" href="../../../_static/stylesheets/application-fixes.css"/>
   
-  <link rel="stylesheet" href="../../../_static/fonts/material-icons.css"/>
-  
-  <meta name="theme-color" content="#3f51b5">
-  <script src="../../../_static/javascripts/modernizr.js"></script>
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../../_static/css/theme.css" type="text/css" />
+
   
   
+
   
-    <title>vltk.abc.adapter &#8212; VLTK: The Vision Language Toolkit 0.2 documentation</title>
-    <link rel="stylesheet" type="text/css" href="../../../_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="../../../_static/material.css" />
-    <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
-    <script src="../../../_static/jquery.js"></script>
-    <script src="../../../_static/underscore.js"></script>
-    <script src="../../../_static/doctools.js"></script>
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../../" src="../../../_static/documentation_options.js"></script>
+        <script data-url_root="../../../" id="documentation_options" src="../../../_static/documentation_options.js"></script>
+        <script src="../../../_static/jquery.js"></script>
+        <script src="../../../_static/underscore.js"></script>
+        <script src="../../../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../../../_static/js/theme.js"></script>
+
+    
     <link rel="index" title="Index" href="../../../genindex.html" />
-    <link rel="search" title="Search" href="../../../search.html" />
-  
-   
+    <link rel="search" title="Search" href="../../../search.html" /> 
+</head>
 
-  </head>
-  <body dir=ltr
-        data-md-color-primary=blue-grey data-md-color-accent=blue>
-  
-  <svg class="md-svg">
-    <defs data-children-count="0">
-      
-      <svg xmlns="http://www.w3.org/2000/svg" width="416" height="448" viewBox="0 0 416 448" id="__github"><path fill="currentColor" d="M160 304q0 10-3.125 20.5t-10.75 19T128 352t-18.125-8.5-10.75-19T96 304t3.125-20.5 10.75-19T128 256t18.125 8.5 10.75 19T160 304zm160 0q0 10-3.125 20.5t-10.75 19T288 352t-18.125-8.5-10.75-19T256 304t3.125-20.5 10.75-19T288 256t18.125 8.5 10.75 19T320 304zm40 0q0-30-17.25-51T296 232q-10.25 0-48.75 5.25Q229.5 240 208 240t-39.25-2.75Q130.75 232 120 232q-29.5 0-46.75 21T56 304q0 22 8 38.375t20.25 25.75 30.5 15 35 7.375 37.25 1.75h42q20.5 0 37.25-1.75t35-7.375 30.5-15 20.25-25.75T360 304zm56-44q0 51.75-15.25 82.75-9.5 19.25-26.375 33.25t-35.25 21.5-42.5 11.875-42.875 5.5T212 416q-19.5 0-35.5-.75t-36.875-3.125-38.125-7.5-34.25-12.875T37 371.5t-21.5-28.75Q0 312 0 260q0-59.25 34-99-6.75-20.5-6.75-42.5 0-29 12.75-54.5 27 0 47.5 9.875t47.25 30.875Q171.5 96 212 96q37 0 70 8 26.25-20.5 46.75-30.25T376 64q12.75 25.5 12.75 54.5 0 21.75-6.75 42 34 40 34 99.5z"/></svg>
-      
-    </defs>
-  </svg>
-  
-  <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer">
-  <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search">
-  <label class="md-overlay" data-md-component="overlay" for="__drawer"></label>
-  <a href="#_modules/vltk/abc/adapter" tabindex="1" class="md-skip"> Skip to content </a>
-  <header class="md-header" data-md-component="header">
-  <nav class="md-header-nav md-grid">
-    <div class="md-flex navheader">
-      <div class="md-flex__cell md-flex__cell--shrink">
-        <a href="../../../index.html" title="VLTK: The Vision Language Toolkit 0.2 documentation"
-           class="md-header-nav__button md-logo">
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
           
-            &nbsp;
+
           
-        </a>
-      </div>
-      <div class="md-flex__cell md-flex__cell--shrink">
-        <label class="md-icon md-icon--menu md-header-nav__button" for="__drawer"></label>
-      </div>
-      <div class="md-flex__cell md-flex__cell--stretch">
-        <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
-          <span class="md-header-nav__topic">VLTK: The Vision Language Toolkit 0.2 documentation</span>
-          <span class="md-header-nav__topic"> vltk.abc.adapter </span>
-        </div>
-      </div>
-      <div class="md-flex__cell md-flex__cell--shrink">
-        <label class="md-icon md-icon--search md-header-nav__button" for="__search"></label>
-        
-<div class="md-search" data-md-component="search" role="dialog">
-  <label class="md-search__overlay" for="__search"></label>
-  <div class="md-search__inner" role="search">
-    <form class="md-search__form" action="../../../search.html" method="GET" name="search">
-      <input type="text" class="md-search__input" name="q" placeholder="Search"
-             autocapitalize="off" autocomplete="off" spellcheck="false"
-             data-md-component="query" data-md-state="active">
-      <label class="md-icon md-search__icon" for="__search"></label>
-      <button type="reset" class="md-icon md-search__icon" data-md-component="reset" tabindex="-1">
-        &#xE5CD;
-      </button>
-    </form>
-    <div class="md-search__output">
-      <div class="md-search__scrollwrap" data-md-scrollfix>
-        <div class="md-search-result" data-md-component="result">
-          <div class="md-search-result__meta">
-            Type to start searching
-          </div>
-          <ol class="md-search-result__list"></ol>
-        </div>
-      </div>
-    </div>
-  </div>
+            <a href="../../../index.html" class="icon icon-home"> VLTK: The Vision Language Toolkit
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
 </div>
 
-      </div>
-      
-      
-  
-  <script src="../../../_static/javascripts/version_dropdown.js"></script>
-  <script>
-    var json_loc = "../../../"versions.json"",
-        target_loc = "../../../../",
-        text = "Versions";
-    $( document ).ready( add_version_dropdown(json_loc, target_loc, text));
-  </script>
-  
+          
+        </div>
 
-    </div>
-  </nav>
-</header>
-
-  
-  <div class="md-container">
-    
-    
-    
-  <nav class="md-tabs" data-md-component="tabs">
-    <div class="md-tabs__inner md-grid">
-      <ul class="md-tabs__list">
-          <li class="md-tabs__item"><a href="../../../index.html" class="md-tabs__link">VLTK: The Vision Language Toolkit 0.2 documentation</a></li>
-          <li class="md-tabs__item"><a href="../../index.html" class="md-tabs__link">Module code</a></li>
-      </ul>
-    </div>
-  </nav>
-    <main class="md-main">
-      <div class="md-main__inner md-grid" data-md-component="container">
         
-          <div class="md-sidebar md-sidebar--primary" data-md-component="navigation">
-            <div class="md-sidebar__scrollwrap">
-              <div class="md-sidebar__inner">
-                <nav class="md-nav md-nav--primary" data-md-level="0">
-  <label class="md-nav__title md-nav__title--site" for="__drawer">
-    <a href="../../../index.html" title="VLTK: The Vision Language Toolkit 0.2 documentation" class="md-nav__button md-logo">
-      
-        <img src="../../../_static/" alt=" logo" width="48" height="48">
-      
-    </a>
-    <a href="../../../index.html"
-       title="VLTK: The Vision Language Toolkit 0.2 documentation">VLTK: The Vision Language Toolkit 0.2 documentation</a>
-  </label>
-  
-
-</nav>
-              </div>
-            </div>
-          </div>
-          <div class="md-sidebar md-sidebar--secondary" data-md-component="toc">
-            <div class="md-sidebar__scrollwrap">
-              <div class="md-sidebar__inner">
-                
-<nav class="md-nav md-nav--secondary">
-  <ul class="md-nav__list" data-md-scrollfix="">
-    
-
-<li id="searchbox" class="md-nav__item"></li>
-
-  </ul>
-</nav>
-              </div>
-            </div>
-          </div>
-        
-        <div class="md-content">
-          <article class="md-content__inner md-typeset" role="main">
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
             
-  <h1 id="modules-vltk-abc-adapter--page-root">Source code for vltk.abc.adapter</h1><div class="highlight"><pre>
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../../../modules.html">VLTK Modules</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../../index.html">VLTK: The Vision Language Toolkit</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="../../index.html">Module code</a> &raquo;</li>
+        
+          <li><a href="../../vltk.html">vltk</a> &raquo;</li>
+        
+      <li>vltk.abc.adapter</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <h1>Source code for vltk.abc.adapter</h1><div class="highlight"><pre>
 <span></span><span class="kn">import</span> <span class="nn">itertools</span>
 <span class="kn">import</span> <span class="nn">json</span>
 <span class="kn">import</span> <span class="nn">logging</span> <span class="k">as</span> <span class="nn">logger</span>
 <span class="kn">import</span> <span class="nn">os</span>
 <span class="kn">import</span> <span class="nn">pickle</span>
+<span class="kn">import</span> <span class="nn">shutil</span>
+<span class="kn">import</span> <span class="nn">sys</span>
+<span class="kn">import</span> <span class="nn">tarfile</span>
+<span class="kn">import</span> <span class="nn">zipfile</span>
 <span class="kn">from</span> <span class="nn">abc</span> <span class="kn">import</span> <span class="n">ABCMeta</span><span class="p">,</span> <span class="n">abstractmethod</span>
 <span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">Counter</span><span class="p">,</span> <span class="n">defaultdict</span>
 <span class="kn">from</span> <span class="nn">pathlib</span> <span class="kn">import</span> <span class="n">Path</span>
-<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span>
+<span class="kn">from</span> <span class="nn">typing</span> <span class="kn">import</span> <span class="n">List</span><span class="p">,</span> <span class="n">Union</span>
 
 <span class="kn">import</span> <span class="nn">datasets</span> <span class="k">as</span> <span class="nn">ds</span>
 <span class="kn">import</span> <span class="nn">pyarrow</span>
-<span class="kn">import</span> <span class="nn">vltk</span>
+<span class="kn">import</span> <span class="nn">vltk.vars</span> <span class="k">as</span> <span class="nn">vltk</span>
+<span class="kn">import</span> <span class="nn">wget</span>
 <span class="kn">from</span> <span class="nn">datasets</span> <span class="kn">import</span> <span class="n">ArrowWriter</span><span class="p">,</span> <span class="n">Dataset</span>
-<span class="kn">from</span> <span class="nn">vltk</span> <span class="kn">import</span> <span class="n">Features</span>
+<span class="kn">from</span> <span class="nn">vltk.features</span> <span class="kn">import</span> <span class="n">Features</span>
 <span class="kn">from</span> <span class="nn">vltk.inspection</span> <span class="kn">import</span> <span class="n">collect_args_to_func</span>
 <span class="kn">from</span> <span class="nn">vltk.utils.base</span> <span class="kn">import</span> <span class="p">(</span><span class="n">flatten_stringlist</span><span class="p">,</span> <span class="n">get_arrow_primitive</span><span class="p">,</span>
                              <span class="n">set_metadata</span><span class="p">)</span>
 
-<span class="n">IMGFILES</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"jpeg"</span><span class="p">,</span> <span class="s2">"jpg"</span><span class="p">,</span> <span class="s2">"png"</span><span class="p">)</span>
-<span class="n">SUFFIXES</span> <span class="o">=</span> <span class="p">(</span><span class="s2">"pdf"</span><span class="p">,</span> <span class="s2">"json"</span><span class="p">,</span> <span class="s2">"jsonl"</span><span class="p">,</span> <span class="s2">"txt"</span><span class="p">,</span> <span class="s2">"csv"</span><span class="p">,</span> <span class="s2">"tsv"</span><span class="p">)</span>
+<span class="n">IMGFILES</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;jpeg&quot;</span><span class="p">,</span> <span class="s2">&quot;jpg&quot;</span><span class="p">,</span> <span class="s2">&quot;png&quot;</span><span class="p">)</span>
+<span class="n">SUFFIXES</span> <span class="o">=</span> <span class="p">(</span><span class="s2">&quot;pdf&quot;</span><span class="p">,</span> <span class="s2">&quot;json&quot;</span><span class="p">,</span> <span class="s2">&quot;jsonl&quot;</span><span class="p">,</span> <span class="s2">&quot;csv&quot;</span><span class="p">,</span> <span class="s2">&quot;tsv&quot;</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="Adapter"><a class="viewcode-back" href="../../../vltk.abc.html#vltk.abc.adapter.Adapter">[docs]</a><span class="k">class</span> <span class="nc">Adapter</span><span class="p">(</span><span class="n">ds</span><span class="o">.</span><span class="n">Dataset</span><span class="p">,</span> <span class="n">metaclass</span><span class="o">=</span><span class="n">ABCMeta</span><span class="p">):</span>
 
-    <span class="n">_extensions</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"json"</span><span class="p">,</span> <span class="s2">"jsonl"</span><span class="p">]</span>
+    <span class="n">filters</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="sd">&quot;&quot;&quot;</span>
+<span class="sd">    Adapter Property that stores a list of string that indicate which patterns</span>
+<span class="sd">    should be avoided when the Adapter searches for relavant files.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">urls</span><span class="p">:</span> <span class="n">Union</span><span class="p">[</span><span class="n">List</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="sd">&quot;&quot;&quot;Adapter Property that stores a list of string or just a string which link to</span>
+<span class="sd">    download urls.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_extensions</span> <span class="o">=</span> <span class="n">SUFFIXES</span>
     <span class="n">_batch_size</span> <span class="o">=</span> <span class="mi">32</span>
-    <span class="n">_base_schema</span> <span class="o">=</span> <span class="p">{</span><span class="n">vltk</span><span class="o">.</span><span class="n">imgid</span><span class="p">:</span> <span class="n">Features</span><span class="o">.</span><span class="n">Imgid</span><span class="p">}</span>
+    <span class="n">_base_schema</span> <span class="o">=</span> <span class="p">{</span><span class="n">vltk</span><span class="o">.</span><span class="n">imgid</span><span class="p">:</span> <span class="n">Features</span><span class="o">.</span><span class="n">Imgid</span><span class="p">()}</span>
     <span class="n">_id_keys</span> <span class="o">=</span> <span class="p">{</span><span class="n">vltk</span><span class="o">.</span><span class="n">imgid</span><span class="p">,</span> <span class="n">vltk</span><span class="o">.</span><span class="n">qid</span><span class="p">,</span> <span class="n">vltk</span><span class="o">.</span><span class="n">text</span><span class="p">}</span>
     <span class="n">_is_annotation</span> <span class="o">=</span> <span class="kc">False</span>
     <span class="n">_is_feature</span> <span class="o">=</span> <span class="kc">False</span>
@@ -236,7 +212,7 @@
         <span class="o">**</span><span class="n">kwargs</span><span class="p">,</span>
     <span class="p">):</span>
         <span class="k">if</span> <span class="n">fingerprint_off</span><span class="p">:</span>
-            <span class="n">fingerprint</span> <span class="o">=</span> <span class="s2">""</span>
+            <span class="n">fingerprint</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">fingerprint</span> <span class="o">=</span> <span class="kc">None</span>
 
@@ -255,11 +231,95 @@
                 <span class="n">k_decoded</span> <span class="o">=</span> <span class="n">k</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="n">k_decoded</span> <span class="o">=</span> <span class="n">k</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span>
-            <span class="k">if</span> <span class="n">k_decoded</span> <span class="o">==</span> <span class="s2">"img_to_row_map"</span> <span class="ow">or</span> <span class="n">k_decoded</span> <span class="o">==</span> <span class="s2">"vocab"</span><span class="p">:</span>
-                <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"_"</span> <span class="o">+</span> <span class="n">k_decoded</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">k_decoded</span> <span class="o">==</span> <span class="s2">&quot;img_to_row_map&quot;</span> <span class="ow">or</span> <span class="n">k_decoded</span> <span class="o">==</span> <span class="s2">&quot;vocab&quot;</span><span class="p">:</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span> <span class="o">+</span> <span class="n">k_decoded</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
-                <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"meta_"</span> <span class="o">+</span> <span class="n">k_decoded</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
-        <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">"_meta_dict"</span><span class="p">,</span> <span class="n">meta_dict</span><span class="p">)</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;meta_&quot;</span> <span class="o">+</span> <span class="n">k_decoded</span><span class="p">,</span> <span class="n">v</span><span class="p">)</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_meta_dict&quot;</span><span class="p">,</span> <span class="n">meta_dict</span><span class="p">)</span>
+
+<div class="viewcode-block" id="Adapter.download"><a class="viewcode-back" href="../../../vltk.abc.html#vltk.abc.adapter.Adapter.download">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">download</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">datadir</span><span class="p">):</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="k">assert</span> <span class="p">(</span>
+            <span class="bp">cls</span><span class="o">.</span><span class="n">urls</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span>
+        <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;Cannot re/download </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2"> because the property: `urls`</span><span class="se">\</span>
+<span class="s2">                is not defined. Please define this property as a string or a list of strings</span><span class="se">\</span>
+<span class="s2">                in the adapter&quot;</span>
+        <span class="n">urls</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">urls</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">urls</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+            <span class="n">urls</span> <span class="o">=</span> <span class="p">[</span><span class="n">urls</span><span class="p">]</span>
+
+        <span class="k">def</span> <span class="nf">bar_progress</span><span class="p">(</span><span class="n">current</span><span class="p">,</span> <span class="n">total</span><span class="p">,</span> <span class="n">width</span><span class="o">=</span><span class="mi">80</span><span class="p">):</span>
+            <span class="n">progress_message</span> <span class="o">=</span> <span class="s2">&quot;Downloading: </span><span class="si">%d%%</span><span class="s2"> [</span><span class="si">%d</span><span class="s2"> / </span><span class="si">%d</span><span class="s2">] bytes&quot;</span> <span class="o">%</span> <span class="p">(</span>
+                <span class="n">current</span> <span class="o">/</span> <span class="n">total</span> <span class="o">*</span> <span class="mi">100</span><span class="p">,</span>
+                <span class="n">current</span><span class="p">,</span>
+                <span class="n">total</span><span class="p">,</span>
+            <span class="p">)</span>
+            <span class="c1"># Don&#39;t use print() as it will print in new line every time.</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\r</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="n">progress_message</span><span class="p">)</span>
+            <span class="n">sys</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">flush</span><span class="p">()</span>
+
+        <span class="n">path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">datadir</span><span class="p">,</span> <span class="n">name</span><span class="p">))</span>
+        <span class="n">temppath</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">datadir</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;temp_</span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">))</span>
+        <span class="n">name_list</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">try</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="n">temppath</span><span class="o">.</span><span class="n">mkdir</span><span class="p">()</span>
+                <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">path</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;**/*&quot;</span><span class="p">):</span>
+                    <span class="n">newpath</span> <span class="o">=</span> <span class="n">temppath</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">newpath</span><span class="p">)</span>
+
+                <span class="k">if</span> <span class="ow">not</span> <span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                    <span class="n">path</span><span class="o">.</span><span class="n">mkdir</span><span class="p">()</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">link</span> <span class="ow">in</span> <span class="n">urls</span><span class="p">:</span>
+                <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Downloading </span><span class="si">{</span><span class="n">link</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">filename</span> <span class="o">=</span> <span class="n">wget</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="n">link</span><span class="p">,</span> <span class="n">bar</span><span class="o">=</span><span class="n">bar_progress</span><span class="p">,</span> <span class="n">out</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">))</span>
+                <span class="nb">print</span><span class="p">()</span>
+
+                <span class="k">if</span> <span class="s2">&quot;.tar.gz&quot;</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">:</span>
+                    <span class="k">with</span> <span class="n">tarfile</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span> <span class="k">as</span> <span class="n">tar_ref</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Extracting </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                        <span class="n">res</span> <span class="o">=</span> <span class="n">tar_ref</span><span class="o">.</span><span class="n">extractall</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+                        <span class="c1"># name_list += tar_ref.namelist()</span>
+                    <span class="c1"># except tarfile.ReadError:</span>
+                    <span class="c1">#     with zipfile.ZipFile(filename, &quot;r&quot;) as zip_ref:</span>
+                    <span class="c1">#         print(f&quot;Extracting {filename}&quot;)</span>
+                    <span class="c1">#         zip_ref.extractall(path)</span>
+                    <span class="c1">#         name_list += zip_ref.namelist()</span>
+                <span class="k">elif</span> <span class="s2">&quot;.zip&quot;</span> <span class="ow">in</span> <span class="n">filename</span><span class="p">:</span>
+                    <span class="c1"># raise Exception(filename)</span>
+                    <span class="k">with</span> <span class="n">zipfile</span><span class="o">.</span><span class="n">ZipFile</span><span class="p">(</span><span class="n">filename</span><span class="p">,</span> <span class="s2">&quot;r&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">zip_ref</span><span class="p">:</span>
+                        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Extracting </span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                        <span class="n">zip_ref</span><span class="o">.</span><span class="n">extractall</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
+                        <span class="n">name_list</span> <span class="o">+=</span> <span class="n">zip_ref</span><span class="o">.</span><span class="n">namelist</span><span class="p">()</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">filename</span><span class="si">}</span><span class="s2"> is not a zip file or tarball&quot;</span><span class="p">)</span>
+                    <span class="c1"># name = Path(filename).name</span>
+                    <span class="c1"># shutil.move(filename, os.path.join(path, name))</span>
+                    <span class="c1"># os.remove(filename)</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">temppath</span><span class="p">),</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="s2">&quot;__MACOSX&quot;</span><span class="p">),</span> <span class="n">ignore_errors</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+            <span class="c1"># now remove temppath</span>
+            <span class="k">if</span> <span class="n">temppath</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                <span class="c1">###</span>
+                <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">temppath</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span><span class="s2">&quot;**/*&quot;</span><span class="p">):</span>
+                    <span class="n">newpath</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
+                    <span class="n">f</span><span class="o">.</span><span class="n">rename</span><span class="p">(</span><span class="n">newpath</span><span class="p">)</span>
+                <span class="c1">###</span>
+                <span class="k">if</span> <span class="n">temppath</span><span class="o">.</span><span class="n">exists</span><span class="p">():</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">os</span><span class="o">.</span><span class="n">rmdir</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">temppath</span><span class="p">))</span>
+                    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+                        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">temppath</span><span class="si">}</span><span class="s2"> was made in a failed download attempt. Attempting to remove path,</span><span class="se">\</span>
+<span class="s2">                                 but, </span><span class="si">{</span><span class="n">temppath</span><span class="si">}</span><span class="s2"> is not empty.&quot;</span>
+                        <span class="p">)</span>
+            <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span>
+                <span class="sa">f</span><span class="s2">&quot;Download Failed: </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2">. Moving </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">temppath</span><span class="p">)</span><span class="si">}</span><span class="s2"> back to </span><span class="si">{</span><span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="p">)</span></div>
 
     <span class="nd">@property</span>
     <span class="k">def</span> <span class="nf">meta_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -314,31 +374,33 @@
             <span class="n">idx_set</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="k">for</span> <span class="n">imgid</span><span class="p">,</span> <span class="n">idxs</span> <span class="ow">in</span> <span class="n">idx_groups</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">idxs</span><span class="p">,</span> <span class="nb">int</span><span class="p">):</span>
-                    <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="n">idx_set</span><span class="p">,</span> <span class="n">idxs</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span>
+                    <span class="n">idxs</span> <span class="o">=</span> <span class="p">[</span><span class="n">idxs</span><span class="p">]</span>
+                    <span class="c1"># raise Exception(idx_set, idxs, self)</span>
                 <span class="n">idx_set</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">idxs</span><span class="p">)</span>
                 <span class="n">new_map</span><span class="p">[</span><span class="n">imgid</span><span class="p">]</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">idx</span><span class="p">,</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">idxs</span><span class="p">)))</span>
                 <span class="n">idx</span> <span class="o">+=</span> <span class="nb">len</span><span class="p">(</span><span class="n">idxs</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">idx_set</span> <span class="o">=</span> <span class="nb">list</span><span class="p">((</span><span class="nb">map</span><span class="p">(</span><span class="k">lambda</span> <span class="n">idx</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_idx</span><span class="p">(</span><span class="n">idx</span><span class="p">),</span> <span class="n">remaining</span><span class="p">)))</span>
         <span class="n">filtered_self</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="n">idx_set</span><span class="p">)</span>
-        <span class="nb">setattr</span><span class="p">(</span><span class="n">filtered_self</span><span class="p">,</span> <span class="s2">"img_to_row_map"</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">img_to_row_map</span><span class="p">)</span>
-        <span class="nb">setattr</span><span class="p">(</span><span class="n">filtered_self</span><span class="p">,</span> <span class="s2">"get"</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">)</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="n">filtered_self</span><span class="p">,</span> <span class="s2">&quot;img_to_row_map&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">img_to_row_map</span><span class="p">)</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="n">filtered_self</span><span class="p">,</span> <span class="s2">&quot;get_metadata_counters&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">get_metadata_counters</span><span class="p">)</span>
+        <span class="nb">setattr</span><span class="p">(</span><span class="n">filtered_self</span><span class="p">,</span> <span class="s2">&quot;get&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">is_visnlang</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="nb">setattr</span><span class="p">(</span><span class="n">filtered_self</span><span class="p">,</span> <span class="s2">"data_info"</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_info</span><span class="p">)</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="n">filtered_self</span><span class="p">,</span> <span class="s2">&quot;data_info&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">data_info</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
                 <span class="k">pass</span>
-            <span class="nb">setattr</span><span class="p">(</span><span class="n">filtered_self</span><span class="p">,</span> <span class="s2">"_img_to_row_map"</span><span class="p">,</span> <span class="n">new_map</span><span class="p">)</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="n">filtered_self</span><span class="p">,</span> <span class="s2">&quot;_img_to_row_map&quot;</span><span class="p">,</span> <span class="n">new_map</span><span class="p">)</span>
             <span class="k">try</span><span class="p">:</span>
-                <span class="nb">setattr</span><span class="p">(</span><span class="n">filtered_self</span><span class="p">,</span> <span class="s2">"imgids"</span><span class="p">,</span> <span class="n">remaining</span><span class="p">)</span>
+                <span class="nb">setattr</span><span class="p">(</span><span class="n">filtered_self</span><span class="p">,</span> <span class="s2">&quot;imgids&quot;</span><span class="p">,</span> <span class="n">remaining</span><span class="p">)</span>
             <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
                 <span class="k">pass</span>
 
-            <span class="c1"># setattr(filtered_self, "_img_to_row_map", new_map)</span>
+            <span class="c1"># setattr(filtered_self, &quot;_img_to_row_map&quot;, new_map)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="nb">setattr</span><span class="p">(</span><span class="n">filtered_self</span><span class="p">,</span> <span class="s2">"_img_to_row_map"</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">remaining</span><span class="p">,</span> <span class="n">idx_set</span><span class="p">)))</span>
-            <span class="nb">setattr</span><span class="p">(</span><span class="n">filtered_self</span><span class="p">,</span> <span class="s2">"check_imgid_alignment"</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_imgid_alignment</span><span class="p">)</span>
-            <span class="nb">setattr</span><span class="p">(</span><span class="n">filtered_self</span><span class="p">,</span> <span class="s2">"imgids"</span><span class="p">,</span> <span class="n">remaining</span><span class="p">)</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="n">filtered_self</span><span class="p">,</span> <span class="s2">&quot;_img_to_row_map&quot;</span><span class="p">,</span> <span class="nb">dict</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">remaining</span><span class="p">,</span> <span class="n">idx_set</span><span class="p">)))</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="n">filtered_self</span><span class="p">,</span> <span class="s2">&quot;check_imgid_alignment&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">check_imgid_alignment</span><span class="p">)</span>
+            <span class="nb">setattr</span><span class="p">(</span><span class="n">filtered_self</span><span class="p">,</span> <span class="s2">&quot;imgids&quot;</span><span class="p">,</span> <span class="n">remaining</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">filtered_self</span></div>
 
@@ -365,17 +427,17 @@
                 <span class="n">writer</span><span class="o">.</span><span class="n">_build_writer</span><span class="p">(</span><span class="n">writer</span><span class="o">.</span><span class="n">_schema</span><span class="p">)</span>
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span>
-                    <span class="s2">"Please pass `features` or at least one example when writing data"</span>
+                    <span class="s2">&quot;Please pass `features` or at least one example when writing data&quot;</span>
                 <span class="p">)</span>
         <span class="n">writer</span><span class="o">.</span><span class="n">pa_writer</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
         <span class="k">if</span> <span class="n">close_stream</span><span class="p">:</span>
             <span class="n">writer</span><span class="o">.</span><span class="n">stream</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
         <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-            <span class="s2">"Done writing </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> in </span><span class="si">%s</span><span class="s2"> bytes </span><span class="si">%s</span><span class="s2">."</span><span class="p">,</span>
+            <span class="s2">&quot;Done writing </span><span class="si">%s</span><span class="s2"> </span><span class="si">%s</span><span class="s2"> in </span><span class="si">%s</span><span class="s2"> bytes </span><span class="si">%s</span><span class="s2">.&quot;</span><span class="p">,</span>
             <span class="n">writer</span><span class="o">.</span><span class="n">_num_examples</span><span class="p">,</span>
             <span class="n">writer</span><span class="o">.</span><span class="n">unit</span><span class="p">,</span>
             <span class="n">writer</span><span class="o">.</span><span class="n">_num_bytes</span><span class="p">,</span>
-            <span class="n">writer</span><span class="o">.</span><span class="n">_path</span> <span class="k">if</span> <span class="n">writer</span><span class="o">.</span><span class="n">_path</span> <span class="k">else</span> <span class="s2">""</span><span class="p">,</span>
+            <span class="n">writer</span><span class="o">.</span><span class="n">_path</span> <span class="k">if</span> <span class="n">writer</span><span class="o">.</span><span class="n">_path</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">return</span> <span class="n">writer</span><span class="o">.</span><span class="n">_num_examples</span><span class="p">,</span> <span class="n">writer</span><span class="o">.</span><span class="n">_num_bytes</span>
 
@@ -385,14 +447,13 @@
             <span class="n">splits</span> <span class="o">=</span> <span class="n">vltk</span><span class="o">.</span><span class="n">SPLITALIASES</span>
         <span class="k">elif</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">splits</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
             <span class="n">splits</span> <span class="o">=</span> <span class="p">[</span><span class="n">splits</span><span class="p">]</span>
-        <span class="k">assert</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">searchdir</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span>
+            <span class="n">searchdir</span>
+        <span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;The specificed datadir, </span><span class="si">{</span><span class="n">searchdir</span><span class="si">}</span><span class="s2">, does not exist&quot;</span>
         <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">searchdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">searchdir</span><span class="p">,</span> <span class="n">name</span><span class="p">)</span>
-            <span class="k">assert</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">searchdir</span><span class="p">),</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">searchdir</span><span class="si">}</span><span class="s2"> is not a dir"</span>
+            <span class="k">assert</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">searchdir</span><span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">searchdir</span><span class="si">}</span><span class="s2"> is not a dir&quot;</span>
         <span class="k">if</span> <span class="n">annodir</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">tempdir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">searchdir</span><span class="p">,</span> <span class="n">annodir</span><span class="p">)</span>
-            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isdir</span><span class="p">(</span><span class="n">tempdir</span><span class="p">):</span>
-                <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">tempdir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
             <span class="k">return</span> <span class="n">searchdir</span><span class="p">,</span> <span class="kc">None</span>
         <span class="n">final_paths</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="n">valid_splits</span> <span class="o">=</span> <span class="p">[]</span>
@@ -412,7 +473,7 @@
             <span class="n">savepath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">searchdir</span><span class="p">,</span> <span class="n">dataset_name</span><span class="p">,</span> <span class="n">extractor_name</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">savepath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">searchdir</span><span class="p">,</span> <span class="n">extractor_name</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"will write to </span><span class="si">{</span><span class="n">savepath</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;will write to </span><span class="si">{</span><span class="n">savepath</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">savepath</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="k">return</span> <span class="n">savepath</span>
 
@@ -425,7 +486,7 @@
             <span class="n">iterfilter</span> <span class="o">=</span> <span class="n">IMGFILES</span> <span class="k">if</span> <span class="n">iter_imgs</span> <span class="k">else</span> <span class="n">SUFFIXES</span>
             <span class="k">for</span> <span class="n">suffix</span> <span class="ow">in</span> <span class="n">iterfilter</span><span class="p">:</span>
                 <span class="k">for</span> <span class="n">path</span> <span class="ow">in</span> <span class="n">Path</span><span class="p">(</span><span class="n">datadir</span><span class="p">)</span><span class="o">.</span><span class="n">glob</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">"**/*.</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                    <span class="sa">f</span><span class="s2">&quot;**/*.</span><span class="si">{</span><span class="n">suffix</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
                 <span class="p">):</span>
                     <span class="n">path</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
                     <span class="k">if</span> <span class="n">valid_splits</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
@@ -438,7 +499,7 @@
                     <span class="k">else</span><span class="p">:</span>
                         <span class="n">text_files</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
                     <span class="c1"># if textset_name in path.lower():</span>
-                    <span class="c1">#     if split == "test" and "dev" in path:</span>
+                    <span class="c1">#     if split == &quot;test&quot; and &quot;dev&quot; in path:</span>
                     <span class="c1">#         continue</span>
                     <span class="c1">#     if split is None or split in path:</span>
                     <span class="c1">#         text_files.append(path)</span>
@@ -474,25 +535,30 @@
         <span class="c1"># savedir new table</span>
         <span class="n">writer</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="n">table</span><span class="p">)</span>
         <span class="n">e</span><span class="p">,</span> <span class="n">b</span> <span class="o">=</span> <span class="n">Adapter</span><span class="o">.</span><span class="n">_custom_finalize</span><span class="p">(</span><span class="n">writer</span><span class="p">,</span> <span class="n">close_stream</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Success! You wrote </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2"> entry(s) and </span><span class="si">{</span><span class="n">b</span> <span class="o">&gt;&gt;</span> <span class="mi">20</span><span class="si">}</span><span class="s2"> mb"</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Located: </span><span class="si">{</span><span class="n">savefile</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Success! You wrote </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2"> entry(s) and </span><span class="si">{</span><span class="n">b</span> <span class="o">&gt;&gt;</span> <span class="mi">20</span><span class="si">}</span><span class="s2"> mb&quot;</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Located: </span><span class="si">{</span><span class="n">savefile</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
         <span class="k">return</span> <span class="p">(</span><span class="n">table</span><span class="p">,</span> <span class="n">dset</span><span class="o">.</span><span class="n">info</span><span class="p">,</span> <span class="n">meta_dict</span><span class="p">)</span>
 
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">_load_one_arrow</span><span class="p">(</span><span class="n">filestem</span><span class="p">,</span> <span class="n">meta_names</span><span class="p">):</span>
-        <span class="k">if</span> <span class="s2">".arrow"</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">filestem</span><span class="p">:</span>
-            <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">filestem</span><span class="p">,</span> <span class="s2">".arrow"</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">_load_one_arrow</span><span class="p">(</span><span class="n">filestem</span><span class="p">,</span> <span class="n">meta_names</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="k">if</span> <span class="s2">&quot;.arrow&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">filestem</span><span class="p">:</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">filestem</span><span class="p">,</span> <span class="s2">&quot;.arrow&quot;</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">path</span> <span class="o">=</span> <span class="n">filestem</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">path</span><span class="p">):</span>
-            <span class="n">path</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">"/annotations/"</span><span class="p">,</span> <span class="s2">"/"</span><span class="p">)</span>
-        <span class="k">assert</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2"> does not exist"</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">path</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;/annotations/&quot;</span><span class="p">,</span> <span class="s2">&quot;/&quot;</span><span class="p">)</span>
+        <span class="k">assert</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2"> does not exist&quot;</span>
+        <span class="c1"># this is where we do the re-extract</span>
+        <span class="c1"># if not os.path.isfile(path) or (</span>
+        <span class="c1">#     config is not None and config.reextract and name is not None</span>
+        <span class="c1"># ):</span>
+        <span class="c1">#     datadir = config.datadir</span>
         <span class="n">mmap</span> <span class="o">=</span> <span class="n">pyarrow</span><span class="o">.</span><span class="n">memory_map</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
         <span class="n">f</span> <span class="o">=</span> <span class="n">pyarrow</span><span class="o">.</span><span class="n">ipc</span><span class="o">.</span><span class="n">open_stream</span><span class="p">(</span><span class="n">mmap</span><span class="p">)</span>
         <span class="n">pa_table</span> <span class="o">=</span> <span class="n">f</span><span class="o">.</span><span class="n">read_all</span><span class="p">()</span>
         <span class="n">meta_dict</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">pa_table</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">metadata</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
-            <span class="k">if</span> <span class="n">n</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span> <span class="o">==</span> <span class="s2">"huggingface"</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">n</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span> <span class="o">==</span> <span class="s2">&quot;huggingface&quot;</span><span class="p">:</span>
                 <span class="k">continue</span>
 
             <span class="n">data_dump</span> <span class="o">=</span> <span class="n">pa_table</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">metadata</span><span class="p">[</span><span class="n">n</span><span class="p">]</span>
@@ -504,39 +570,51 @@
         <span class="k">return</span> <span class="p">(</span><span class="n">pa_table</span><span class="p">,</span> <span class="n">meta_dict</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span>
 
     <span class="nd">@staticmethod</span>
-    <span class="k">def</span> <span class="nf">_load_many_arrows</span><span class="p">(</span><span class="n">stem</span><span class="p">,</span> <span class="n">meta_names</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">_load_many_arrows</span><span class="p">(</span><span class="n">stem</span><span class="p">,</span> <span class="n">meta_names</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="n">split_list</span> <span class="o">=</span> <span class="p">[]</span>
         <span class="k">for</span> <span class="n">split</span> <span class="ow">in</span> <span class="n">vltk</span><span class="o">.</span><span class="n">SPLITALIASES</span><span class="p">:</span>
-            <span class="n">temppath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">stem</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">split</span><span class="si">}</span><span class="s2">.arrow"</span><span class="p">)</span>
+            <span class="n">temppath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">stem</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">split</span><span class="si">}</span><span class="s2">.arrow&quot;</span><span class="p">)</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">isfile</span><span class="p">(</span><span class="n">temppath</span><span class="p">):</span>
                 <span class="k">continue</span>
-            <span class="n">pa_table</span><span class="p">,</span> <span class="n">meta_dict</span><span class="p">,</span> <span class="n">path</span> <span class="o">=</span> <span class="n">Adapter</span><span class="o">.</span><span class="n">_load_one_arrow</span><span class="p">(</span><span class="n">temppath</span><span class="p">,</span> <span class="n">meta_names</span><span class="p">)</span>
+            <span class="n">pa_table</span><span class="p">,</span> <span class="n">meta_dict</span><span class="p">,</span> <span class="n">path</span> <span class="o">=</span> <span class="n">Adapter</span><span class="o">.</span><span class="n">_load_one_arrow</span><span class="p">(</span>
+                <span class="n">temppath</span><span class="p">,</span> <span class="n">meta_names</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">config</span>
+            <span class="p">)</span>
             <span class="n">split_list</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">pa_table</span><span class="p">,</span> <span class="n">meta_dict</span><span class="p">,</span> <span class="n">split</span><span class="p">))</span>
         <span class="k">return</span> <span class="n">split_list</span>
 
 <div class="viewcode-block" id="Adapter.load"><a class="viewcode-back" href="../../../vltk.abc.html#vltk.abc.adapter.Adapter.load">[docs]</a>    <span class="nd">@classmethod</span>
-    <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">split</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dataset_name</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">load</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">path</span><span class="p">,</span> <span class="n">split</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">dataset_name</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="n">meta_names</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_meta_names</span>
-        <span class="k">if</span> <span class="s2">".arrow"</span> <span class="ow">in</span> <span class="n">path</span><span class="p">:</span>
-            <span class="p">(</span><span class="n">pa_table</span><span class="p">,</span> <span class="n">meta_dict</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span> <span class="o">=</span> <span class="n">Adapter</span><span class="o">.</span><span class="n">_load_one_arrow</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">meta_names</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s2">&quot;.arrow&quot;</span> <span class="ow">in</span> <span class="n">path</span><span class="p">:</span>
+            <span class="p">(</span><span class="n">pa_table</span><span class="p">,</span> <span class="n">meta_dict</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span> <span class="o">=</span> <span class="n">Adapter</span><span class="o">.</span><span class="n">_load_one_arrow</span><span class="p">(</span>
+                <span class="n">path</span><span class="p">,</span> <span class="n">meta_names</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">config</span>
+            <span class="p">)</span>
             <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">arrow_table</span><span class="o">=</span><span class="n">pa_table</span><span class="p">,</span> <span class="n">split</span><span class="o">=</span><span class="n">split</span><span class="p">,</span> <span class="n">meta_dict</span><span class="o">=</span><span class="n">meta_dict</span><span class="p">)</span>
         <span class="c1"># to return visual features</span>
         <span class="k">if</span> <span class="n">dataset_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">dataset_name</span><span class="p">)</span>
         <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="bp">cls</span><span class="o">.</span><span class="vm">__name__</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span>
         <span class="k">if</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_is_annotation</span><span class="p">:</span>
-            <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
-                <span class="n">path</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">vltk</span><span class="o">.</span><span class="n">ANNOTATION_DIR</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">vltk</span><span class="o">.</span><span class="n">ANNOTATION_DIR</span><span class="si">}</span><span class="s2">.arrow"</span>
+
+            <span class="n">temppath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">vltk</span><span class="o">.</span><span class="n">ANNOTATION_DIR</span><span class="si">}</span><span class="s2">.arrow&quot;</span><span class="p">)</span>
+            <span class="k">if</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">temppath</span><span class="p">):</span>
+                <span class="n">temppath</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span>
+                    <span class="n">path</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">vltk</span><span class="o">.</span><span class="n">ANNOTATION_DIR</span><span class="si">}</span><span class="s2">/</span><span class="si">{</span><span class="n">vltk</span><span class="o">.</span><span class="n">ANNOTATION_DIR</span><span class="si">}</span><span class="s2">.arrow&quot;</span>
+                <span class="p">)</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">temppath</span>
+            <span class="p">(</span><span class="n">pa_table</span><span class="p">,</span> <span class="n">meta_dict</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span> <span class="o">=</span> <span class="n">Adapter</span><span class="o">.</span><span class="n">_load_one_arrow</span><span class="p">(</span>
+                <span class="n">path</span><span class="p">,</span> <span class="n">meta_names</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">config</span>
             <span class="p">)</span>
-            <span class="p">(</span><span class="n">pa_table</span><span class="p">,</span> <span class="n">meta_dict</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span> <span class="o">=</span> <span class="n">Adapter</span><span class="o">.</span><span class="n">_load_one_arrow</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">meta_names</span><span class="p">)</span>
             <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">arrow_table</span><span class="o">=</span><span class="n">pa_table</span><span class="p">,</span> <span class="n">split</span><span class="o">=</span><span class="n">split</span><span class="p">,</span> <span class="n">meta_dict</span><span class="o">=</span><span class="n">meta_dict</span><span class="p">)</span>
         <span class="k">elif</span> <span class="n">split</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">split</span><span class="si">}</span><span class="s2">.arrow"</span><span class="p">)</span>
-            <span class="p">(</span><span class="n">pa_table</span><span class="p">,</span> <span class="n">meta_dict</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span> <span class="o">=</span> <span class="n">Adapter</span><span class="o">.</span><span class="n">_load_one_arrow</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">meta_names</span><span class="p">)</span>
+            <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">split</span><span class="si">}</span><span class="s2">.arrow&quot;</span><span class="p">)</span>
+            <span class="p">(</span><span class="n">pa_table</span><span class="p">,</span> <span class="n">meta_dict</span><span class="p">,</span> <span class="n">path</span><span class="p">)</span> <span class="o">=</span> <span class="n">Adapter</span><span class="o">.</span><span class="n">_load_one_arrow</span><span class="p">(</span>
+                <span class="n">path</span><span class="p">,</span> <span class="n">meta_names</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">config</span>
+            <span class="p">)</span>
             <span class="k">return</span> <span class="bp">cls</span><span class="p">(</span><span class="n">arrow_table</span><span class="o">=</span><span class="n">pa_table</span><span class="p">,</span> <span class="n">split</span><span class="o">=</span><span class="n">split</span><span class="p">,</span> <span class="n">meta_dict</span><span class="o">=</span><span class="n">meta_dict</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
             <span class="n">arrow_dict</span> <span class="o">=</span> <span class="p">{}</span>
-            <span class="n">split_list</span> <span class="o">=</span> <span class="n">Adapter</span><span class="o">.</span><span class="n">_load_many_arrows</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">meta_names</span><span class="p">)</span>
+            <span class="n">split_list</span> <span class="o">=</span> <span class="n">Adapter</span><span class="o">.</span><span class="n">_load_many_arrows</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">meta_names</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">config</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">sl</span> <span class="ow">in</span> <span class="n">split_list</span><span class="p">:</span>
                 <span class="p">(</span><span class="n">pa_table</span><span class="p">,</span> <span class="n">meta_dict</span><span class="p">,</span> <span class="n">split</span><span class="p">)</span> <span class="o">=</span> <span class="n">sl</span>
                 <span class="n">arrow_dict</span><span class="p">[</span><span class="n">split</span><span class="p">]</span> <span class="o">=</span> <span class="bp">cls</span><span class="p">(</span>
@@ -548,7 +626,7 @@
     <span class="k">def</span> <span class="nf">_init_metadata</span><span class="p">(</span><span class="n">schema</span><span class="p">):</span>
         <span class="n">metadata_dict</span> <span class="o">=</span> <span class="p">{}</span>
         <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="n">schema</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-            <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">Adapter</span><span class="o">.</span><span class="n">_id_keys</span> <span class="ow">and</span> <span class="n">get_arrow_primitive</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">==</span> <span class="s2">"string"</span><span class="p">:</span>
+            <span class="k">if</span> <span class="n">k</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">Adapter</span><span class="o">.</span><span class="n">_id_keys</span> <span class="ow">and</span> <span class="n">get_arrow_primitive</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;string&quot;</span><span class="p">:</span>
                 <span class="n">metadata_dict</span><span class="p">[</span><span class="n">k</span><span class="p">]</span> <span class="o">=</span> <span class="n">Counter</span><span class="p">()</span>
         <span class="k">return</span> <span class="n">metadata_dict</span>
 
@@ -561,7 +639,7 @@
 
 <div class="viewcode-block" id="Adapter.forward"><a class="viewcode-back" href="../../../vltk.abc.html#vltk.abc.adapter.Adapter.forward">[docs]</a>    <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">forward</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">"child forward method is not being called"</span><span class="p">)</span></div>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">&quot;child forward method is not being called&quot;</span><span class="p">)</span></div>
 
 <div class="viewcode-block" id="Adapter.schema"><a class="viewcode-back" href="../../../vltk.abc.html#vltk.abc.adapter.Adapter.schema">[docs]</a>    <span class="nd">@abstractmethod</span>
     <span class="k">def</span> <span class="nf">schema</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
@@ -573,37 +651,47 @@
         <span class="k">return</span> <span class="n">List</span></div>
 </pre></div>
 
-          </article>
-        </div>
-      </div>
-    </main>
-  </div>
-  <footer class="md-footer">
-    <div class="md-footer-nav">
-      <nav class="md-footer-nav__inner md-grid">
-          
-          
-        </a>
-        
-      </nav>
-    </div>
-    <div class="md-footer-meta md-typeset">
-      <div class="md-footer-meta__inner md-grid">
-        <div class="md-footer-copyright">
-          <div class="md-footer-copyright__highlight">
-              &#169; Copyright 2021, Antonio Mendoza.
-              
+           </div>
+           
           </div>
-            Created using
-            <a href="http://www.sphinx-doc.org/">Sphinx</a> 4.0.2.
-             and
-            <a href="https://github.com/bashtage/sphinx-material/">Material for
-              Sphinx</a>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Antonio Mendoza.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
         </div>
       </div>
-    </div>
-  </footer>
-  <script src="../../../_static/javascripts/application.js"></script>
-  <script>app.initialize({version: "1.0.4", url: {base: ".."}})</script>
-  </body>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
 </html>

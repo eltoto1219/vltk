@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>vltk.adapters.vgqa &mdash; VLTK: The Vision Language Toolkit 0.2 documentation</title>
+  <title>vltk.adapters.vgqa &mdash; VLTK: The Vision Language Toolkit 1.0.2 documentation</title>
   
 
   
@@ -138,6 +138,8 @@
         
           <li><a href="../../index.html">Module code</a> &raquo;</li>
         
+          <li><a href="../../vltk.html">vltk</a> &raquo;</li>
+        
           <li><a href="../adapters.html">vltk.adapters</a> &raquo;</li>
         
       <li>vltk.adapters.vgqa</li>
@@ -158,12 +160,14 @@
   <h1>Source code for vltk.adapters.vgqa</h1><div class="highlight"><pre>
 <span></span><span class="kn">from</span> <span class="nn">collections</span> <span class="kn">import</span> <span class="n">Counter</span>
 
-<span class="kn">import</span> <span class="nn">vltk</span>
-<span class="kn">from</span> <span class="nn">vltk</span> <span class="kn">import</span> <span class="n">Features</span><span class="p">,</span> <span class="n">adapters</span>
+<span class="kn">import</span> <span class="nn">vltk.vars</span> <span class="k">as</span> <span class="nn">vltk</span>
+<span class="kn">from</span> <span class="nn">vltk</span> <span class="kn">import</span> <span class="n">adapters</span>
+<span class="kn">from</span> <span class="nn">vltk.adapters</span> <span class="kn">import</span> <span class="n">Adapters</span>
+<span class="kn">from</span> <span class="nn">vltk.features</span> <span class="kn">import</span> <span class="n">Features</span>
 <span class="kn">from</span> <span class="nn">vltk.utils.adapters</span> <span class="kn">import</span> <span class="n">clean_label</span>
 
 
-<div class="viewcode-block" id="VGQA"><a class="viewcode-back" href="../../../vltk.adapters.html#vltk.adapters.vgqa.VGQA">[docs]</a><span class="k">class</span> <span class="nc">VGQA</span><span class="p">(</span><span class="n">adapters</span><span class="o">.</span><span class="n">VisnLangDataset</span><span class="p">):</span>
+<div class="viewcode-block" id="VGQA"><a class="viewcode-back" href="../../../vltk.adapters.html#vltk.adapters.vgqa.VGQA">[docs]</a><span class="k">class</span> <span class="nc">VGQA</span><span class="p">(</span><span class="n">adapters</span><span class="o">.</span><span class="n">VisnDataset</span><span class="p">):</span>
     <span class="n">data_info</span> <span class="o">=</span> <span class="p">{</span>
         <span class="s2">&quot;train&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;visualgenome&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;train&quot;</span><span class="p">]},</span>
     <span class="p">}</span>
