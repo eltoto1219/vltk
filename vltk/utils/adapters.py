@@ -368,14 +368,14 @@ def basic_coco_annotations(json_files, splits):
     total_annos = {}
     id_to_cat = {}
     file_to_id_to_stem = defaultdict(dict)
-    for file, data in json_files.items():
+    for file, data in sorted(json_files.items(), key=lambda x: x[0]):
         info = data["images"]
         for i in info:
             img_id = i["file_name"].split(".")[0]
 
             file_to_id_to_stem[file][i["id"]] = img_id
 
-    for filename, data in tqdm(json_files.items()):
+        # for file, data in tqdm(sorted(json_files.items(), key=lambda x: x[0])):
         categories = data["categories"]
         for cat in categories:
             id_to_cat[cat["id"]] = cat["name"]

@@ -16,7 +16,7 @@ from vltk.utils.base import set_metadata, try_load
 
 
 class VisnDataset(Adapter):
-    _batch_size = 1028
+    _batch_size = 1024
     _base_features = {
         vltk.imgid: ds.Value("string"),
     }

@@ -114,7 +114,7 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
                 if not path.exists():
                     path.mkdir()
             else:
-                path.mkdir()
+                os.makedirs(str(path), exist_ok=True)
             for link in urls:
                 print(f"Downloading {link}")
                 filename = wget.download(link, bar=bar_progress, out=str(path))
