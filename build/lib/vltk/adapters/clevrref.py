@@ -1,33 +1,32 @@
-import gc
 from collections import defaultdict
 
-import vltk
+import vltk.vars as vltk
 from tqdm import tqdm
-from vltk import Features, adapters
+from vltk import adapters
 from vltk.adapters import Adapters
 from vltk.configs import DataConfig
-from vltk.utils.adapters import imagepoints_to_polygon
-
-collect = 1000
+from vltk.features import Features
 
 
 # data source: https://github.com/ccvl/clevr-refplus-dataset-gen
 # https://cs.jhu.edu/~cxliu/data/clevr_ref+_1.0.zip
 class CLEVRREF(adapters.VisnDataset):
+    @staticmethod
     def schema():
         return {
-            vltk.points: Features.Points,
-            "colors": Features.StringList,
-            "shapes": Features.StringList,
-            "sizes": Features.StringList,
-            "materials": Features.StringList,
-            vltk.box: Features.Box,
+            vltk.RLE: Features.RLE(),
+            "colors": Features.StringList(),
+            "shapes": Features.StringList(),
+            "sizes": Features.StringList(),
+            "materials": Features.StringList(),
+            vltk.box: Features.Box(),
         }
 
+    @staticmethod
     def forward(json_files, splits):
         # default box order: x, y, h, w
         entries = defaultdict(dict)
-        for filepath, js in json_files:
+        for filepath, js in json_files.items():
             if "scene" not in filepath:
                 continue
             for i, scene in enumerate(tqdm(js["scenes"])):
@@ -60,7 +59,7 @@ class CLEVRREF(adapters.VisnDataset):
                     points.append(seg)
 
                 entries[imgid] = {
-                    vltk.points: points,
+                    vltk.RLE: points,
                     "colors": colors,
                     "shapes": shapes,
                     "materials": materials,
@@ -68,8 +67,6 @@ class CLEVRREF(adapters.VisnDataset):
                     vltk.box: boxes,
                     vltk.imgid: imgid,
                 }
-                if i % collect == 0:
-                    gc.collect()
 
         return [v for v in entries.values()]
 

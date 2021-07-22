@@ -1,8 +1,9 @@
 from collections import Counter
 
-import vltk
-from vltk import Features, adapters
-from vltk.utils.adatpers import clean_label, soft_score
+import vltk.vars as vltk
+from vltk import adapters
+from vltk.features import Features
+from vltk.utils.adapters import clean_label, soft_score
 
 
 # Vision-Language Datasets
@@ -13,15 +14,28 @@ class VQA(adapters.VisnLangDataset):
         "test": {"coco2014": ["test"]},
     }
 
+    @staticmethod
     def schema():
-        return {"qid": Features.string}
+        # img id and score are assumed to be default features
+        return {
+            vltk.qid: Features.String(),
+            vltk.label: Features.StringList(),
+            vltk.score: Features.FloatList(),
+        }
 
+    @staticmethod
+    def adjust_imgid(imgid, vdset_name, vdset_split):
+        # length of COCO ids are are always length 12
+        imgid = f'{"COCO"}_{vdset_split[0].lower()}{2014}_{"".join(["0"] * (12 - len(imgid)))}{imgid}'
+        return imgid
+
+    @staticmethod
     def forward(json_files, split, min_label_frequency=9):
         batch_entries = []
         all_questions = []
         qid2answers = {}
         label_frequencies = Counter()
-        for x in json_files:
+        for filename, x in json_files.items():
             if "questions" in x:
                 all_questions.extend(x["questions"])
             else:
@@ -49,8 +63,12 @@ class VQA(adapters.VisnLangDataset):
 
         skipped = 0
         for entry in all_questions:
-            entry[vltk.imgid] = str(entry.pop("image_id"))
+            try:
+                entry[vltk.imgid] = str(entry.pop("image_id"))
+            except Exception:
+                raise Exception(entry.keys())
             entry[vltk.text] = entry.pop("question")
+            # entry.pop("question_id")
             entry["qid"] = str(entry.pop("question_id"))
             try:
                 entry[vltk.label] = qid2answers[entry["qid"]]

@@ -103,7 +103,6 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
 
         path = Path(os.path.join(datadir, name))
         temppath = Path(os.path.join(datadir, f"temp_{name}"))
-        name_list = []
         try:
             if path.exists():
                 temppath.mkdir()
@@ -123,19 +122,12 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
                 if ".tar.gz" in filename:
                     with tarfile.open(filename) as tar_ref:
                         print(f"Extracting {filename}")
-                        res = tar_ref.extractall(path)
-                        # name_list += tar_ref.namelist()
-                    # except tarfile.ReadError:
-                    #     with zipfile.ZipFile(filename, "r") as zip_ref:
-                    #         print(f"Extracting {filename}")
-                    #         zip_ref.extractall(path)
-                    #         name_list += zip_ref.namelist()
+                        tar_ref.extractall(path)
+
                 elif ".zip" in filename:
-                    # raise Exception(filename)
                     with zipfile.ZipFile(filename, "r") as zip_ref:
                         print(f"Extracting {filename}")
                         zip_ref.extractall(path)
-                        name_list += zip_ref.namelist()
                 else:
                     raise Exception(f"{filename} is not a zip file or tarball")
                     # name = Path(filename).name
@@ -144,6 +136,7 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
             shutil.rmtree(str(temppath), ignore_errors=True)
             shutil.rmtree(os.path.join(str(path), "__MACOSX"), ignore_errors=True)
         except Exception as e:
+            print("WARNING: therew was an exception: {e}")
             # now remove temppath
             if temppath.exists():
                 ###

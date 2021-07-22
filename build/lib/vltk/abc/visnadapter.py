@@ -2,27 +2,36 @@ import json
 import os
 import pickle
 from abc import abstractmethod
-from collections import Counter
+from collections import Counter, OrderedDict, defaultdict
+from pathlib import Path
 
 import datasets as ds
 import pyarrow
-import vltk
+import vltk.vars as vltk
 from datasets import ArrowWriter
 from tqdm import tqdm
-from vltk import ANNOTATION_DIR
 from vltk.abc.adapter import Adapter
 from vltk.inspection import collect_args_to_func
-from vltk.processing.label import clean_imgid_default
-from vltk.utils.base import set_metadata
+from vltk.utils.base import set_metadata, try_load
 
 
 class VisnDataset(Adapter):
-    _batch_size = 1028
+    _batch_size = 1024
     _base_features = {
         vltk.imgid: ds.Value("string"),
     }
-    _meta_names = {"img_to_row_map", "object_frequencies"}
+    _meta_names = {"img_to_row_map", "object_frequencies", "vocab"}
     _is_annotation = True
+    _extensions = {"jpg", "png", "jpeg"}
+
+    @staticmethod
+    def adjust_imgid(img_id, dataset_name=None):
+        """
+        Sometimes the image IDS provided in Vision datasets are repeated in different datasets. If that is the case, implementing
+        this optional function will adjust the image id in aims to appropriately mactch
+        the corresponging dataset try prepending the dataset name
+        """
+        return img_id
 
     @classmethod
     def filepath(cls, imgid, datadir, split):
@@ -32,19 +41,39 @@ class VisnDataset(Adapter):
     @classmethod
     def load_imgid2path(cls, datadir, split):
         name = cls.__name__.lower()
-        path = os.path.join(datadir, name, split)
-        return VisnDataset.files(path)
+        return VisnDataset.files(datadir, name, split)
 
     @staticmethod
-    def files(path):
+    def files(path, name, split):
         files = {}
+        path = os.path.join(path, name)
         if not os.path.isdir(path):
             print(f"No path exists for: {path}")
             return files
-        for i in os.listdir(path):
-            fp = os.path.join(path, i)
-            iid = i.split(".")[0]
-            files[iid] = fp
+        for g_ext in VisnDataset._extensions:
+            for i in Path(path).glob(f"**/*.{g_ext}"):
+                if i.is_dir():
+                    continue
+                stem = i.stem
+                fp = str(i)
+                if split == "":
+                    cont = False
+                    for spl in vltk.SPLITALIASES:
+                        if spl in stem:
+                            cont = True
+                            break
+                    if cont:
+                        continue
+                elif split not in fp:
+                    continue
+
+                # TODO: confirm if I still want to prepend dataset name later
+                # okay, so we will only add the dataset name if it is not already present
+                # actually, lets not worry about this until we run into this issue
+                # if name.casefold() not in iid.casefold():
+                #     iid = f'{name}{vltk.delim}{i.split(".")[0]}'
+                # iid = i.split(".")[0]
+                files[stem] = fp
         return files
 
     @classmethod
@@ -59,14 +88,15 @@ class VisnDataset(Adapter):
 
         schema_dict = collect_args_to_func(cls.schema, kwargs=kwargs)
         feature_dict = {**cls.schema(**schema_dict), **cls._base_features}
+        # gather info from schema to figure out what metadata to collect
+        meta_dict = cls._init_metadata(feature_dict)
         # lets work on doing the annotations first
         total_annos = {}
         searchdir, _ = cls._get_valid_search_pathes(
-            searchdir, name=cls.__name__.lower(), annodir=ANNOTATION_DIR
+            searchdir, name=cls.__name__.lower(), annodir=vltk.ANNOTATION_DIR
         )
         files = cls._iter_files(searchdir)
-        # get into right format
-        json_files = []
+        json_files = {}
         temp_splits = []
         print("loading annotations...")
         for anno_file in tqdm(files):
@@ -79,34 +109,37 @@ class VisnDataset(Adapter):
                     split = spl
                     break
             temp_splits.append(split)
-            if "json" not in str(anno_file):
-                continue
-            if "caption" not in str(anno_file) and "question" not in str(anno_file):
-                anno_data = json.load(open(str(anno_file)))
-                json_files.append((str(anno_file), anno_data))
+            anno_data = try_load(anno_file)
+            json_files[str(anno_file).split("/")[-1]] = anno_data
 
+        kwargs["datadir"] = "/".join(searchdir.split("/")[:-2])
         forward_dict = collect_args_to_func(cls.forward, kwargs=kwargs)
         total_annos = cls.forward(json_files, temp_splits, **forward_dict)
 
         # now write
         print("writing to Datasets/Arrow object")
-        writer, buffer, imgid2row, object_dict = cls._write_batches(
-            total_annos, feature_dict, cls._batch_size
+        writer, buffer, extra_meta = cls._write_batches(
+            total_annos,
+            feature_dict,
+            cls._batch_size,
+            cls.__name__.lower(),
+            meta_dict=meta_dict,
         )
         if savedir is None:
             savedir = searchdir
 
-        extra_meta = {"img_to_row_map": imgid2row, "object_frequencies": object_dict}
         (table, meta_dict) = cls._write_data(writer, buffer, savedir, extra_meta)
         if table is None:
             return None
         return cls(arrow_table=table, meta_dict=meta_dict)
 
     @staticmethod
-    def _write_batches(annos, feature_dict, batch_size):
-        object_dict = Counter()
+    def _write_batches(annos, feature_dict, batch_size, name, meta_dict):
+        # name refers to the dataset (class) name
+        # object_dict = Counter()
         features = ds.Features(feature_dict)
-        imgid2row = {}
+        imgid2rows = defaultdict(list)  # OrderedDict()
+        extra_vocab = set()
         cur_size = 0
         cur_row = 0
         buffer = pyarrow.BufferOutputStream()
@@ -116,20 +149,16 @@ class VisnDataset(Adapter):
         # change feature types to classes isntead
         for i, entry in enumerate(annos):
             imgs_left = abs(i + 1 - n_files)
-            # leave uncleaned actually
+
+            entry[vltk.imgid] = VisnDataset.adjust_imgid(
+                entry[vltk.imgid],
+                name,
+            )
             img_id = entry[vltk.imgid]
-            # for now, we will do a temporary fix
-            if vltk.label in entry:
-                object_dict.update(entry[vltk.label])
-            else:
-                for k, v in entry.items():
-                    if isinstance(v, list) and all(
-                        map(lambda x: isinstance(x, str), v)
-                    ):
-                        object_dict.update(v)
-            if img_id in imgid2row:
-                print(f"skipping {img_id}. Already written to table")
-            imgid2row[img_id] = cur_row
+            if vltk.text in entry:
+                extra_vocab.update(entry[vltk.text])
+            meta_dict = VisnDataset._update_metadata(meta_dict, entry)
+            imgid2rows[img_id].append(cur_row)
             cur_row += 1
             if cur_size == 0:
                 for k, v in entry.items():
@@ -148,7 +177,9 @@ class VisnDataset(Adapter):
                 batch = features.encode_batch(cur_batch)
                 writer.write_batch(batch)
 
-        return writer, buffer, imgid2row, object_dict
+        meta_dict["img_to_row_map"] = imgid2rows
+        meta_dict["vocab"] = extra_vocab
+        return writer, buffer, meta_dict
 
     @property
     def labels(self):
@@ -184,16 +215,16 @@ class VisnDataset(Adapter):
 
     def align_imgids(self):
         for i in range(len(self)):
-            self._img_to_row_map[self[i]["img_id"]] = i
+            self._img_to_row_map[self[i][vltk.imgid]] = i
 
     def check_imgid_alignment(self):
         orig_map = self.img_to_row_map
         for i in range(len(self)):
-            img_id = self[i]["img_id"]
+            img_id = self[i][vltk.imgid]
             mapped_ind = orig_map[img_id]
             if mapped_ind != i:
                 return False
-            self._img_to_row_map[self[i]["img_id"]] = i
+            self._img_to_row_map[self[i][vltk.imgid]] = i
         return True
 
     @abstractmethod
@@ -203,6 +234,13 @@ class VisnDataset(Adapter):
     @abstractmethod
     def schema(*args, **kwargs):
         return dict
+
+    @property
+    def vocab(self):
+        if hasattr(self, "_vocab"):
+            return set(self._vocab.decode().split("\n"))
+        else:
+            return None
 
     # @abstractmethod
     # def imgid_to_filename(imgid, split):

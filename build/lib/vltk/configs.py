@@ -1,9 +1,24 @@
 import os
-from typing import List, Union
+from typing import Dict, List, Union
+
+from PIL import Image as PImage
 
 from vltk.abc import config
 from vltk.inspection import get_args
+from vltk.memory import get_most_free_gpu
+# from vltk.loader.builder import init_datasets
 from vltk.processing.image import Image
+
+"""
+Old config options that may be good to remember later:
+pos_dim: int = 4
+visual_dim: int = 2048
+num_attrs: int = 400
+num_objects: int = 1600
+textfile_extensions: Union[List[str], str] = ["json", "jsonl"]
+img_format: str = "jpg"
+
+"""
 
 
 class ModelConfig(config.Config):
@@ -81,63 +96,31 @@ class FinetuneConfig(config.Config):
     visual_feat_loss: bool = False
 
 
-class DataConfig(config.Config):
-    objects_file: Union[str, None] = None
-    text_processors: Union[None, List[str], str] = ["one_hot_label"]
-    image: Union[config.Config] = None
-    label_processor: Union[None, str] = "one_hot_label"
-    labels: Union[None, str] = None
-    eval_datasets = None
-    train_datasets = None
-    rand_feats: Union[None, tuple] = None
-    eval_batch_size = 32
-    train_batch_size = 64
-    extractor: Union[None, str] = None
-    textfile_extensions: Union[List[str], str] = ["json", "jsonl"]
-    datadir: str = "/playpen1/home/avmendoz/data"
-    img_first: bool = False
-    shuffle: bool = True
-    num_workers: int = 8
-    drop_last: bool = True
-    pin_memory: bool = False
-    sent_length: int = 20
-    max_objects: int = 36
-    attribute_file: str = ""
-    object_file: str = ""
-    img_format: str = "jpg"
-    percent: int = 1.0
-    skip_eval: bool = False
-    skip_train: bool = False
-    num_attrs: int = 400
-    num_objects: int = 1600
-    ignore_id: int = -100
-    # word_mask_rate: float = 0.15 # these all belong to text preporcessors. change
-    # feature_mask_rate: float = 0.15
-    # random_feature_rate: float = 0.10
-    # random_word_rate: float = 0.10
-    # sentence_match_rate: float = 0.50
+class LangConfig(config.Config):
+    vocab_path_or_name: Union[None, str] = None
+    tokenizer: Union[str, object] = "BertWordPieceTokenizer"
+    word_mask_rate: float = 0.15  # these all belong to text preporcessors. change
+    feature_mask_rate: float = 0.15
+    random_feature_rate: float = 0.10
+    random_word_rate: float = 0.10
+    sentence_match_rate: float = 0.50
     truncate_sentence: bool = True
     return_token_type_ids: bool = True
     add_special_tokens: bool = True
     return_tensors: str = "pt"
     return_attention_mask: bool = True
-    use_raw_imgs: bool = False
-    pos_dim: int = 4
-    visual_dim: int = 2048
-    max_detections: str = 36
-    annotations: bool = True
-    tokenizer = "BertWordPeiceTokenizer"
-
-    def __init__(self, finetune=True, **kwargs):
-        super().__init__(**kwargs)
-        self.text_processors = Config.handle_iterables(self.text_processors)
-        self.textfile_extensions = Config.handle_iterables(self.textfile_extensions)
-        self.image = ProcessorConfig(**kwargs.get("image", {}))
-        # raise Exception(self.eval_datasets, self.train_datasets)
+    ignore_id: int = -100
+    max_seq_length: int = 36
+    max_visual_seq_length: int = 128
+    lowercase: bool = False
+    pad_direction: str = "right"
 
 
-class ProcessorConfig(config.Config):
-    transforms: List = ["ToPILImage", "ToTensor"]
+class VisionConfig(config.Config):
+    transforms: List = ["FromFile", "Resize", "ToTensor"]
+    interpolation = PImage.BICUBIC
+    grayscale: bool = False
+    size: tuple = (256, 256)
 
     def __init__(self, **kwargs):
         for f, v in kwargs.items():
@@ -155,7 +138,9 @@ class ProcessorConfig(config.Config):
             name = t
             t = _image.get(t)
             if name == "Lambda":
-                assert hasattr(self, "lambd"), "Lambda transform requires a lambd arg"
+                assert hasattr(
+                    self, "lambd"
+                ), "Lambda transform requires the keyword arg: lambd"
                 funcs.append(t(self.lambd))
                 continue
             args = get_args(t, kwargs)
@@ -164,6 +149,57 @@ class ProcessorConfig(config.Config):
             else:
                 funcs.append(t(**args))
         return transforms.Compose(funcs)
+
+
+class DataConfig(config.Config):
+    lang_processors: Union[None, List[str]] = None
+    visn_processors: Union[None, List[str]] = None
+    visnlang_processors: Union[None, List[str]] = None
+    visn: Union[VisionConfig, dict] = {}
+    lang: Union[LangConfig, dict] = {}
+    labels: Union[None, str] = None
+    eval_datasets = None
+    train_datasets = None
+    rand_feats: Union[None, tuple] = None  # if tuple, tuple represents shape
+    eval_batch_size = 32
+    train_batch_size = 64
+    extractor: Union[None, str] = None
+    datadir: str = None
+    img_first: bool = False
+    shuffle: bool = True
+    num_workers: int = 8
+    drop_last: bool = True
+    pin_memory: bool = False
+    percent: int = 1.0
+    collate_simple: bool = True
+    ignore_annotations: bool = False
+    ignore_filepath: bool = True
+    ignore_segmentation: bool = False
+    ignore_image: bool = False
+    metadata_filedict: Union[None, Dict[str, str]] = None
+    add_visual_cls: bool = True
+    reextract = False
+    redownload = False
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        visn = kwargs.get("visn", {})
+        lang = kwargs.get("lang", {})
+        if isinstance(visn, VisionConfig):
+            self.visn = visn
+        else:
+            self.visn = VisionConfig(**visn)
+        if isinstance(lang, LangConfig):
+            self.lang = lang
+        else:
+            self.lang = LangConfig(**lang)
+
+    def build(self):
+        raise NotImplementedError(
+            "Do not import DataConfig from this file and try to build. Import Instead from `vltk.loader import\
+            DataConfig"
+        )
+        pass
 
 
 class Config(config.Config):

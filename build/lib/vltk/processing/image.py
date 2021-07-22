@@ -50,91 +50,33 @@ def get_rawsize(obj):
 
 
 class FromFile(object):
-    def __init__(self, mode=None):
+    _scale = torch.tensor([1.0, 1.0])
+    _size = None
+    _rawsize = None
+
+    def __init__(self, mode=None, grayscale=False):
         self.mode = mode
+        self.grayscale = grayscale
         pass
 
     def __call__(self, filepath):
         if isinstance(filepath, str):
-            return PImage.open(filepath).convert("RGB")
+            if not self.grayscale:
+                img = PImage.open(filepath).convert("RGB")
+            else:
+                img = PImage.open(filepath).convert("L")
+            self._size = torch.tensor(img.size)
+            self._rawsize = self._size
+            return img
         else:
             img = FV.to_pil_image(filepath.byte(), self.mode).convert("RGB")
             return img
 
 
 class ToTensor(transforms.ToTensor):
-    _scale = torch.tensor([1.0, 1.0])
-    # _size = None
-    _rawsize = None
-
     def __call__(self, pil):
         tensor = super().__call__(pil)
-        self._rawsize = torch.tensor(tensor.shape[1:])
-        # self._size = torch.tensor(tensor.shape[1:])
         return tensor
-
-
-# class ToTensor(object):
-#     def __init__(self):
-#         self._scale = torch.tensor([1.0, 1.0])
-#         self._size = None
-#         self._rawsize = None
-#         pass
-
-#     def __call__(self, pilimg):
-#         nump = np.array(pilimg)
-#         if len(nump.shape) == 2:
-#             try:
-#                 nump = np.expand_dims(nump, 0).repeat(3, 1, 1)
-#             except TypeError:
-#                 # print(f"something is off about {nump, type(nump), nump.shape}")
-#                 nump = np.ones((600, 600, 3))
-#         try:
-#             tensor = torch.as_tensor(
-#                 nump.reshape(nump.shape[-1], *nump.shape[:2]), dtype=torch.float
-#             ).float()
-#             nump = np.array(tensor.shape)
-#         except ValueError:
-#             raise ValueError(
-#                 f"something wrong with the image tensor of shape: {nump.shape}"
-#             )
-
-#         self._rawsize = torch.tensor(tensor.shape[1:])
-#         self._size = torch.tensor(tensor.shape[1:])
-
-#         return tensor
-
-
-# class Normalize(object):
-#     def __init__(self, mean=None, std=None, inplace=False, scale="standard"):
-#         self.mean = mean
-#         self.std = std
-#         self.scale = scale
-#         self.inplace = inplace
-#         self._std = None
-#         self._mean = None
-
-#     def __call__(self, tensor):
-#         # tensor must be: (C, H, W)
-#         if self.mean is None or self.std is None:
-#             if self.scale == "standard":
-#                 mean = tensor.mean(dim=(-1, -2))
-#                 std = torch.sqrt((tensor - mean.reshape(-1, 1, 1)) ** 2).mean(
-#                     dim=(-1, -2)
-#                 )
-#                 mean = mean.tolist()
-#                 std = std.tolist()
-#                 self._std = std
-#                 self._mean = mean
-#             else:
-#                 return tensor / 255
-#         else:
-#             mean = self.mean
-#             std = self.std
-
-#         return tensor
-# normalize = FV.normalize(tensor, mean, std, self.inplace)
-# return normalize
 
 
 class Normalize(transforms.Normalize):
@@ -155,76 +97,6 @@ class Normalize(transforms.Normalize):
             self._mean = mean
         else:
             return super().__call__(tensor)
-
-
-class ResizeTensor(object):
-    def __init__(self, size=(512, 768), mode="bicubic", gpu=None, aspect_ratio=False):
-        assert isinstance(size, int) or (isinstance(size, Iterable) and len(size) == 2)
-        if isinstance(size, int):
-            min_size = size
-            max_size = size
-        else:
-            min_size = min(size)
-            max_size = max(size)
-
-        self.size = size
-        self.mode = mode
-        self.gpu = gpu
-        self.max_size = max_size
-        self.min_size = min_size
-        self.aspect_ratio = aspect_ratio
-        self._rawsize = None
-        self._size = None
-        self._scale = None
-
-    def __scale(self):
-        if self._size is not None and self._rawsize is not None:
-            with torch.no_grad():
-                return torch.tensor(
-                    [self._size[0] / self._rawsize[0], self._size[1] / self._rawsize[1]]
-                )
-        else:
-            return None
-
-    @torch.no_grad()
-    def __call__(self, tensor):
-        max_size = self.max_size
-        min_size = self.min_size
-        C, H, W = tensor.shape
-        self._rawsize = torch.tensor(tensor.shape[1:])
-        tensor = tensor.unsqueeze(0)
-        if self.gpu is not None:
-            tensor = tensor.to(torch.device(self.gpu))
-        if self.min_size != self.max_size:
-            scale = min_size * 1.0 / min(H, W)
-            if H < W:
-                newh, neww = min_size, scale * W
-            else:
-                newh, neww = scale * H, min_size
-
-            if max(newh, neww) > max_size:
-                scale = max_size * 1.0 / max(newh, neww)
-                newh = newh * scale
-                neww = neww * scale
-
-            neww = int(neww + 0.5)
-            newh = int(newh + 0.5)
-
-            tensor = F.interpolate(
-                tensor, (newh, neww), mode=self.mode, align_corners=False
-            ).squeeze(0)
-            self._size = torch.tensor(tensor.shape[1:])
-            tensor = torch.clamp(tensor, max=255)
-            self._scale = self.__scale()
-            return tensor
-        else:
-            tensor = F.interpolate(
-                tensor, (min_size, max_size), mode=self.mode, align_corners=False
-            ).squeeze(0)
-            self._size = torch.tensor(tensor.shape[1:])
-            tensor = torch.clamp(tensor, max=255)
-            self._scale = self.__scale()
-            return tensor
 
 
 # class Pad(object):
@@ -250,11 +122,27 @@ class ResizeTensor(object):
 
 class Resize(transforms.Resize):
     _size = None
+    _rawsize = None
+    _scale = None
 
-    def __call__(self, tensor):
-        tensor = super().__call__(tensor)
-        self._size = tensor.shape[1:]
-        return tensor
+    def __scale(self):
+        if self._size is not None and self._rawsize is not None:
+            with torch.no_grad():
+                return torch.tensor(
+                    [self._size[0] / self._rawsize[0], self._size[1] / self._rawsize[1]]
+                )
+        else:
+            return None
+
+    def __call__(self, pilimg):
+        # raise Exception(pilimg.shape)
+        self._rawsize = torch.tensor(pilimg.size)
+        pilimg = super().__call__(pilimg)
+        self._size = torch.tensor(pilimg.size)
+        self._scale = self.__scale()
+        # raise Exception(self._rawsize, self._size, self._scale)
+
+        return pilimg
 
 
 class Pad(transforms.Pad):
@@ -283,7 +171,6 @@ class Image:
             IMAGEPROCDICT["ToTensor"] = ToTensor
             IMAGEPROCDICT["FromFile"] = FromFile
             IMAGEPROCDICT["Pad"] = Pad
-            IMAGEPROCDICT["ResizeTensor"] = ResizeTensor
             IMAGEPROCDICT["Resize"] = Resize
             IMAGEPROCDICT["Normalize"] = Normalize
 

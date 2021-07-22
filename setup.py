@@ -36,7 +36,7 @@ def dependencies() -> list:
 
 setup(
     name="vltk",
-    version="1.0.2",
+    version="1.0.3",
     # this command is to be used if we want to auto run any scripts
     # cmdclass={"develop": Develop, "install": Install},
     entry_points={"console_scripts": ["vltk = vltk.cli:main"]},

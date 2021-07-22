@@ -77,6 +77,8 @@ def set_metadata(tbl, tbl_meta={}):
     for k, v in tbl_meta.items():
         if isinstance(v, dict):
             tbl_metadata[k] = json.dumps(v).encode("utf-8")
+        elif isinstance(v, set):
+            tbl_metadata[k] = "\n".join(v).encode("utf-8")
         else:
             tbl_metadata[k] = str(v).encode("utf-8")
 
@@ -93,12 +95,27 @@ def batcher(iterable, n=64):
 
 
 def try_load(filepath):
-    try:
-        with open(filepath) as f:
-            yield json.load(f)
-    except json.decoder.JSONDecodeError:
-        with open(filepath) as f:
-            yield jsonlines.open(f)
+    ext = str(filepath).split(".")[-1]
+    if ext in ("json", "jsonl"):
+        try:
+            with open(filepath) as f:
+                data = json.load(f)
+            return data
+        except json.decoder.JSONDecodeError:
+            with open(filepath) as f:
+                data = jsonlines.open(f)
+            return data
+    elif "pdf" == ext:
+        return str(filepath)
+    raise Exception(ext, filepath)
+    # try:
+    #     with open(filepath) as f:
+    #         entry = jsonlines.open(f)
+    #         yield entry
+    # except Exception:
+    #     with open(filepath) as f:
+    #         data = json.load(f)
+    #     return data
 
 
 def clean_imgid(img_id):
@@ -330,20 +347,48 @@ def get_list_primitive(ls):
     if isinstance(ls, collections.Iterable) and not isinstance(ls, str):
         return get_list_primitive(ls[0])
     else:
-        return type(ls)
+        if ls is None:
+            return None
+        else:
+            return type(ls)
+
+
+# stack overflow credit
+def flatten_stringlist(container):
+    if container is None:
+        return []
+    if isinstance(container, str):
+        return [container]
+    for i in container:
+        if isinstance(i, (list, tuple)):
+            for j in flatten_stringlist(i):
+                yield j
+        else:
+            yield i
+
+
+def get_arrow_primitive(schema_value):
+    if hasattr(schema_value, "feature"):
+        return get_arrow_primitive(schema_value.feature)
+    else:
+        return schema_value.dtype
 
 
 def convertids_recursive(ls, objids):
+    ls = list(ls)
     # get deepest nested list
     if (
         isinstance(ls, collections.Iterable)
         and not isinstance(ls, str)
         and isinstance(ls[0], str)
     ):
-        return torch.Tensor(list(map(lambda x: objids[x], ls)))
+        ten = torch.Tensor(list(map(lambda x: objids[x], ls)))
+        return ten
     else:
         for idx, item in enumerate(ls):
-            ls[idx] = convertids_recursive(ls)
+            res = convertids_recursive(item, objids)
+            assert isinstance(res, torch.Tensor), (type(res), res)
+            ls[idx] = res
         try:
             ls = torch.stack(ls)
         except Exception:
