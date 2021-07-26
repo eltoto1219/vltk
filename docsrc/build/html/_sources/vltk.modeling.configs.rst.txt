@@ -1,0 +1,21 @@
+vltk.modeling.configs package
+=============================
+
+Submodules
+----------
+
+vltk.modeling.configs.frcnn module
+----------------------------------
+
+.. automodule:: vltk.modeling.configs.frcnn
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: vltk.modeling.configs
+   :members:
+   :undoc-members:
+   :show-inheritance:

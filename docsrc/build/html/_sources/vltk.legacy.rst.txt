@@ -1,0 +1,85 @@
+vltk.legacy package
+===================
+
+Submodules
+----------
+
+vltk.legacy.coco2014 module
+---------------------------
+
+.. automodule:: vltk.legacy.coco2014
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+vltk.legacy.frcnn module
+------------------------
+
+.. automodule:: vltk.legacy.frcnn
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+vltk.legacy.gqa module
+----------------------
+
+.. automodule:: vltk.legacy.gqa
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+vltk.legacy.legacy\_train module
+--------------------------------
+
+.. automodule:: vltk.legacy.legacy_train
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+vltk.legacy.optim module
+------------------------
+
+.. automodule:: vltk.legacy.optim
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+vltk.legacy.processing module
+-----------------------------
+
+.. automodule:: vltk.legacy.processing
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+vltk.legacy.sched module
+------------------------
+
+.. automodule:: vltk.legacy.sched
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+vltk.legacy.vit\_ckp\_convert module
+------------------------------------
+
+.. automodule:: vltk.legacy.vit_ckp_convert
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+vltk.legacy.vqa module
+----------------------
+
+.. automodule:: vltk.legacy.vqa
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Module contents
+---------------
+
+.. automodule:: vltk.legacy
+   :members:
+   :undoc-members:
+   :show-inheritance:

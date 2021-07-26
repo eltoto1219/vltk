@@ -1,0 +1,1024 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>vltk package &mdash; VLTK: The Vision Language Toolkit 1.0.3 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="vltk.abc package" href="vltk.abc.html" />
+    <link rel="prev" title="VLTK Modules" href="modules.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> VLTK: The Vision Language Toolkit
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">VLTK Modules</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">vltk package</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#subpackages">Subpackages</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="vltk.abc.html">vltk.abc package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="vltk.adapters.html">vltk.adapters package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="vltk.datasets.html">vltk.datasets package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="vltk.processing.html">vltk.processing package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="vltk.utils.html">vltk.utils package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-vltk.configs">vltk.configs module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-vltk.features">vltk.features module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-vltk.vars">vltk.vars module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#module-vltk">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">VLTK: The Vision Language Toolkit</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="modules.html">VLTK Modules</a> &raquo;</li>
+        
+      <li>vltk package</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/vltk.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="vltk-package">
+<h1>vltk package<a class="headerlink" href="#vltk-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="subpackages">
+<h2>Subpackages<a class="headerlink" href="#subpackages" title="Permalink to this headline">¶</a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="vltk.abc.html">vltk.abc package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="vltk.abc.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.abc.html#module-vltk.abc.adapter">vltk.abc.adapter module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.abc.html#vltk-abc-checkpoint-module">vltk.abc.checkpoint module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.abc.html#module-vltk.abc.config">vltk.abc.config module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.abc.html#module-vltk.abc.extraction">vltk.abc.extraction module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.abc.html#module-vltk.abc.processor">vltk.abc.processor module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.abc.html#module-vltk.abc.visnadapter">vltk.abc.visnadapter module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.abc.html#module-vltk.abc.visnlangadatper">vltk.abc.visnlangadatper module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.abc.html#module-vltk.abc">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="vltk.adapters.html">vltk.adapters package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="vltk.adapters.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.adapters.html#module-vltk.adapters.clevr">vltk.adapters.clevr module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.adapters.html#module-vltk.adapters.clevrref">vltk.adapters.clevrref module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.adapters.html#module-vltk.adapters.coco2014">vltk.adapters.coco2014 module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.adapters.html#module-vltk.adapters.cococaptions">vltk.adapters.cococaptions module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.adapters.html#module-vltk.adapters.docvqa">vltk.adapters.docvqa module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.adapters.html#module-vltk.adapters.frcnn">vltk.adapters.frcnn module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.adapters.html#module-vltk.adapters.funsd">vltk.adapters.funsd module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.adapters.html#module-vltk.adapters.gqa">vltk.adapters.gqa module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.adapters.html#module-vltk.adapters.vgqa">vltk.adapters.vgqa module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.adapters.html#module-vltk.adapters.visualgenome">vltk.adapters.visualgenome module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.adapters.html#module-vltk.adapters.vqa">vltk.adapters.vqa module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.adapters.html#module-vltk.adapters">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="vltk.datasets.html">vltk.datasets package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="vltk.datasets.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.datasets.html#vltk-datasets-basedataset-module">vltk.datasets.basedataset module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.datasets.html#vltk-datasets-builder-module">vltk.datasets.builder module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.datasets.html#vltk-datasets-langdataset-module">vltk.datasets.langdataset module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.datasets.html#vltk-datasets-loader-module">vltk.datasets.loader module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.datasets.html#vltk-datasets-visndataset-module">vltk.datasets.visndataset module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.datasets.html#vltk-datasets-visnlangdataset-module">vltk.datasets.visnlangdataset module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.datasets.html#module-contents">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="vltk.processing.html">vltk.processing package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="vltk.processing.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.processing.html#module-vltk.processing.image">vltk.processing.image module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.processing.html#module-vltk.processing.lang">vltk.processing.lang module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.processing.html#module-vltk.processing.visn">vltk.processing.visn module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.processing.html#module-vltk.processing.visnlang">vltk.processing.visnlang module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.processing.html#module-vltk.processing">Module contents</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="vltk.utils.html">vltk.utils package</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="vltk.utils.html#submodules">Submodules</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.utils.html#module-vltk.utils.adapters">vltk.utils.adapters module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.utils.html#module-vltk.utils.base">vltk.utils.base module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="vltk.utils.html#module-vltk.utils">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</div>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-vltk.configs">
+<span id="vltk-configs-module"></span><h2>vltk.configs module<a class="headerlink" href="#module-vltk.configs" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.configs.Config">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.configs.</span></span><span class="sig-name descname"><span class="pre">Config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">finetune</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/configs.html#Config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.configs.Config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="vltk.abc.html#vltk.abc.config.Config" title="vltk.abc.config.Config"><code class="xref py py-class docutils literal notranslate"><span class="pre">vltk.abc.config.Config</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.base_logdir">
+<span class="sig-name descname"><span class="pre">base_logdir</span></span><em class="property"><span class="pre">:</span> <span class="pre">str</span></em><em class="property"> <span class="pre">=</span> <span class="pre">'/home/eltoto/logs'</span></em><a class="headerlink" href="#vltk.configs.Config.base_logdir" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.break_loop_on_test">
+<span class="sig-name descname"><span class="pre">break_loop_on_test</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#vltk.configs.Config.break_loop_on_test" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.data">
+<span class="sig-name descname"><span class="pre">data</span></span><em class="property"><span class="pre">:</span> <a class="reference internal" href="#vltk.configs.DataConfig" title="vltk.configs.DataConfig"><span class="pre">vltk.configs.DataConfig</span></a></em><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.Config.data" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.datasets">
+<span class="sig-name descname"><span class="pre">datasets</span></span><em class="property"><span class="pre">:</span> <span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.Config.datasets" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.email">
+<span class="sig-name descname"><span class="pre">email</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.Config.email" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.empty_cache">
+<span class="sig-name descname"><span class="pre">empty_cache</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#vltk.configs.Config.empty_cache" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.eval">
+<span class="sig-name descname"><span class="pre">eval</span></span><em class="property"><span class="pre">:</span> <a class="reference internal" href="#vltk.configs.EvalConfig" title="vltk.configs.EvalConfig"><span class="pre">vltk.configs.EvalConfig</span></a></em><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.Config.eval" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.experimentdir">
+<span class="sig-name descname"><span class="pre">experimentdir</span></span><em class="property"><span class="pre">:</span> <span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><em class="property"> <span class="pre">=</span> <span class="pre">'/home/eltoto/vltk/docsrc'</span></em><a class="headerlink" href="#vltk.configs.Config.experimentdir" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.gpu">
+<span class="sig-name descname"><span class="pre">gpu</span></span><em class="property"><span class="pre">:</span> <span class="pre">int</span></em><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.Config.gpu" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.launch_blocking">
+<span class="sig-name descname"><span class="pre">launch_blocking</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#vltk.configs.Config.launch_blocking" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.logdir">
+<span class="sig-name descname"><span class="pre">logdir</span></span><em class="property"><span class="pre">:</span> <span class="pre">str</span></em><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.Config.logdir" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.logging">
+<span class="sig-name descname"><span class="pre">logging</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#vltk.configs.Config.logging" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.models">
+<span class="sig-name descname"><span class="pre">models</span></span><em class="property"><span class="pre">:</span> <a class="reference internal" href="#vltk.configs.ModelsConfig" title="vltk.configs.ModelsConfig"><span class="pre">vltk.configs.ModelsConfig</span></a></em><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.Config.models" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.percent_min_gpu_free_mem">
+<span class="sig-name descname"><span class="pre">percent_min_gpu_free_mem</span></span><em class="property"><span class="pre">:</span> <span class="pre">float</span></em><em class="property"> <span class="pre">=</span> <span class="pre">0.75</span></em><a class="headerlink" href="#vltk.configs.Config.percent_min_gpu_free_mem" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.print_config">
+<span class="sig-name descname"><span class="pre">print_config</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.Config.print_config" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.rel_logdir">
+<span class="sig-name descname"><span class="pre">rel_logdir</span></span><em class="property"><span class="pre">:</span> <span class="pre">str</span></em><em class="property"> <span class="pre">=</span> <span class="pre">''</span></em><a class="headerlink" href="#vltk.configs.Config.rel_logdir" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.save_after_epoch">
+<span class="sig-name descname"><span class="pre">save_after_epoch</span></span><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.Config.save_after_epoch" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.save_after_exp">
+<span class="sig-name descname"><span class="pre">save_after_exp</span></span><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#vltk.configs.Config.save_after_exp" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.save_on_crash">
+<span class="sig-name descname"><span class="pre">save_on_crash</span></span><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.Config.save_on_crash" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.seed">
+<span class="sig-name descname"><span class="pre">seed</span></span><em class="property"><span class="pre">:</span> <span class="pre">int</span></em><em class="property"> <span class="pre">=</span> <span class="pre">9595</span></em><a class="headerlink" href="#vltk.configs.Config.seed" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.test_run">
+<span class="sig-name descname"><span class="pre">test_run</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#vltk.configs.Config.test_run" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.test_save">
+<span class="sig-name descname"><span class="pre">test_save</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.Config.test_save" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.train">
+<span class="sig-name descname"><span class="pre">train</span></span><em class="property"><span class="pre">:</span> <span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#vltk.configs.FinetuneConfig" title="vltk.configs.FinetuneConfig"><span class="pre">vltk.configs.FinetuneConfig</span></a><span class="p"><span class="pre">,</span> </span><a class="reference internal" href="#vltk.configs.PretrainConfig" title="vltk.configs.PretrainConfig"><span class="pre">vltk.configs.PretrainConfig</span></a><span class="p"><span class="pre">]</span></span></em><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.Config.train" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.Config.vltk_checkpoint_dir">
+<span class="sig-name descname"><span class="pre">vltk_checkpoint_dir</span></span><em class="property"><span class="pre">:</span> <span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.Config.vltk_checkpoint_dir" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.configs.</span></span><span class="sig-name descname"><span class="pre">DataConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/configs.html#DataConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.configs.DataConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="vltk.abc.html#vltk.abc.config.Config" title="vltk.abc.config.Config"><code class="xref py py-class docutils literal notranslate"><span class="pre">vltk.abc.config.Config</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.add_visual_cls">
+<span class="sig-name descname"><span class="pre">add_visual_cls</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#vltk.configs.DataConfig.add_visual_cls" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.build">
+<span class="sig-name descname"><span class="pre">build</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/configs.html#DataConfig.build"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.configs.DataConfig.build" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.collate_simple">
+<span class="sig-name descname"><span class="pre">collate_simple</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#vltk.configs.DataConfig.collate_simple" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.datadir">
+<span class="sig-name descname"><span class="pre">datadir</span></span><em class="property"><span class="pre">:</span> <span class="pre">str</span></em><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.DataConfig.datadir" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.drop_last">
+<span class="sig-name descname"><span class="pre">drop_last</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#vltk.configs.DataConfig.drop_last" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.eval_batch_size">
+<span class="sig-name descname"><span class="pre">eval_batch_size</span></span><em class="property"> <span class="pre">=</span> <span class="pre">32</span></em><a class="headerlink" href="#vltk.configs.DataConfig.eval_batch_size" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.eval_datasets">
+<span class="sig-name descname"><span class="pre">eval_datasets</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.DataConfig.eval_datasets" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.extractor">
+<span class="sig-name descname"><span class="pre">extractor</span></span><em class="property"><span class="pre">:</span> <span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.DataConfig.extractor" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.ignore_annotations">
+<span class="sig-name descname"><span class="pre">ignore_annotations</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.DataConfig.ignore_annotations" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.ignore_filepath">
+<span class="sig-name descname"><span class="pre">ignore_filepath</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#vltk.configs.DataConfig.ignore_filepath" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.ignore_image">
+<span class="sig-name descname"><span class="pre">ignore_image</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.DataConfig.ignore_image" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.ignore_segmentation">
+<span class="sig-name descname"><span class="pre">ignore_segmentation</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.DataConfig.ignore_segmentation" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.img_first">
+<span class="sig-name descname"><span class="pre">img_first</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.DataConfig.img_first" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.labels">
+<span class="sig-name descname"><span class="pre">labels</span></span><em class="property"><span class="pre">:</span> <span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.DataConfig.labels" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.lang">
+<span class="sig-name descname"><span class="pre">lang</span></span><em class="property"><span class="pre">:</span> <span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#vltk.configs.LangConfig" title="vltk.configs.LangConfig"><span class="pre">vltk.configs.LangConfig</span></a><span class="p"><span class="pre">,</span> </span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></em><em class="property"> <span class="pre">=</span> <span class="pre">{}</span></em><a class="headerlink" href="#vltk.configs.DataConfig.lang" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.lang_processors">
+<span class="sig-name descname"><span class="pre">lang_processors</span></span><em class="property"><span class="pre">:</span> <span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.DataConfig.lang_processors" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.metadata_filedict">
+<span class="sig-name descname"><span class="pre">metadata_filedict</span></span><em class="property"><span class="pre">:</span> <span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.DataConfig.metadata_filedict" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.num_workers">
+<span class="sig-name descname"><span class="pre">num_workers</span></span><em class="property"><span class="pre">:</span> <span class="pre">int</span></em><em class="property"> <span class="pre">=</span> <span class="pre">8</span></em><a class="headerlink" href="#vltk.configs.DataConfig.num_workers" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.percent">
+<span class="sig-name descname"><span class="pre">percent</span></span><em class="property"><span class="pre">:</span> <span class="pre">int</span></em><em class="property"> <span class="pre">=</span> <span class="pre">1.0</span></em><a class="headerlink" href="#vltk.configs.DataConfig.percent" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.pin_memory">
+<span class="sig-name descname"><span class="pre">pin_memory</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.DataConfig.pin_memory" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.rand_feats">
+<span class="sig-name descname"><span class="pre">rand_feats</span></span><em class="property"><span class="pre">:</span> <span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">tuple</span><span class="p"><span class="pre">]</span></span></em><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.DataConfig.rand_feats" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.redownload">
+<span class="sig-name descname"><span class="pre">redownload</span></span><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.DataConfig.redownload" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.reextract">
+<span class="sig-name descname"><span class="pre">reextract</span></span><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.DataConfig.reextract" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.shuffle">
+<span class="sig-name descname"><span class="pre">shuffle</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#vltk.configs.DataConfig.shuffle" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.train_batch_size">
+<span class="sig-name descname"><span class="pre">train_batch_size</span></span><em class="property"> <span class="pre">=</span> <span class="pre">64</span></em><a class="headerlink" href="#vltk.configs.DataConfig.train_batch_size" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.train_datasets">
+<span class="sig-name descname"><span class="pre">train_datasets</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.DataConfig.train_datasets" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.visn">
+<span class="sig-name descname"><span class="pre">visn</span></span><em class="property"><span class="pre">:</span> <span class="pre">Union</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="#vltk.configs.VisionConfig" title="vltk.configs.VisionConfig"><span class="pre">vltk.configs.VisionConfig</span></a><span class="p"><span class="pre">,</span> </span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></em><em class="property"> <span class="pre">=</span> <span class="pre">{}</span></em><a class="headerlink" href="#vltk.configs.DataConfig.visn" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.visn_processors">
+<span class="sig-name descname"><span class="pre">visn_processors</span></span><em class="property"><span class="pre">:</span> <span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.DataConfig.visn_processors" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.DataConfig.visnlang_processors">
+<span class="sig-name descname"><span class="pre">visnlang_processors</span></span><em class="property"><span class="pre">:</span> <span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.DataConfig.visnlang_processors" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.configs.EvalConfig">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.configs.</span></span><span class="sig-name descname"><span class="pre">EvalConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/configs.html#EvalConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.configs.EvalConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="vltk.abc.html#vltk.abc.config.Config" title="vltk.abc.config.Config"><code class="xref py py-class docutils literal notranslate"><span class="pre">vltk.abc.config.Config</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.EvalConfig.half_precision">
+<span class="sig-name descname"><span class="pre">half_precision</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#vltk.configs.EvalConfig.half_precision" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.EvalConfig.task_mask_lm">
+<span class="sig-name descname"><span class="pre">task_mask_lm</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.EvalConfig.task_mask_lm" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.EvalConfig.task_matched">
+<span class="sig-name descname"><span class="pre">task_matched</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.EvalConfig.task_matched" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.EvalConfig.task_obj_predict">
+<span class="sig-name descname"><span class="pre">task_obj_predict</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.EvalConfig.task_obj_predict" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.EvalConfig.visual_attr_loss">
+<span class="sig-name descname"><span class="pre">visual_attr_loss</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.EvalConfig.visual_attr_loss" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.EvalConfig.visual_feat_loss">
+<span class="sig-name descname"><span class="pre">visual_feat_loss</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.EvalConfig.visual_feat_loss" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.EvalConfig.visual_obj_loss">
+<span class="sig-name descname"><span class="pre">visual_obj_loss</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.EvalConfig.visual_obj_loss" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.configs.FinetuneConfig">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.configs.</span></span><span class="sig-name descname"><span class="pre">FinetuneConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/configs.html#FinetuneConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.configs.FinetuneConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="vltk.abc.html#vltk.abc.config.Config" title="vltk.abc.config.Config"><code class="xref py py-class docutils literal notranslate"><span class="pre">vltk.abc.config.Config</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.FinetuneConfig.epochs">
+<span class="sig-name descname"><span class="pre">epochs</span></span><em class="property"><span class="pre">:</span> <span class="pre">int</span></em><em class="property"> <span class="pre">=</span> <span class="pre">4</span></em><a class="headerlink" href="#vltk.configs.FinetuneConfig.epochs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.FinetuneConfig.gamma">
+<span class="sig-name descname"><span class="pre">gamma</span></span><em class="property"><span class="pre">:</span> <span class="pre">float</span></em><em class="property"> <span class="pre">=</span> <span class="pre">0.01</span></em><a class="headerlink" href="#vltk.configs.FinetuneConfig.gamma" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.FinetuneConfig.half_precision">
+<span class="sig-name descname"><span class="pre">half_precision</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#vltk.configs.FinetuneConfig.half_precision" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.FinetuneConfig.learning_rate">
+<span class="sig-name descname"><span class="pre">learning_rate</span></span><em class="property"><span class="pre">:</span> <span class="pre">float</span></em><em class="property"> <span class="pre">=</span> <span class="pre">1e-05</span></em><a class="headerlink" href="#vltk.configs.FinetuneConfig.learning_rate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.FinetuneConfig.max_norm">
+<span class="sig-name descname"><span class="pre">max_norm</span></span><em class="property"><span class="pre">:</span> <span class="pre">float</span></em><em class="property"> <span class="pre">=</span> <span class="pre">5.0</span></em><a class="headerlink" href="#vltk.configs.FinetuneConfig.max_norm" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.FinetuneConfig.task_mask_lm">
+<span class="sig-name descname"><span class="pre">task_mask_lm</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.FinetuneConfig.task_mask_lm" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.FinetuneConfig.task_matched">
+<span class="sig-name descname"><span class="pre">task_matched</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.FinetuneConfig.task_matched" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.FinetuneConfig.task_obj_predict">
+<span class="sig-name descname"><span class="pre">task_obj_predict</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.FinetuneConfig.task_obj_predict" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.FinetuneConfig.visual_attr_loss">
+<span class="sig-name descname"><span class="pre">visual_attr_loss</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.FinetuneConfig.visual_attr_loss" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.FinetuneConfig.visual_feat_loss">
+<span class="sig-name descname"><span class="pre">visual_feat_loss</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.FinetuneConfig.visual_feat_loss" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.FinetuneConfig.visual_obj_loss">
+<span class="sig-name descname"><span class="pre">visual_obj_loss</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.FinetuneConfig.visual_obj_loss" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.FinetuneConfig.warmup">
+<span class="sig-name descname"><span class="pre">warmup</span></span><em class="property"><span class="pre">:</span> <span class="pre">float</span></em><em class="property"> <span class="pre">=</span> <span class="pre">0.1</span></em><a class="headerlink" href="#vltk.configs.FinetuneConfig.warmup" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.FinetuneConfig.weight_decay">
+<span class="sig-name descname"><span class="pre">weight_decay</span></span><em class="property"><span class="pre">:</span> <span class="pre">float</span></em><em class="property"> <span class="pre">=</span> <span class="pre">0.01</span></em><a class="headerlink" href="#vltk.configs.FinetuneConfig.weight_decay" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.configs.LangConfig">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.configs.</span></span><span class="sig-name descname"><span class="pre">LangConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/configs.html#LangConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.configs.LangConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="vltk.abc.html#vltk.abc.config.Config" title="vltk.abc.config.Config"><code class="xref py py-class docutils literal notranslate"><span class="pre">vltk.abc.config.Config</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.LangConfig.add_special_tokens">
+<span class="sig-name descname"><span class="pre">add_special_tokens</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#vltk.configs.LangConfig.add_special_tokens" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.LangConfig.feature_mask_rate">
+<span class="sig-name descname"><span class="pre">feature_mask_rate</span></span><em class="property"><span class="pre">:</span> <span class="pre">float</span></em><em class="property"> <span class="pre">=</span> <span class="pre">0.15</span></em><a class="headerlink" href="#vltk.configs.LangConfig.feature_mask_rate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.LangConfig.ignore_id">
+<span class="sig-name descname"><span class="pre">ignore_id</span></span><em class="property"><span class="pre">:</span> <span class="pre">int</span></em><em class="property"> <span class="pre">=</span> <span class="pre">-100</span></em><a class="headerlink" href="#vltk.configs.LangConfig.ignore_id" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.LangConfig.lowercase">
+<span class="sig-name descname"><span class="pre">lowercase</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.LangConfig.lowercase" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.LangConfig.max_seq_length">
+<span class="sig-name descname"><span class="pre">max_seq_length</span></span><em class="property"><span class="pre">:</span> <span class="pre">int</span></em><em class="property"> <span class="pre">=</span> <span class="pre">36</span></em><a class="headerlink" href="#vltk.configs.LangConfig.max_seq_length" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.LangConfig.max_visual_seq_length">
+<span class="sig-name descname"><span class="pre">max_visual_seq_length</span></span><em class="property"><span class="pre">:</span> <span class="pre">int</span></em><em class="property"> <span class="pre">=</span> <span class="pre">128</span></em><a class="headerlink" href="#vltk.configs.LangConfig.max_visual_seq_length" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.LangConfig.pad_direction">
+<span class="sig-name descname"><span class="pre">pad_direction</span></span><em class="property"><span class="pre">:</span> <span class="pre">str</span></em><em class="property"> <span class="pre">=</span> <span class="pre">'right'</span></em><a class="headerlink" href="#vltk.configs.LangConfig.pad_direction" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.LangConfig.random_feature_rate">
+<span class="sig-name descname"><span class="pre">random_feature_rate</span></span><em class="property"><span class="pre">:</span> <span class="pre">float</span></em><em class="property"> <span class="pre">=</span> <span class="pre">0.1</span></em><a class="headerlink" href="#vltk.configs.LangConfig.random_feature_rate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.LangConfig.random_word_rate">
+<span class="sig-name descname"><span class="pre">random_word_rate</span></span><em class="property"><span class="pre">:</span> <span class="pre">float</span></em><em class="property"> <span class="pre">=</span> <span class="pre">0.1</span></em><a class="headerlink" href="#vltk.configs.LangConfig.random_word_rate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.LangConfig.return_attention_mask">
+<span class="sig-name descname"><span class="pre">return_attention_mask</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#vltk.configs.LangConfig.return_attention_mask" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.LangConfig.return_tensors">
+<span class="sig-name descname"><span class="pre">return_tensors</span></span><em class="property"><span class="pre">:</span> <span class="pre">str</span></em><em class="property"> <span class="pre">=</span> <span class="pre">'pt'</span></em><a class="headerlink" href="#vltk.configs.LangConfig.return_tensors" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.LangConfig.return_token_type_ids">
+<span class="sig-name descname"><span class="pre">return_token_type_ids</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#vltk.configs.LangConfig.return_token_type_ids" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.LangConfig.sentence_match_rate">
+<span class="sig-name descname"><span class="pre">sentence_match_rate</span></span><em class="property"><span class="pre">:</span> <span class="pre">float</span></em><em class="property"> <span class="pre">=</span> <span class="pre">0.5</span></em><a class="headerlink" href="#vltk.configs.LangConfig.sentence_match_rate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.LangConfig.tokenizer">
+<span class="sig-name descname"><span class="pre">tokenizer</span></span><em class="property"><span class="pre">:</span> <span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">object</span><span class="p"><span class="pre">]</span></span></em><em class="property"> <span class="pre">=</span> <span class="pre">'BertWordPieceTokenizer'</span></em><a class="headerlink" href="#vltk.configs.LangConfig.tokenizer" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.LangConfig.truncate_sentence">
+<span class="sig-name descname"><span class="pre">truncate_sentence</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">True</span></em><a class="headerlink" href="#vltk.configs.LangConfig.truncate_sentence" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.LangConfig.vocab_path_or_name">
+<span class="sig-name descname"><span class="pre">vocab_path_or_name</span></span><em class="property"><span class="pre">:</span> <span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">None</span><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></em><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.LangConfig.vocab_path_or_name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.LangConfig.word_mask_rate">
+<span class="sig-name descname"><span class="pre">word_mask_rate</span></span><em class="property"><span class="pre">:</span> <span class="pre">float</span></em><em class="property"> <span class="pre">=</span> <span class="pre">0.15</span></em><a class="headerlink" href="#vltk.configs.LangConfig.word_mask_rate" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.configs.ModelConfig">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.configs.</span></span><span class="sig-name descname"><span class="pre">ModelConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/configs.html#ModelConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.configs.ModelConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="vltk.abc.html#vltk.abc.config.Config" title="vltk.abc.config.Config"><code class="xref py py-class docutils literal notranslate"><span class="pre">vltk.abc.config.Config</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.ModelConfig.checkpoint">
+<span class="sig-name descname"><span class="pre">checkpoint</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.ModelConfig.checkpoint" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.ModelConfig.freeze_embeddigs">
+<span class="sig-name descname"><span class="pre">freeze_embeddigs</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.ModelConfig.freeze_embeddigs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.ModelConfig.freeze_heads">
+<span class="sig-name descname"><span class="pre">freeze_heads</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.ModelConfig.freeze_heads" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.ModelConfig.freeze_layers">
+<span class="sig-name descname"><span class="pre">freeze_layers</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.ModelConfig.freeze_layers" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.configs.ModelsConfig">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.configs.</span></span><span class="sig-name descname"><span class="pre">ModelsConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/configs.html#ModelsConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.configs.ModelsConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="vltk.abc.html#vltk.abc.config.Config" title="vltk.abc.config.Config"><code class="xref py py-class docutils literal notranslate"><span class="pre">vltk.abc.config.Config</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.configs.ModelsConfig.add">
+<span class="sig-name descname"><span class="pre">add</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_config</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/configs.html#ModelsConfig.add"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.configs.ModelsConfig.add" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.ModelsConfig.all_on_same_device">
+<span class="sig-name descname"><span class="pre">all_on_same_device</span></span><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.ModelsConfig.all_on_same_device" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.ModelsConfig.checkpoint">
+<span class="sig-name descname"><span class="pre">checkpoint</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.ModelsConfig.checkpoint" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.ModelsConfig.main_model">
+<span class="sig-name descname"><span class="pre">main_model</span></span><em class="property"><span class="pre">:</span> <span class="pre">str</span></em><em class="property"> <span class="pre">=</span> <span class="pre">'lxmert'</span></em><a class="headerlink" href="#vltk.configs.ModelsConfig.main_model" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.ModelsConfig.models_to_devices">
+<span class="sig-name descname"><span class="pre">models_to_devices</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.configs.ModelsConfig.models_to_devices" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.configs.PretrainConfig">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.configs.</span></span><span class="sig-name descname"><span class="pre">PretrainConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/configs.html#PretrainConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.configs.PretrainConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="vltk.abc.html#vltk.abc.config.Config" title="vltk.abc.config.Config"><code class="xref py py-class docutils literal notranslate"><span class="pre">vltk.abc.config.Config</span></code></a></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.PretrainConfig.epochs">
+<span class="sig-name descname"><span class="pre">epochs</span></span><em class="property"><span class="pre">:</span> <span class="pre">int</span></em><em class="property"> <span class="pre">=</span> <span class="pre">4</span></em><a class="headerlink" href="#vltk.configs.PretrainConfig.epochs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.PretrainConfig.task_mask_lm">
+<span class="sig-name descname"><span class="pre">task_mask_lm</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.PretrainConfig.task_mask_lm" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.PretrainConfig.task_matched">
+<span class="sig-name descname"><span class="pre">task_matched</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.PretrainConfig.task_matched" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.PretrainConfig.task_obj_predict">
+<span class="sig-name descname"><span class="pre">task_obj_predict</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.PretrainConfig.task_obj_predict" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.PretrainConfig.visual_attr_loss">
+<span class="sig-name descname"><span class="pre">visual_attr_loss</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.PretrainConfig.visual_attr_loss" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.PretrainConfig.visual_feat_loss">
+<span class="sig-name descname"><span class="pre">visual_feat_loss</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.PretrainConfig.visual_feat_loss" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.PretrainConfig.visual_obj_loss">
+<span class="sig-name descname"><span class="pre">visual_obj_loss</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.PretrainConfig.visual_obj_loss" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.configs.VisionConfig">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.configs.</span></span><span class="sig-name descname"><span class="pre">VisionConfig</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/configs.html#VisionConfig"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.configs.VisionConfig" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="vltk.abc.html#vltk.abc.config.Config" title="vltk.abc.config.Config"><code class="xref py py-class docutils literal notranslate"><span class="pre">vltk.abc.config.Config</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.configs.VisionConfig.build">
+<span class="sig-name descname"><span class="pre">build</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/configs.html#VisionConfig.build"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.configs.VisionConfig.build" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.VisionConfig.grayscale">
+<span class="sig-name descname"><span class="pre">grayscale</span></span><em class="property"><span class="pre">:</span> <span class="pre">bool</span></em><em class="property"> <span class="pre">=</span> <span class="pre">False</span></em><a class="headerlink" href="#vltk.configs.VisionConfig.grayscale" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.VisionConfig.interpolation">
+<span class="sig-name descname"><span class="pre">interpolation</span></span><em class="property"> <span class="pre">=</span> <span class="pre">3</span></em><a class="headerlink" href="#vltk.configs.VisionConfig.interpolation" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.VisionConfig.size">
+<span class="sig-name descname"><span class="pre">size</span></span><em class="property"><span class="pre">:</span> <span class="pre">tuple</span></em><em class="property"> <span class="pre">=</span> <span class="pre">(256,</span> <span class="pre">256)</span></em><a class="headerlink" href="#vltk.configs.VisionConfig.size" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.configs.VisionConfig.transforms">
+<span class="sig-name descname"><span class="pre">transforms</span></span><em class="property"><span class="pre">:</span> <span class="pre">List</span></em><em class="property"> <span class="pre">=</span> <span class="pre">['FromFile',</span> <span class="pre">'Resize',</span> <span class="pre">'ToTensor']</span></em><a class="headerlink" href="#vltk.configs.VisionConfig.transforms" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-vltk.features">
+<span id="vltk-features-module"></span><h2>vltk.features module<a class="headerlink" href="#module-vltk.features" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.features.Features">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.features.</span></span><span class="sig-name descname"><span class="pre">Features</span></span><a class="reference internal" href="_modules/vltk/features.html#Features"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.features.Features" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.features.Features.BoolList">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">BoolList</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/features.html#Features.BoolList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.features.Features.BoolList" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.features.Features.Box">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">Box</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/features.html#Features.Box"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.features.Features.Box" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.features.Features.Boxes">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">Boxes</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/features.html#Features.Boxes"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.features.Features.Boxes" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.features.Features.Boxtensor">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">Boxtensor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/features.html#Features.Boxtensor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.features.Features.Boxtensor" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.features.Features.Features2D">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">Features2D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">d</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/features.html#Features.Features2D"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.features.Features.Features2D" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.features.Features.Features3D">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">Features3D</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">n</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">d</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/features.html#Features.Features3D"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.features.Features.Features3D" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.features.Features.Float">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">Float</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/features.html#Features.Float"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.features.Features.Float" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.features.Features.FloatList">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">FloatList</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/features.html#Features.FloatList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.features.Features.FloatList" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.features.Features.Ids">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">Ids</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/features.html#Features.Ids"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.features.Features.Ids" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.features.Features.Imgid">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">Imgid</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/features.html#Features.Imgid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.features.Features.Imgid" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.features.Features.Int">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">Int</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/features.html#Features.Int"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.features.Features.Int" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.features.Features.IntList">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">IntList</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/features.html#Features.IntList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.features.Features.IntList" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.features.Features.NestedIntList">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">NestedIntList</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/features.html#Features.NestedIntList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.features.Features.NestedIntList" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.features.Features.NestedStringList">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">NestedStringList</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/features.html#Features.NestedStringList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.features.Features.NestedStringList" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.features.Features.Polygons">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">Polygons</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/features.html#Features.Polygons"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.features.Features.Polygons" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.features.Features.RLE">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">RLE</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/features.html#Features.RLE"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.features.Features.RLE" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.features.Features.Span">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">Span</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/features.html#Features.Span"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.features.Features.Span" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.features.Features.String">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">String</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/features.html#Features.String"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.features.Features.String" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.features.Features.StringList">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">StringList</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/features.html#Features.StringList"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.features.Features.StringList" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-vltk.vars">
+<span id="vltk-vars-module"></span><h2>vltk.vars module<a class="headerlink" href="#module-vltk.vars" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-vltk">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-vltk" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="vltk.build">
+<span class="sig-prename descclassname"><span class="pre">vltk.</span></span><span class="sig-name descname"><span class="pre">build</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk.html#build"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.build" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="vltk.abc.html" class="btn btn-neutral float-right" title="vltk.abc package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="modules.html" class="btn btn-neutral float-left" title="VLTK Modules" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Antonio Mendoza.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

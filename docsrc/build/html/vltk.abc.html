@@ -1,0 +1,656 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>vltk.abc package &mdash; VLTK: The Vision Language Toolkit 1.0.3 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="./" src="_static/documentation_options.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="vltk.adapters package" href="vltk.adapters.html" />
+    <link rel="prev" title="vltk package" href="vltk.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="index.html" class="icon icon-home"> VLTK: The Vision Language Toolkit
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <p class="caption"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">VLTK Modules</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="vltk.html">vltk package</a><ul class="current">
+<li class="toctree-l3 current"><a class="reference internal" href="vltk.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4 current"><a class="current reference internal" href="#">vltk.abc package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="vltk.adapters.html">vltk.adapters package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="vltk.datasets.html">vltk.datasets package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="vltk.processing.html">vltk.processing package</a></li>
+<li class="toctree-l4"><a class="reference internal" href="vltk.utils.html">vltk.utils package</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="vltk.html#submodules">Submodules</a></li>
+<li class="toctree-l3"><a class="reference internal" href="vltk.html#module-vltk.configs">vltk.configs module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="vltk.html#module-vltk.features">vltk.features module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="vltk.html#module-vltk.vars">vltk.vars module</a></li>
+<li class="toctree-l3"><a class="reference internal" href="vltk.html#module-vltk">Module contents</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">VLTK: The Vision Language Toolkit</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="modules.html">VLTK Modules</a> &raquo;</li>
+        
+          <li><a href="vltk.html">vltk package</a> &raquo;</li>
+        
+      <li>vltk.abc package</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="_sources/vltk.abc.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <div class="section" id="vltk-abc-package">
+<h1>vltk.abc package<a class="headerlink" href="#vltk-abc-package" title="Permalink to this headline">¶</a></h1>
+<div class="section" id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-vltk.abc.adapter">
+<span id="vltk-abc-adapter-module"></span><h2>vltk.abc.adapter module<a class="headerlink" href="#module-vltk.abc.adapter" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.abc.adapter.Adapter">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.abc.adapter.</span></span><span class="sig-name descname"><span class="pre">Adapter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arrow_table</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">meta_dict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">split</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">info</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fingerprint_off</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/adapter.html#Adapter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.adapter.Adapter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">datasets.arrow_dataset.Dataset</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.adapter.Adapter.download">
+<em class="property"><span class="pre">classmethod</span> </em><span class="sig-name descname"><span class="pre">download</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datadir</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/adapter.html#Adapter.download"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.adapter.Adapter.download" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.abc.adapter.Adapter.filters">
+<span class="sig-name descname"><span class="pre">filters</span></span><em class="property"><span class="pre">:</span> <span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">]</span></span></em><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.abc.adapter.Adapter.filters" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adapter Property that stores a list of string that indicate which patterns
+should be avoided when the Adapter searches for relavant files.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.adapter.Adapter.forward">
+<em class="property"><span class="pre">abstract</span> </em><span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/adapter.html#Adapter.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.adapter.Adapter.forward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.adapter.Adapter.get">
+<span class="sig-name descname"><span class="pre">get</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">img_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_dataset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/adapter.html#Adapter.get"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.adapter.Adapter.get" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.adapter.Adapter.get_idx">
+<span class="sig-name descname"><span class="pre">get_idx</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">img_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/adapter.html#Adapter.get_idx"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.adapter.Adapter.get_idx" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.adapter.Adapter.get_metadata_counters">
+<span class="sig-name descname"><span class="pre">get_metadata_counters</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/adapter.html#Adapter.get_metadata_counters"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.adapter.Adapter.get_metadata_counters" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.adapter.Adapter.has">
+<span class="sig-name descname"><span class="pre">has</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">img_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/adapter.html#Adapter.has"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.adapter.Adapter.has" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="vltk.abc.adapter.Adapter.img_to_row_map">
+<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">img_to_row_map</span></span><a class="headerlink" href="#vltk.abc.adapter.Adapter.img_to_row_map" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.adapter.Adapter.imgid_filter">
+<span class="sig-name descname"><span class="pre">imgid_filter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">imgids</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">is_visnlang</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/adapter.html#Adapter.imgid_filter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.adapter.Adapter.imgid_filter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="vltk.abc.adapter.Adapter.imgids">
+<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">imgids</span></span><a class="headerlink" href="#vltk.abc.adapter.Adapter.imgids" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.adapter.Adapter.load">
+<em class="property"><span class="pre">classmethod</span> </em><span class="sig-name descname"><span class="pre">load</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">split</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/adapter.html#Adapter.load"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.adapter.Adapter.load" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="vltk.abc.adapter.Adapter.meta_dict">
+<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">meta_dict</span></span><a class="headerlink" href="#vltk.abc.adapter.Adapter.meta_dict" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="vltk.abc.adapter.Adapter.n_imgs">
+<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">n_imgs</span></span><a class="headerlink" href="#vltk.abc.adapter.Adapter.n_imgs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="vltk.abc.adapter.Adapter.name">
+<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">name</span></span><a class="headerlink" href="#vltk.abc.adapter.Adapter.name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.adapter.Adapter.schema">
+<em class="property"><span class="pre">abstract</span> </em><span class="sig-name descname"><span class="pre">schema</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/adapter.html#Adapter.schema"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.adapter.Adapter.schema" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.adapter.Adapter.shuffle">
+<span class="sig-name descname"><span class="pre">shuffle</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/adapter.html#Adapter.shuffle"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.adapter.Adapter.shuffle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create a new Dataset where the rows are shuffled.</p>
+<p>Currently shuffling uses numpy random generators.
+You can either supply a NumPy BitGenerator to use, or a seed to initiate NumPy’s default random generator (PCG64).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>seed</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>, optional) – A seed to initialize the default BitGenerator if <code class="docutils literal notranslate"><span class="pre">generator=None</span></code>.
+If None, then fresh, unpredictable entropy will be pulled from the OS.
+If an int or array_like[ints] is passed, then it will be passed to SeedSequence to derive the initial BitGenerator state.</p></li>
+<li><p><strong>generator</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">numpy.random.Generator</span></code>, optional) – Numpy random Generator to use to compute the permutation of the dataset rows.
+If <code class="docutils literal notranslate"><span class="pre">generator=None</span></code> (default), uses np.random.default_rng (the default BitGenerator (PCG64) of NumPy).</p></li>
+<li><p><strong>keep_in_memory</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">bool</span></code>, default <cite>False</cite>) – Keep the shuffled indices in memory instead of writing it to a cache file.</p></li>
+<li><p><strong>load_from_cache_file</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">bool</span></code>, default <cite>True</cite>) – If a cache file storing the shuffled indices
+can be identified, use it instead of recomputing.</p></li>
+<li><p><strong>indices_cache_file_name</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">str</span></code>, optional) – Provide the name of a path for the cache file. It is used to store the
+shuffled indices instead of the automatically generated cache file name.</p></li>
+<li><p><strong>writer_batch_size</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">int</span></code>, default <cite>1000</cite>) – Number of rows per write operation for the cache file writer.
+This value is a good trade-off between memory usage during the processing, and processing speed.
+Higher value makes the processing do fewer lookups, lower value consume less temporary memory while running <cite>.map()</cite>.</p></li>
+<li><p><strong>new_fingerprint</strong> (<code class="xref py py-obj docutils literal notranslate"><span class="pre">str</span></code>, optional, default <cite>None</cite>) – the new fingerprint of the dataset after transform.
+If <cite>None</cite>, the new fingerprint is computed using a hash of the previous fingerprint, and the transform arguments</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.abc.adapter.Adapter.urls">
+<span class="sig-name descname"><span class="pre">urls</span></span><em class="property"><span class="pre">:</span> <span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">,</span> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.abc.adapter.Adapter.urls" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adapter Property that stores a list of string or just a string which link to
+download urls.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="vltk-abc-checkpoint-module">
+<h2>vltk.abc.checkpoint module<a class="headerlink" href="#vltk-abc-checkpoint-module" title="Permalink to this headline">¶</a></h2>
+</div>
+<div class="section" id="module-vltk.abc.config">
+<span id="vltk-abc-config-module"></span><h2>vltk.abc.config module<a class="headerlink" href="#module-vltk.abc.config" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.abc.config.Config">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.abc.config.</span></span><span class="sig-name descname"><span class="pre">Config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/config.html#Config"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.config.Config" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.config.Config.dump_json">
+<span class="sig-name descname"><span class="pre">dump_json</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/config.html#Config.dump_json"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.config.Config.dump_json" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.config.Config.dump_yaml">
+<span class="sig-name descname"><span class="pre">dump_yaml</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/config.html#Config.dump_yaml"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.config.Config.dump_yaml" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.config.Config.from_dict">
+<em class="property"><span class="pre">classmethod</span> </em><span class="sig-name descname"><span class="pre">from_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config_dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/config.html#Config.from_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.config.Config.from_dict" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.config.Config.handle_iterables">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">handle_iterables</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/config.html#Config.handle_iterables"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.config.Config.handle_iterables" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.config.Config.list_subconfigs">
+<span class="sig-name descname"><span class="pre">list_subconfigs</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/config.html#Config.list_subconfigs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.config.Config.list_subconfigs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.config.Config.load">
+<em class="property"><span class="pre">classmethod</span> </em><span class="sig-name descname"><span class="pre">load</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fp_name_dict</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span> </span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/config.html#Config.load"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.config.Config.load" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.config.Config.parse">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">parse</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arg</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/config.html#Config.parse"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.config.Config.parse" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.config.Config.to_dict">
+<span class="sig-name descname"><span class="pre">to_dict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/config.html#Config.to_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.config.Config.to_dict" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.config.Config.update">
+<span class="sig-name descname"><span class="pre">update</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">updates</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/config.html#Config.update"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.config.Config.update" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-vltk.abc.extraction">
+<span id="vltk-abc-extraction-module"></span><h2>vltk.abc.extraction module<a class="headerlink" href="#module-vltk.abc.extraction" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.abc.extraction.VisnExtraction">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.abc.extraction.</span></span><span class="sig-name descname"><span class="pre">VisnExtraction</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arrow_table</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">meta_dict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">split</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">info</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fingerprint_off</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/extraction.html#VisnExtraction"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.extraction.VisnExtraction" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#vltk.abc.adapter.Adapter" title="vltk.abc.adapter.Adapter"><code class="xref py py-class docutils literal notranslate"><span class="pre">vltk.abc.adapter.Adapter</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.extraction.VisnExtraction.align_imgids">
+<span class="sig-name descname"><span class="pre">align_imgids</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/extraction.html#VisnExtraction.align_imgids"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.extraction.VisnExtraction.align_imgids" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.extraction.VisnExtraction.check_imgid_alignment">
+<span class="sig-name descname"><span class="pre">check_imgid_alignment</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/extraction.html#VisnExtraction.check_imgid_alignment"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.extraction.VisnExtraction.check_imgid_alignment" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="vltk.abc.extraction.VisnExtraction.config">
+<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">config</span></span><a class="headerlink" href="#vltk.abc.extraction.VisnExtraction.config" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="vltk.abc.extraction.VisnExtraction.dataset">
+<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">dataset</span></span><a class="headerlink" href="#vltk.abc.extraction.VisnExtraction.dataset" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="vltk.abc.extraction.VisnExtraction.default_processor">
+<span class="sig-name descname"><span class="pre">default_processor</span></span><em class="property"> <span class="pre">=</span> <span class="pre">None</span></em><a class="headerlink" href="#vltk.abc.extraction.VisnExtraction.default_processor" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.extraction.VisnExtraction.extract">
+<em class="property"><span class="pre">classmethod</span> </em><span class="sig-name descname"><span class="pre">extract</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datadir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">processor_config</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">splits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">subset_ids</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">img_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'jpg'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">processor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/extraction.html#VisnExtraction.extract"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.extraction.VisnExtraction.extract" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.extraction.VisnExtraction.forward">
+<em class="property"><span class="pre">abstract</span> </em><span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">entry</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/extraction.html#VisnExtraction.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.extraction.VisnExtraction.forward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.extraction.VisnExtraction.processor">
+<span class="sig-name descname"><span class="pre">processor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/extraction.html#VisnExtraction.processor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.extraction.VisnExtraction.processor" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="vltk.abc.extraction.VisnExtraction.processor_args">
+<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">processor_args</span></span><a class="headerlink" href="#vltk.abc.extraction.VisnExtraction.processor_args" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.extraction.VisnExtraction.schema">
+<em class="property"><span class="pre">abstract</span> </em><span class="sig-name descname"><span class="pre">schema</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/extraction.html#VisnExtraction.schema"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.extraction.VisnExtraction.schema" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.extraction.VisnExtraction.setup">
+<em class="property"><span class="pre">abstract</span> </em><span class="sig-name descname"><span class="pre">setup</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/extraction.html#VisnExtraction.setup"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.extraction.VisnExtraction.setup" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-vltk.abc.processor">
+<span id="vltk-abc-processor-module"></span><h2>vltk.abc.processor module<a class="headerlink" href="#module-vltk.abc.processor" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.abc.processor.LangProcessor">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.abc.processor.</span></span><span class="sig-name descname"><span class="pre">LangProcessor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/processor.html#LangProcessor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.processor.LangProcessor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#vltk.abc.processor.Processor" title="vltk.abc.processor.Processor"><code class="xref py py-class docutils literal notranslate"><span class="pre">vltk.abc.processor.Processor</span></code></a></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.abc.processor.Processor">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.abc.processor.</span></span><span class="sig-name descname"><span class="pre">Processor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/processor.html#Processor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.processor.Processor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<dl class="py property">
+<dt class="sig sig-object py" id="vltk.abc.processor.Processor.keys">
+<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">keys</span></span><a class="headerlink" href="#vltk.abc.processor.Processor.keys" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.abc.processor.VisnLangProcessor">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.abc.processor.</span></span><span class="sig-name descname"><span class="pre">VisnLangProcessor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/processor.html#VisnLangProcessor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.processor.VisnLangProcessor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#vltk.abc.processor.Processor" title="vltk.abc.processor.Processor"><code class="xref py py-class docutils literal notranslate"><span class="pre">vltk.abc.processor.Processor</span></code></a></p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.abc.processor.VisnProcessor">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.abc.processor.</span></span><span class="sig-name descname"><span class="pre">VisnProcessor</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/processor.html#VisnProcessor"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.processor.VisnProcessor" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#vltk.abc.processor.Processor" title="vltk.abc.processor.Processor"><code class="xref py py-class docutils literal notranslate"><span class="pre">vltk.abc.processor.Processor</span></code></a></p>
+</dd></dl>
+
+</div>
+<div class="section" id="module-vltk.abc.visnadapter">
+<span id="vltk-abc-visnadapter-module"></span><h2>vltk.abc.visnadapter module<a class="headerlink" href="#module-vltk.abc.visnadapter" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.abc.visnadapter.VisnDataset">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.abc.visnadapter.</span></span><span class="sig-name descname"><span class="pre">VisnDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arrow_table</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">meta_dict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">split</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">info</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fingerprint_off</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/visnadapter.html#VisnDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.visnadapter.VisnDataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#vltk.abc.adapter.Adapter" title="vltk.abc.adapter.Adapter"><code class="xref py py-class docutils literal notranslate"><span class="pre">vltk.abc.adapter.Adapter</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.visnadapter.VisnDataset.adjust_imgid">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">adjust_imgid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">img_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/visnadapter.html#VisnDataset.adjust_imgid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.visnadapter.VisnDataset.adjust_imgid" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sometimes the image IDS provided in Vision datasets are repeated in different datasets. If that is the case, implementing
+this optional function will adjust the image id in aims to appropriately mactch
+the corresponging dataset try prepending the dataset name</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.visnadapter.VisnDataset.align_imgids">
+<span class="sig-name descname"><span class="pre">align_imgids</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/visnadapter.html#VisnDataset.align_imgids"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.visnadapter.VisnDataset.align_imgids" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.visnadapter.VisnDataset.check_imgid_alignment">
+<span class="sig-name descname"><span class="pre">check_imgid_alignment</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/visnadapter.html#VisnDataset.check_imgid_alignment"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.visnadapter.VisnDataset.check_imgid_alignment" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.visnadapter.VisnDataset.extract">
+<em class="property"><span class="pre">classmethod</span> </em><span class="sig-name descname"><span class="pre">extract</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">searchdir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">savedir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'jpg'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ignore_files</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/visnadapter.html#VisnDataset.extract"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.visnadapter.VisnDataset.extract" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.visnadapter.VisnDataset.filepath">
+<em class="property"><span class="pre">classmethod</span> </em><span class="sig-name descname"><span class="pre">filepath</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">imgid</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">datadir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">split</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/visnadapter.html#VisnDataset.filepath"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.visnadapter.VisnDataset.filepath" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.visnadapter.VisnDataset.files">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">split</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/visnadapter.html#VisnDataset.files"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.visnadapter.VisnDataset.files" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.visnadapter.VisnDataset.forward">
+<em class="property"><span class="pre">abstract</span> </em><span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/visnadapter.html#VisnDataset.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.visnadapter.VisnDataset.forward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="vltk.abc.visnadapter.VisnDataset.labels">
+<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">labels</span></span><a class="headerlink" href="#vltk.abc.visnadapter.VisnDataset.labels" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.visnadapter.VisnDataset.load_imgid2path">
+<em class="property"><span class="pre">classmethod</span> </em><span class="sig-name descname"><span class="pre">load_imgid2path</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">datadir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">split</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/visnadapter.html#VisnDataset.load_imgid2path"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.visnadapter.VisnDataset.load_imgid2path" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.visnadapter.VisnDataset.schema">
+<em class="property"><span class="pre">abstract</span> </em><span class="sig-name descname"><span class="pre">schema</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/visnadapter.html#VisnDataset.schema"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.visnadapter.VisnDataset.schema" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="vltk.abc.visnadapter.VisnDataset.vocab">
+<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">vocab</span></span><a class="headerlink" href="#vltk.abc.visnadapter.VisnDataset.vocab" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-vltk.abc.visnlangadatper">
+<span id="vltk-abc-visnlangadatper-module"></span><h2>vltk.abc.visnlangadatper module<a class="headerlink" href="#module-vltk.abc.visnlangadatper" title="Permalink to this headline">¶</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="vltk.abc.visnlangadatper.VisnLangDataset">
+<em class="property"><span class="pre">class</span> </em><span class="sig-prename descclassname"><span class="pre">vltk.abc.visnlangadatper.</span></span><span class="sig-name descname"><span class="pre">VisnLangDataset</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">arrow_table</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">meta_dict</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">split</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">info</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fingerprint_off</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/visnlangadatper.html#VisnLangDataset"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.visnlangadatper.VisnLangDataset" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#vltk.abc.adapter.Adapter" title="vltk.abc.adapter.Adapter"><code class="xref py py-class docutils literal notranslate"><span class="pre">vltk.abc.adapter.Adapter</span></code></a></p>
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.visnlangadatper.VisnLangDataset.adjust_imgid">
+<em class="property"><span class="pre">static</span> </em><span class="sig-name descname"><span class="pre">adjust_imgid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">img_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataset_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">split_name</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/visnlangadatper.html#VisnLangDataset.adjust_imgid"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.visnlangadatper.VisnLangDataset.adjust_imgid" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sometimes the image IDS provided in Vision-Language datasets do not map to the
+actual image ID in the reffered vision dataset. If that is the case, implementing
+this optional function will adjust the image id in aims to appropriately mactch
+the corresponging dataset</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="vltk.abc.visnlangadatper.VisnLangDataset.answer_frequencies">
+<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">answer_frequencies</span></span><a class="headerlink" href="#vltk.abc.visnlangadatper.VisnLangDataset.answer_frequencies" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="vltk.abc.visnlangadatper.VisnLangDataset.data_info">
+<em class="property"><span class="pre">abstract</span> <span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">data_info</span></span><em class="property"><span class="pre">:</span> <span class="pre">dict</span></em><a class="headerlink" href="#vltk.abc.visnlangadatper.VisnLangDataset.data_info" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.visnlangadatper.VisnLangDataset.extract">
+<em class="property"><span class="pre">classmethod</span> </em><span class="sig-name descname"><span class="pre">extract</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">searchdir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">splits</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">supervised</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">savedir</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_label_frequency</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">9</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_preprocessor</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'label_default'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/visnlangadatper.html#VisnLangDataset.extract"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.visnlangadatper.VisnLangDataset.extract" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.visnlangadatper.VisnLangDataset.forward">
+<em class="property"><span class="pre">abstract</span> </em><span class="sig-name descname"><span class="pre">forward</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">split</span></span><span class="p"><span class="pre">:</span></span> <span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> &#x2192; <span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span><a class="reference internal" href="_modules/vltk/abc/visnlangadatper.html#VisnLangDataset.forward"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.visnlangadatper.VisnLangDataset.forward" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.visnlangadatper.VisnLangDataset.get_frequency">
+<span class="sig-name descname"><span class="pre">get_frequency</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/visnlangadatper.html#VisnLangDataset.get_frequency"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.visnlangadatper.VisnLangDataset.get_frequency" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="vltk.abc.visnlangadatper.VisnLangDataset.labels">
+<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">labels</span></span><a class="headerlink" href="#vltk.abc.visnlangadatper.VisnLangDataset.labels" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="vltk.abc.visnlangadatper.VisnLangDataset.n_labels">
+<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">n_labels</span></span><a class="headerlink" href="#vltk.abc.visnlangadatper.VisnLangDataset.n_labels" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="vltk.abc.visnlangadatper.VisnLangDataset.split">
+<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">split</span></span><a class="headerlink" href="#vltk.abc.visnlangadatper.VisnLangDataset.split" title="Permalink to this definition">¶</a></dt>
+<dd><p><code class="xref py py-class docutils literal notranslate"><span class="pre">datasets.NamedSplit</span></code> object corresponding to a named dataset split.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.visnlangadatper.VisnLangDataset.text_first">
+<span class="sig-name descname"><span class="pre">text_first</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/visnlangadatper.html#VisnLangDataset.text_first"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.visnlangadatper.VisnLangDataset.text_first" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="vltk.abc.visnlangadatper.VisnLangDataset.text_iter">
+<span class="sig-name descname"><span class="pre">text_iter</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="_modules/vltk/abc/visnlangadatper.html#VisnLangDataset.text_iter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#vltk.abc.visnlangadatper.VisnLangDataset.text_iter" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="vltk.abc.visnlangadatper.VisnLangDataset.uniq_imgs">
+<em class="property"><span class="pre">property</span> </em><span class="sig-name descname"><span class="pre">uniq_imgs</span></span><a class="headerlink" href="#vltk.abc.visnlangadatper.VisnLangDataset.uniq_imgs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="module-vltk.abc">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-vltk.abc" title="Permalink to this headline">¶</a></h2>
+</div>
+</div>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="vltk.adapters.html" class="btn btn-neutral float-right" title="vltk.adapters package" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="vltk.html" class="btn btn-neutral float-left" title="vltk package" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Antonio Mendoza.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
