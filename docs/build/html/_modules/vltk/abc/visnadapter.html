@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>vltk.abc.visnadapter &mdash; VLTK: The Vision Language Toolkit 1.0.2 documentation</title>
+  <title>vltk.abc.visnadapter &mdash; VLTK: The Vision Language Toolkit 1.0.3 documentation</title>
   
 
   
@@ -270,7 +270,7 @@
             <span class="n">anno_data</span> <span class="o">=</span> <span class="n">try_load</span><span class="p">(</span><span class="n">anno_file</span><span class="p">)</span>
             <span class="n">json_files</span><span class="p">[</span><span class="nb">str</span><span class="p">(</span><span class="n">anno_file</span><span class="p">)</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]]</span> <span class="o">=</span> <span class="n">anno_data</span>
 
-        <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;datadir&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;/&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">searchdir</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)[:</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
+        <span class="n">kwargs</span><span class="p">[</span><span class="s2">&quot;datadir&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;/&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">searchdir</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">))</span>
         <span class="n">forward_dict</span> <span class="o">=</span> <span class="n">collect_args_to_func</span><span class="p">(</span><span class="bp">cls</span><span class="o">.</span><span class="n">forward</span><span class="p">,</span> <span class="n">kwargs</span><span class="o">=</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="n">total_annos</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">forward</span><span class="p">(</span><span class="n">json_files</span><span class="p">,</span> <span class="n">temp_splits</span><span class="p">,</span> <span class="o">**</span><span class="n">forward_dict</span><span class="p">)</span>
 

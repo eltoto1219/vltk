@@ -7,7 +7,7 @@
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   
-  <title>vltk.adapters &mdash; VLTK: The Vision Language Toolkit 1.0.2 documentation</title>
+  <title>vltk.adapters &mdash; VLTK: The Vision Language Toolkit 1.0.3 documentation</title>
   
 
   
@@ -173,21 +173,28 @@
         <span class="k">if</span> <span class="s2">&quot;ADAPTERDICT&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="nb">globals</span><span class="p">():</span>
             <span class="k">global</span> <span class="n">ADAPTERDICT</span>
             <span class="n">ADAPTERDICT</span> <span class="o">=</span> <span class="n">get_classes</span><span class="p">(</span><span class="n">vltk</span><span class="o">.</span><span class="n">ADAPTERS</span><span class="p">,</span> <span class="n">Adapter</span><span class="p">,</span> <span class="n">pkg</span><span class="o">=</span><span class="s2">&quot;vltk.adapters&quot;</span><span class="p">)</span>
+        <span class="c1"># top = inspect.stack()[-1][1]</span>
+        <span class="c1"># name = &quot;/&quot;.join(top.split(&quot;/&quot;)[:-1])</span>
+        <span class="c1"># top = top.split(&quot;/&quot;)[-1].split(&quot;.&quot;)[0]</span>
+        <span class="c1"># sys.path.append(name)</span>
+        <span class="c1"># __import__(top)</span>
+        <span class="c1"># clsmembers = inspect.getmembers(sys.modules[top])</span>
+        <span class="c1"># raise Exception(&quot;woo&quot;, clsmembers)</span>
 
 <div class="viewcode-block" id="Adapters.is_visnlang"><a class="viewcode-back" href="../../vltk.adapters.html#vltk.adapters.Adapters.is_visnlang">[docs]</a>    <span class="k">def</span> <span class="nf">is_visnlang</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">adapter</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
         <span class="k">assert</span> <span class="n">adapter</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">avail</span><span class="p">(),</span> <span class="sa">f</span><span class="s2">&quot;adapter </span><span class="si">{</span><span class="n">adapter</span><span class="si">}</span><span class="s2"> not is not available&quot;</span>
         <span class="n">adapter_class</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">adapter</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">adapter_class</span><span class="o">.</span><span class="vm">__bases__</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">VisnLangDataset</span></div>
+        <span class="k">return</span> <span class="n">VisnLangDataset</span> <span class="ow">in</span> <span class="n">adapter_class</span><span class="o">.</span><span class="vm">__bases__</span></div>
 
 <div class="viewcode-block" id="Adapters.is_visn"><a class="viewcode-back" href="../../vltk.adapters.html#vltk.adapters.Adapters.is_visn">[docs]</a>    <span class="k">def</span> <span class="nf">is_visn</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">adapter</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
         <span class="k">assert</span> <span class="n">adapter</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">avail</span><span class="p">(),</span> <span class="sa">f</span><span class="s2">&quot;adapter </span><span class="si">{</span><span class="n">adapter</span><span class="si">}</span><span class="s2"> not is not available&quot;</span>
         <span class="n">adapter_class</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">adapter</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">adapter_class</span><span class="o">.</span><span class="vm">__bases__</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">VisnDataset</span></div>
+        <span class="k">return</span> <span class="n">VisnDataset</span> <span class="ow">in</span> <span class="n">adapter_class</span><span class="o">.</span><span class="vm">__bases__</span></div>
 
 <div class="viewcode-block" id="Adapters.is_extraction"><a class="viewcode-back" href="../../vltk.adapters.html#vltk.adapters.Adapters.is_extraction">[docs]</a>    <span class="k">def</span> <span class="nf">is_extraction</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">adapter</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
         <span class="k">assert</span> <span class="n">adapter</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">avail</span><span class="p">(),</span> <span class="sa">f</span><span class="s2">&quot;adapter </span><span class="si">{</span><span class="n">adapter</span><span class="si">}</span><span class="s2"> not is not available&quot;</span>
         <span class="n">adapter_class</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">adapter</span><span class="p">)</span>
-        <span class="k">return</span> <span class="n">adapter_class</span><span class="o">.</span><span class="vm">__bases__</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">==</span> <span class="n">VisnExtraction</span></div>
+        <span class="k">return</span> <span class="n">VisnExtraction</span> <span class="ow">in</span> <span class="n">adapter_class</span><span class="o">.</span><span class="vm">__bases__</span></div>
 
 <div class="viewcode-block" id="Adapters.avail"><a class="viewcode-back" href="../../vltk.adapters.html#vltk.adapters.Adapters.avail">[docs]</a>    <span class="nd">@staticmethod</span>
     <span class="k">def</span> <span class="nf">avail</span><span class="p">():</span>
