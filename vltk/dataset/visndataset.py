@@ -74,13 +74,10 @@ class VisionDataset(BaseDataset):
         self._init_image_processor(config)
         self._init_vision_processors(config)
         self.visndatasetadapterdict = visndatasetadapterdict
-        # later if we need
-        # print(len(set(annotationdict["funsdaug"].imgids)))
 
         annotationdict, imgids2pathes, n_imgs = self._shrink_annotation_dicts(
             annotationdict, visndatasetadapterdict
         )
-        # print(len(set(annotationdict["funsdaug"].imgids)))
 
         self._init_annotation_dict(config, annotationdict)
         self.img_id_to_path = imgids2pathes

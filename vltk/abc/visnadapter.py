@@ -112,7 +112,7 @@ class VisnDataset(Adapter):
             anno_data = try_load(anno_file)
             json_files[str(anno_file).split("/")[-1]] = anno_data
 
-        kwargs["datadir"] = "/".join(searchdir.split("/")[:-2])
+        kwargs["datadir"] = "/".join(searchdir.split("/"))
         forward_dict = collect_args_to_func(cls.forward, kwargs=kwargs)
         total_annos = cls.forward(json_files, temp_splits, **forward_dict)
 
