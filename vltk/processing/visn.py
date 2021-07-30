@@ -130,15 +130,16 @@ class OCRBox(VisnProcessor):
         tokenboxes = entry.pop(vltk.tokenbox)
         if self.config.add_visual_cls:
             tokenboxes = [[0, 0, *entry[vltk.rawsize]]] + tokenboxes
-        tokenmap = entry.get(vltk.tokenmap)
-        tokenboxes = list(
-            chain(
-                *map(
-                    lambda x: [x[0]] * x[1],
-                    zip(tokenboxes, tokenmap),
+        if vltk.tokenmap in entry:
+            tokenmap = entry.get(vltk.tokenmap)
+            tokenboxes = list(
+                chain(
+                    *map(
+                        lambda x: [x[0]] * x[1],
+                        zip(tokenboxes, tokenmap),
+                    )
                 )
             )
-        )
         tokenboxes = truncate_and_pad_list(tokenboxes, max_len, [0, 0, 0, 0])
         tokenboxes = torch.tensor(tokenboxes)
         if vltk.size in entry:
@@ -171,25 +172,29 @@ class TokenLabels(VisnProcessor):
 
 
 class OCRBoxFixed(VisnProcessor):
-    _keys = (vltk.tokenbox, vltk.tokenmap, vltk.rawsize)
+    _keys = vltk.tokenbox
 
     def forward(self, entry, **kwargs):
         max_len = self.config.lang.max_visual_seq_length
         tokenboxes = entry.pop(vltk.tokenbox)
-        raw_w, raw_h = entry[vltk.rawsize]
+        if vltk.rawsize not in entry:
+            raw_w, raw_h = entry[vltk.size]
+        else:
+            raw_w, raw_h = entry[vltk.rawsize]
         scale = (1000 / raw_w, 1000 / raw_h)
         if self.config.add_visual_cls:
 
             tokenboxes = [[0, 0, raw_w, raw_h]] + tokenboxes
-        tokenmap = entry.get(vltk.tokenmap)
-        tokenboxes = list(
-            chain(
-                *map(
-                    lambda x: [x[0]] * x[1],
-                    zip(tokenboxes, tokenmap),
+        if vltk.tokenmap in entry:
+            tokenmap = entry.get(vltk.tokenmap)
+            tokenboxes = list(
+                chain(
+                    *map(
+                        lambda x: [x[0]] * x[1],
+                        zip(tokenboxes, tokenmap),
+                    )
                 )
             )
-        )
         tokenboxes = truncate_and_pad_list(tokenboxes, max_len, [0, 0, 0, 0])
         tokenboxes = torch.tensor(tokenboxes)
         tokenboxes = torch.clamp(rescale_box(tokenboxes, scale), min=0, max=1000)
