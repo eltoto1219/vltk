@@ -25,6 +25,7 @@ def map_ocr_predictions(pred, tokenmap, gold=None, boxes=None, ignore_id=-100):
     accs = []
     if gold is not None:
         for g, t, p in zip(gold, tokenmap, pred):
+            acclist = []
             t = t[: t.argmin()]
             total = 0
             for i, v in enumerate(t):
@@ -42,7 +43,8 @@ def map_ocr_predictions(pred, tokenmap, gold=None, boxes=None, ignore_id=-100):
                 if true_gold[i] == -100:
                     true_gold.pop(i)
                     true_preds.pop(i)
-            accs += [(1 if p == g else 0) for p, g in zip(true_preds, true_gold)]
+            acclist += [(1 if p == g else 0) for p, g in zip(true_preds, true_gold)]
+            accs.append(acclist)
             preds += true_preds
             golds += true_gold
         return golds, preds, accs
