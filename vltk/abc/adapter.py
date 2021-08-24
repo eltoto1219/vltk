@@ -185,7 +185,11 @@ class Adapter(ds.Dataset, metaclass=ABCMeta):
 
     def get(self, img_id, return_dataset=False):
         if not return_dataset:
-            return self[self.img_to_row_map[img_id]]
+
+            row_index = self.img_to_row_map[img_id]
+            if isinstance(row_index, list) and len(row_index) == 1:
+                row_index = row_index[0]
+            return self[row_index]
         else:
             idxs = self.img_to_row_map[img_id]
             assert isinstance(idxs, list)

@@ -4,6 +4,7 @@ import os
 import random
 import resource
 import sys
+from collections import defaultdict
 
 import torch
 import vltk.vars as vltk
@@ -52,6 +53,7 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
         uniq_imgs, missing_ids, shrink_lang, shrink_vision = self._check_uniq_imgs(
             visndatasetadapterdict, visnlangdatasetadapterdict
         )
+        # raise Exception(len(visndatasetadapterdict["docvqavisn"]["val"]))
         visndatasetadapterdict, visnlangdatasetadapterdict = self._tighten_datasets(
             uniq_imgs,
             visndatasetadapterdict,
@@ -60,6 +62,7 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
             shrink_lang,
             shrink_vision,
         )
+
         self.tokenizer_in_visn_dataset = tokenizer_in_visn_dataset
 
         self.visnlangdatasetadapterdict = visnlangdatasetadapterdict
@@ -164,13 +167,17 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
         if missing_ids is not None:
             print(f"resizing datasets to account for {missing_ids} missing image IDs")
             if shrink_lang:
+                new_visnlangdatasetadapterdict = defaultdict(dict)
                 for dset in visnlangdatasetadapterdict:
                     for split in visnlangdatasetadapterdict[dset]:
                         visnlang = visnlangdatasetadapterdict[dset][split]
                         filtered_visnlang = visnlang.imgid_filter(uniq_imgs, True)
-                        visnlangdatasetadapterdict[dset][split] = filtered_visnlang
+                        new_visnlangdatasetadapterdict[dset][split] = filtered_visnlang
+            else:
+                new_visnlangdatasetadapterdict = visnlangdatasetadapterdict
 
             if shrink_vision:
+                new_visndatasetadapterdict = defaultdict(dict)
                 for is_name in visndatasetadapterdict:
                     for is_split in visndatasetadapterdict[is_name]:
                         try:
@@ -187,9 +194,11 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
                                 filter(lambda x: x[0] in uniq_imgs, imgsetdict.items())
                             )
 
-                            visndatasetadapterdict[is_name][is_split] = imgsetdict
+                            new_visndatasetadapterdict[is_name][is_split] = imgsetdict
+            else:
+                new_visndatasetadapterdict = visndatasetadapterdict
 
-        return visndatasetadapterdict, visnlangdatasetadapterdict
+        return new_visndatasetadapterdict, new_visnlangdatasetadapterdict
 
     def _check_uniq_imgs(self, visndatasetadapterdict, visnlangdatasetadapterdict):
         uniq_visn_imgs = set()
@@ -220,7 +229,8 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
                 you may want to rename them or check to see if this should be the case or implement
                 the `adjust_imgid` function in the VisnLangAdapter. \n
                 Vision Dataset Image ID example: {next(iter(uniq_visn_imgs))}
-                Language Dataset Image ID example: {next(iter(uniq_lang_imgs))}
+                Language Dataset Image ID example: {next(iter(uniq_lang_imgs))}\n
+                Alternatively, one can load each individual arrow dataset for manual inspection.
                 """
             )
         missing_ids = None
@@ -387,9 +397,9 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
                 text_info, anno_dict, self.config.img_first
             )
 
+            self.update_visn_lang_keys(text_info, anno_dict)
             entry = {**text_info, **anno_dict}
             # self.batch_info.update_visn_lang_keys(text_info, anno_dict)
-            self.update_visn_lang_keys(text_info, anno_dict)
             entry = self.try_tensorify(entry)
             self.batch_info.update_entry_keys(entry)
 
@@ -447,9 +457,9 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
                 text_info, anno_dict, self.config.img_first
             )
 
+            self.update_visn_lang_keys(text_info, anno_dict)
             entry = {**text_info, **anno_dict}
             # self.batch_info.update_visn_lang_keys(text_info, anno_dict)
-            self.update_visn_lang_keys(text_info, anno_dict)
             entry = self.try_tensorify(entry)
             self.batch_info.update_entry_keys(entry)
             return entry

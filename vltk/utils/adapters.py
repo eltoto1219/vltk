@@ -1,6 +1,7 @@
 import json
 import os
 from collections import defaultdict
+from itertools import chain
 
 import numpy as np
 import torch
@@ -17,6 +18,34 @@ PATH = os.path.join(
 )
 ANS_CONVERT = json.load(open(os.path.join(PATH, "convert_answers.json")))
 CONTRACTION_CONVERT = json.load(open(os.path.join(PATH, "convert_answers.json")))
+
+
+def add_unk_id_to_sequence(nested_tokens, unk_id):
+    return [(x if x else [unk_id]) for x in nested_tokens]
+
+
+def expand_with_tokenized_sequence(tensor, nested_tokens, max_len):
+    assert len(tensor) == len(nested_tokens)
+    expanded_sequence = []
+    total_len = 0
+    for t_i, nt_i in zip(tensor, nested_tokens):
+        length_nt_i = len(nt_i)
+        if total_len + length_nt_i > max_len:
+            break
+        expanded_sequence.extend([t_i] * length_nt_i)
+        total_len += length_nt_i
+    return expanded_sequence
+
+
+def pad_tensor(tensor, pad_length, pad_value=0, pad_2d=False):
+    zeros = [0] * (tensor.dim() * 2 - 1)
+    amnt_pad = pad_length - len(tensor)
+    if pad_2d:
+        zeros[-2] = amnt_pad
+    if amnt_pad < 0:
+        amnt_pad = 0
+    tensor = torch.nn.functional.pad(tensor, (*zeros, amnt_pad), value=pad_value)
+    return tensor
 
 
 def map_ocr_predictions(pred, tokenmap, gold=None, boxes=None, ignore_id=-100):
@@ -252,17 +281,20 @@ def soft_score(occurences):
         return 1
 
 
-def get_span_via_jaccard(words, answers, skipped=None):
+def get_span_via_jaccard(words, answers):
     """
     inputs:
         words: tuple of strings (each string == one word)
         answers: list of strings (each string == one word or many words)
         skipped: int or None
     outputs:
-        span: list of length `len(words)` of 1's and 0's. 0: is not apart of answer, 1: is apart of answer
+        span: tuple --> (start ind, end ind)
         max_jaccard: the similarity metric value 0.0-1.0 for how well answer matched in span
+        keep_answer: the best matched answer
     """
-    span = [0] * len(words)
+    start = None
+    end = None
+    keep_answer = None
     any_ans = False
     for ans in answers:
         # single word case
@@ -272,9 +304,11 @@ def get_span_via_jaccard(words, answers, skipped=None):
             except Exception:
                 continue
             if idx is not None:
-                span[idx] = 1
+                start = idx
+                end = idx
                 max_jaccard = 1.0
                 any_ans = True
+                keep_answer = ans
                 break
 
     if not any_ans:
@@ -283,12 +317,13 @@ def get_span_via_jaccard(words, answers, skipped=None):
         for ans in answers:
             if len(ans.split()) == 1:
                 for ans in answers:
-                    ans = set(ans.lower())
+                    sans = set(ans.lower())
                     for idx, word in enumerate(words):
                         word = set(word.lower())
-                        jaccard = len(word & ans) / len(word | ans)
+                        jaccard = len(word & sans) / len(word | sans)
                         if jaccard > max_jaccard:
                             max_jaccard = jaccard
+                            keep_answer = "".join(ans)
                             keep = idx
             else:
                 end_keep = len(words)
@@ -319,22 +354,26 @@ def get_span_via_jaccard(words, answers, skipped=None):
                 ]
                 if jaccard > max_jaccard:
                     keep = (start_keep, end_keep)
-                    span[start_keep:end_keep] = [1] * ((end_keep - start_keep) + 1)
                     max_jaccard = jaccard
+                    keep_answer = " ".join(ans)
 
         if keep is None:
-            span = None
+            start = None
+            end = None
         elif isinstance(keep, tuple):
-            span[keep[0] : keep[1]] = [1] * ((keep[1] - keep[0]) + 1)
+            start = keep[0]
+            end = keep[1]
         else:
-            span[keep] = 1
+            start = keep
+            end = keep
 
     if max_jaccard == 0.0:
-        if skipped is not None:
-            skipped += 1
-        span = None
+        start = None
+        end = None
 
-    return span, max_jaccard
+    if keep_answer is not None:
+        keep_answer = keep_answer.lower()
+    return (start, end), max_jaccard, keep_answer
 
 
 def truncate_and_pad_list(inp_list, max_len, pad_value=""):

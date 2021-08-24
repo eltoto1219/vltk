@@ -2,11 +2,10 @@ import json
 import os
 from collections import defaultdict
 
-import numpy as np
 import vltk.vars as vltk
 from tqdm import tqdm
-from vltk.features import Features
 from vltk import adapters
+from vltk.features import Features
 from vltk.utils.adapters import get_span_via_jaccard
 
 """
@@ -34,6 +33,7 @@ class DocVQA(adapters.VisnLangDataset):
         "val": {"docvqavisn": ["val"]},
         "train": {"docvqavisn": ["train"]},
     }
+    # filters = ["train"]
 
     @staticmethod
     def format_box(box):
@@ -46,75 +46,34 @@ class DocVQA(adapters.VisnLangDataset):
         height = abs(new_y2 - new_y1)
         return [x1, y1, width, height]
 
-    @staticmethod
     def schema():
-        # img id, label, and score are assumed to be default features
-        return {vltk.label: Features.StringList()}  # vltk.span: Features.Span,
+        return {
+            "answer": Features.String(),
+            vltk.qid: Features.String(),
+            vltk.span: Features.IntList(),
+        }
 
-    @staticmethod
     def forward(json_files, split, datadir=None):
-        total = 0
         skipped = 0
         batch_entries = []
-        dataa = defaultdict(list)
+        data = defaultdict(list)
         for filename, item in json_files.items():
             data = item["data"]
             for d in tqdm(data):
-                split = d["data_split"]
                 question = d["question"].lower().replace('"', "")
-                cont = True
-                for x in (
-                    "location",
-                    "address",
-                    "site",
-                    "city",
-                    "state",
-                    "zip code",
-                    "street",
-                ):
-                    if (
-                        x in question
-                        and "email" not in question
-                        and "value" not in question
-                        and "how much" not in question
-                        and "percentage" not in question
-                        and "to who" not in question
-                        and "does this" not in question
-                        and "what type" not in question
-                        and "whom" not in question
-                        and "when" not in question
-                        and "last, first" not in question
-                        and "date" not in question
-                        and "name of a" not in question
-                        and "name of c" not in question
-                        and "name of m" not in question
-                        and "addressed" not in question
-                        and "is the drug" not in question
-                        and "modifications" not in question
-                        and "who" not in question
-                        and "website" not in question
-                        and len(question.split()) < 12
-                    ):
-                        cont = False
-                        print(question)
-                        total += 1
-                        break
-                if cont:
-                    continue
                 image = d["image"]
-                # docid = d["docId"]
+                docid = d["docId"]
+                # split = d["split"]
                 imgid = image.split(".")[0].split("/")[-1]
                 # open annotation:
-                fileid = imgid + ".png"
-
                 answers = list(map(lambda x: x.lower(), d["answers"]))
+                # if this is not the correct path to the annotation,  change the path here
                 anno = json.load(
                     open(
                         os.path.join(
                             datadir,
                             "docvqavisn",
-                            split,
-                            "ocr_results",
+                            "annotations",
                             f"{imgid}.json",
                         ),
                         "r",
@@ -122,36 +81,45 @@ class DocVQA(adapters.VisnLangDataset):
                 )["recognitionResults"][0]
 
                 words = ()
-                answers = [answers[0]]
                 for lines in anno["lines"]:
                     for word in lines["words"]:
                         words += (word["text"].lower(),)
 
-                # if not words:
-                #     skipped += 1
-                #     continue
+                if not words:
+                    skipped += 1
+                    continue
 
-                span, max_jaccard = get_span_via_jaccard(words, answers, skipped)
-                if span is not None:
-                    dataa[fileid].append(span)
-                # if span is None:
-                #     continue
+                inds, max_jaccard, keep_answer = get_span_via_jaccard(
+                    words,
+                    answers,
+                )
+                if inds[0] is None:
+                    skipped += 1
+                    continue
+                if inds[0] == inds[1]:
+                    answer_in_doc = words[inds[0]]
+                else:
+                    answer_in_doc = " ".join(words[inds[0] : inds[1]])
+                if max_jaccard < 0.56:
+                    skipped += 1
+                    continue
+                # if 0.5 <= max_jaccard <= 0.6:
+                #     print(f"j: {max_jaccard}, a: {keep_answer}, ~: {answer_in_doc}")
+                #     print(answers)
 
                 entry = {
                     vltk.text: question,
                     vltk.imgid: imgid,
-                    vltk.label: answers
-                    # vltk.span: span
+                    "answer": answer_in_doc,
+                    vltk.span: list(inds),
+                    vltk.qid: str(docid),
                 }
                 batch_entries.append(entry)
         print(f"skipped {skipped} questions: could not find answer.")
-        json.dump(dataa, open(f"docvqa_{split}.json", "w"))
-        raise Exception(total)
         return batch_entries
 
 
 class DocVQAVisn(adapters.VisnDataset):
-    @staticmethod
     def schema():
         return {
             vltk.box: Features.Box(),
@@ -159,18 +127,6 @@ class DocVQAVisn(adapters.VisnDataset):
             vltk.text: Features.StringList(),
         }
 
-    @staticmethod
-    def format_box(box):
-        x1, y1, x2, y2, x3, y3, x4, y4 = box
-        new_x1 = min([x1, x2, x3, x4])
-        new_x2 = max([x1, x2, x3, x4])
-        new_y1 = min([y1, y2, y3, y4])
-        new_y2 = max([y1, y2, y3, y4])
-        width = abs(new_x2 - new_x1)
-        height = abs(new_y2 - new_y1)
-        return [x1, y1, width, height]
-
-    @staticmethod
     def forward(json_files, splits, datadir=None):
         imgids = set()
         annos = []
@@ -179,9 +135,13 @@ class DocVQAVisn(adapters.VisnDataset):
             imgid = filename.split(".")[0].split("/")[-1]
             assert imgid not in imgids
             imgids.add(imgid)
-            status = 1 if data["status"] == "Succeeded" else 0
-            if status == 0:
+            if "status" in data:
+                status = 1 if data["status"] == "Succeeded" else 0
+                if status == 0:
+                    continue
+            else:
                 continue
+
             data = data["recognitionResults"]
             if len(data) != 1:
                 raise Exception(len(data))
@@ -195,9 +155,14 @@ class DocVQAVisn(adapters.VisnDataset):
                 for word in lines["words"]:
                     text = word["text"]
                     box = word["boundingBox"]
-                    box = DocVQAVisn.format_box(lines["boundingBox"])
+                    box = DocVQA.format_box(lines["boundingBox"])
+                    assert len(box) == 4
                     texts.append(text)
                     tokenboxes.append(box)
+            if not texts:
+                continue
+            if isinstance(texts[0], list):
+                raise Exception(texts)
             entry = {
                 vltk.imgid: imgid,
                 vltk.box: boxes,

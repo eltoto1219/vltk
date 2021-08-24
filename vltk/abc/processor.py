@@ -16,6 +16,16 @@ class Processor:
         for k, v in kwargs.items():
             setattr(self, k, v)
 
+    def enable_padding(self):
+        self.tokenizer.enable_padding(
+            length=self.config.lang.max_seq_length,
+            direction=self.config.lang.pad_direction,
+            pad_id=self.tokenizer.token_to_id(self.tokenizer.pad_token),
+        )
+
+    def disable_padding(self):
+        self.tokenizer.no_padding()
+
     @torch.no_grad()
     def __call__(self, inp, **kwargs):
         if isinstance(inp, dict):

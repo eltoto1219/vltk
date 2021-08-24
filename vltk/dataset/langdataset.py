@@ -163,7 +163,12 @@ class LangDataset(BaseDataset):
             if isinstance(label, torch.Tensor):
                 entry[vltk.label] = label
                 return entry
-            entry[vltk.label] = torch.tensor(self.metadata_ids[vltk.label][label[0]])
+            if isinstance(label, str):
+                entry[vltk.label] = torch.tensor(self.metadata_ids[vltk.label][label])
+            else:
+                entry[vltk.label] = torch.tensor(
+                    self.metadata_ids[vltk.label][label[0]]
+                )
             if vltk.score in entry:
                 entry[vltk.score] = torch.tensor(entry[vltk.score])
             elif vltk.score in self.max_spanning_cols:

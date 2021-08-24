@@ -25,6 +25,7 @@ VOCABPATH = os.path.join(BASEPATH, "libdata", "tokenizer_files", "vocab.txt")
 # special deliminator
 delim = "^"
 tokenmap = "tokenmap"
+tokenlabels = "tokenlabels"
 # common keys across library
 span = "span"
 n_objects = "n_objects"

@@ -155,6 +155,8 @@ class VisnLangDataset(Adapter):
             if text_files is None:
                 continue
             if hasattr(cls, "filters"):
+                if cls.filters is None:
+                    cls.filters = []
                 assert isinstance(
                     cls.filters, list
                 ), f"filters must be in a list, not type {type(cls.filters)}"

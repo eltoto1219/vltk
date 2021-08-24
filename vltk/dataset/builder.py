@@ -44,9 +44,8 @@ def extract(
         if annotations:
             exists = os.path.exists(os.path.join(datadir, name, "annotations.arrow"))
             if not exists:
-                exists = os.path.exists(
-                    os.path.join(datadir, name, "annotations", "annotations.arrow")
-                )
+                temp = os.path.join(datadir, name, "annotations", "annotations.arrow")
+                exists = os.path.exists(temp)
             if not exists or config.reextract:
                 is_annotations = _adapters.get(name)
                 # is_annotations = is_annotations.extract(datadir)
@@ -102,6 +101,7 @@ def init_datasets(config):
                 is_train=True,
             )
 
+        # raise Exception(train, evalutation, annos)
         if evalutation:
             eval_loader = VisionLanguageLoader(
                 config,
@@ -210,6 +210,12 @@ def load_vl(to_load, train_ds, eval_ds, config):
         seen_download = download(config, datadir, name, _adapters, seen_download)
         extracted = extract(config, datadir, name, _adapters, extracted)
 
+        # # -DOWNLOAD HERE
+        # seen_download = download(config, config.datadir, name, _adapters, seen_download)
+        # extracted = extract(
+        #     config, config.datadir, name, _adapters, extracted, annotations=True
+        # )
+
         splits = split_handler(to_load[name])  # list looks like ['trainval', 'dev']
         for split in sorted(splits):
             # add visnlangdatasetadapter first
@@ -218,7 +224,7 @@ def load_vl(to_load, train_ds, eval_ds, config):
                     datadir, split=split, config=config
                 )
             else:
-                visnlangdatasetadapter = extracted["name"]["split"]
+                visnlangdatasetadapter = extracted[name][split]
             dataset_metadata = visnlangdatasetadapter.get_metadata_counters()
             for meta in dataset_metadata:
                 if meta not in metadata_ids:
@@ -246,7 +252,7 @@ def load_vl(to_load, train_ds, eval_ds, config):
                     config, datadir, is_name, _adapters, seen_download
                 )
                 extracted = extract(
-                    config, datadir, name, _adapters, extracted, annotations=True
+                    config, datadir, is_name, _adapters, extracted, annotations=True
                 )
 
                 if name not in extracted:
@@ -295,7 +301,7 @@ def load_vl(to_load, train_ds, eval_ds, config):
             else:
                 # this is if we want to get raw features (in the form {id: raw file})
                 is_data = _adapters.get(is_name).load_imgid2path(
-                    config.datadir, split=split, config=config
+                    config.datadir, split=split
                 )
                 # print(is_data)
             if (
@@ -312,6 +318,13 @@ def load_vl(to_load, train_ds, eval_ds, config):
         for k in metadata_ids:
             if k in metadata_filedict:
                 metadata_ids[k] = json.load(open(metadata_filedict[k]))
+
+    # raise Exception(
+    #     loaded_eval,
+    #     loaded_train,
+    #     loaded_annotations,
+    #     [(k, len(v)) for k, v in loaded_visndatasetadapters["docvqavisn"].items()],
+    # )
 
     return {
         "eval": loaded_eval,

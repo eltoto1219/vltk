@@ -59,19 +59,11 @@ class RLEProcessor(VisnProcessor):
 class AuxTokenize(VisnProcessor):
     _keys = vltk.text
 
-    def enable_padding(self):
-        self.tokenizer.enable_padding(
-            length=self.config.lang.max_seq_length,
-            direction=self.config.lang.pad_direction,
-            pad_id=self.tokenizer.token_to_id(self.tokenizer.pad_token),
-        )
-
-    def disable_padding(self):
-        self.tokenizer.no_padding()
-
     def forward(self, entry, **kwargs):
         max_len = self.config.lang.max_visual_seq_length
         text = entry.pop(vltk.text)
+        if len(text) == 1 and isinstance(text[0], list) and len(text[0]) > 1:
+            text = text[0]
         if self.config.add_visual_cls:
             text = [self.tokenizer.cls_token] + text
 
@@ -87,6 +79,7 @@ class AuxTokenize(VisnProcessor):
             self.enable_padding()
         else:
             unk_id = self.tokenizer.convert_tokens_to_ids(self.tokenizer.unk_token)
+
             text = self.tokenizer(
                 text,
                 add_special_tokens=False,
@@ -149,11 +142,11 @@ class OCRBox(VisnProcessor):
 
 
 class TokenLabels(VisnProcessor):
-    _keys = (vltk.label, vltk.tokenmap)
+    _keys = (vltk.tokenlabels, vltk.tokenmap)
 
     def forward(self, entry, **kwargs):
         max_len = self.config.lang.max_visual_seq_length
-        labels = entry.get(vltk.label)
+        labels = entry.get(vltk.tokenlabels)
         if self.config.add_visual_cls:
             labels = [""] + labels
         tokenmap = entry.get(vltk.tokenmap)
@@ -167,7 +160,7 @@ class TokenLabels(VisnProcessor):
         )
         if len(labels) >= max_len:
             labels = labels[: max_len - 1]
-        entry[vltk.label] = labels
+        entry[vltk.tokenlabels] = labels
         return entry
 
 
@@ -210,6 +203,12 @@ class XYWHtoXYXY(VisnProcessor):
                 try:
                     box[:, -2:] += box[:, :2]
                 except Exception:
-                    raise Exception(box)
+                    box = [b[:2] + [b[-2] + b[0], b[-1] + b[1]] for b in box]
                 entry[k] = box
+        return entry
+
+
+class RemoveBox(VisnProcessor):
+    def forward(self, entry, **kwargs):
+        entry.pop(vltk.box)
         return entry

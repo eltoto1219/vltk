@@ -84,7 +84,7 @@ def collate_homogeneous(
     batch = {}
     # raise Exception
     for k in columns[0].keys():
-        if k not in (vltk.imgid, vltk.qid):
+        if k not in (vltk.imgid, vltk.qid) and not isinstance(columns[0][k], str):
             try:
                 batch[k] = torch.stack([i.get(k) for i in columns if i is not None])
             except Exception:

@@ -20,6 +20,7 @@ __import__("tokenizers")
 TOKENIZERS = {
     m[0]: m[1] for m in inspect.getmembers(sys.modules["tokenizers"], inspect.isclass)
 }
+WARNINGS = set()
 
 rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
 resource.setrlimit(resource.RLIMIT_NOFILE, (6144, rlimit[1]))
@@ -150,7 +151,8 @@ class CollatedVLSets:
         for adapter in self.args:
             # print(adapter, img_id)
             try:
-                return adapter.get(img_id)
+                entry = adapter.get(img_id)
+                return entry
             except KeyError:
                 pass
         raise Exception("image id not found in any  visndatasetadapter annotations")
@@ -190,7 +192,7 @@ class CollatedVisionSets:
             # if not isinstance(adapter, Dataset):
             try:
                 return adapter.get(img_id)
-            except Exception:
+            except KeyError:
                 continue
         return {}
 
@@ -359,7 +361,18 @@ class BaseDataset(Dataset):
                 if isinstance(entry[k][0], str) and isinstance(entry[k], list):
                     max_len = self.config.lang.max_visual_seq_length
                     meta = truncate_and_pad_list(meta, max_len, "")
-                entry[k] = convertids_recursive(meta, self.metadata_ids[k])
+                try:
+                    entry[k] = convertids_recursive(meta, self.metadata_ids[k])
+                except Exception:
+                    if (
+                        k not in WARNINGS
+                        and int(torch.utils.data.get_worker_info().id) == 0
+                    ):
+                        WARNINGS.add(k)
+                        print(
+                            f"""WARNING: Cannot automatically process the vlaue in entry with key: {k}. Please process
+                            manually. Now Ignoring"""
+                        )
 
         return entry
 
