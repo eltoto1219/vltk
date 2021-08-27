@@ -364,10 +364,12 @@ class BaseDataset(Dataset):
                 try:
                     entry[k] = convertids_recursive(meta, self.metadata_ids[k])
                 except Exception:
-                    if (
-                        k not in WARNINGS
-                        and int(torch.utils.data.get_worker_info().id) == 0
-                    ):
+                    worker_info = torch.utils.data.get_worker_info()
+                    if worker_info is not None:
+                        worker_id = worker_info.id
+                    else:
+                        worker_id = 0
+                    if k not in WARNINGS and int(worker_id) == 0:
                         WARNINGS.add(k)
                         print(
                             f"""WARNING: Cannot automatically process the vlaue in entry with key: {k}. Please process
