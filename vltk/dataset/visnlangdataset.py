@@ -197,6 +197,9 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
                             new_visndatasetadapterdict[is_name][is_split] = imgsetdict
             else:
                 new_visndatasetadapterdict = visndatasetadapterdict
+        else:
+            new_visndatasetadapterdict = visndatasetadapterdict
+            new_visnlangdatasetadapterdict = visnlangdatasetadapterdict
 
         return new_visndatasetadapterdict, new_visnlangdatasetadapterdict
 
@@ -237,6 +240,9 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
         shrink_lang = False
         shrink_vision = False
         all_imgs = uniq_lang_imgs.union(uniq_visn_imgs)
+        print(
+            f"union of images: {len(all_imgs)}, intersection of images: {len(uniq_imgs)}"
+        )
         if len(uniq_imgs) < len(all_imgs):
             missing_ids = len(all_imgs) - len(uniq_imgs)
             if not len(uniq_imgs) == len(uniq_visn_imgs):
