@@ -1,7 +1,7 @@
+import math
 import os
 from abc import abstractmethod
 from collections import defaultdict
-from copy import deepcopy
 from pathlib import Path
 from typing import List
 
@@ -15,7 +15,6 @@ from vltk.abc.adapter import Adapter
 from vltk.features import Features
 from vltk.inspection import collect_args_to_func
 from vltk.utils import base as utils
-from vltk.utils.base import get_list_primitive
 
 
 class VisnLangDataset(Adapter):
@@ -23,7 +22,6 @@ class VisnLangDataset(Adapter):
     _base_features = {
         vltk.imgid: Features.String(),
         vltk.text: Features.String(),
-        # vltk.score: ds.Sequence(length=-1, feature=ds.Value("float32")),
     }
     _meta_names = ["answer_frequencies", "img_to_row_map"]
     _batch_size = 1028
@@ -117,18 +115,11 @@ class VisnLangDataset(Adapter):
         searchdir,
         config=None,
         splits=None,
-        supervised=True,
         savedir=None,
         min_label_frequency=9,
         label_preprocessor="label_default",
         **kwargs,
     ):
-        test_features = None
-        if supervised:
-            if min_label_frequency is None:
-                assert config is not None
-                min_label_frequency = config.min_label_frequency
-            kwargs["min_label_frequency"] = min_label_frequency
 
         if splits is None:
             splits = vltk.SPLITALIASES
@@ -211,21 +202,11 @@ class VisnLangDataset(Adapter):
             schema_dict = collect_args_to_func(cls.schema, kwargs=kwargs)
             features = ds.Features({**cls.schema(**schema_dict), **cls._base_features})
             meta_dict = VisnLangDataset._init_metadata(features)
-            if not supervised:
-                features.pop(vltk.score)
-                features.pop(vltk.label)
+
             # setup arrow writer
             buffer = pyarrow.BufferOutputStream()
             stream = pyarrow.output_stream(buffer)
-            if split == "test" or not supervised:
-                if test_features is None:
-                    test_features = deepcopy(features)
-                    for f in deepcopy(set(test_features.keys())):
-                        if f in meta_dict:
-                            test_features.pop(f)
-                writer = ArrowWriter(features=test_features, stream=stream)
-            else:
-                writer = ArrowWriter(features=features, stream=stream)
+            # dont create this yet, check to see if all items in batch entry are in schema
             # load data
             text_data = {}
             print(f"loading json files from: {text_files}")
@@ -240,10 +221,25 @@ class VisnLangDataset(Adapter):
             kwargs["datadir"] = searchdir
             forward_dict = collect_args_to_func(cls.forward, kwargs=kwargs)
             batch_entries = cls.forward(text_data, split, **forward_dict)
+            # check first batch in batch entries, whatever item is None,
+            # delete this from the schema:
+            example_entry_keys = set(
+                [k for k, v in batch_entries[0].items() if v is not None]
+            )
+            features_keys = set(features.keys())
+            keys_to_delete = features_keys - example_entry_keys
+            for k in keys_to_delete:
+                features.pop(k)
+
+            # now instantiate the writer
+            writer = ArrowWriter(features=features, stream=stream)
 
             # pre-checks
             print("writing rows to arrow dataset")
-            for sub_batch_entries in utils.batcher(batch_entries, n=64):
+            sub_batch_total = math.ceil(len(batch_entries) / 64)
+            for sub_batch_entries in tqdm(
+                utils.batcher(batch_entries, n=64), total=sub_batch_total
+            ):
                 flat_entry = None
                 for b in sub_batch_entries:
                     # apply adjust image id functio  here
@@ -257,7 +253,7 @@ class VisnLangDataset(Adapter):
 
                     imgid2rows[b[vltk.imgid]].append(cur_row)
                     cur_row += 1
-                    b = {k: [v] for k, v in b.items()}
+                    b = {k: [v] for k, v in b.items() if v is not None}
 
                     if flat_entry is None:
                         flat_entry = b
@@ -265,25 +261,8 @@ class VisnLangDataset(Adapter):
                         for k in flat_entry:
                             flat_entry[k].extend(b[k])
 
-                if split == "test" or not supervised:
-
-                    for f in deepcopy(set(flat_entry.keys())):
-                        if f not in test_features:
-                            flat_entry.pop(f)
-
-                        if (
-                            f in flat_entry
-                            and get_list_primitive(flat_entry[f]) is None
-                        ):
-                            flat_entry.pop(f)
-                            if f in test_features:
-                                test_features.pop(f)
-
-                    batch = test_features.encode_batch(flat_entry)
-                    writer.write_batch(batch)
-                else:
-                    batch = features.encode_batch(flat_entry)
-                    writer.write_batch(batch)
+                batch = features.encode_batch(flat_entry)
+                writer.write_batch(batch)
 
             # misc.
             savefile = os.path.join(savedir, f"{split}.arrow")

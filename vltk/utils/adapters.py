@@ -37,14 +37,28 @@ def expand_with_tokenized_sequence(tensor, nested_tokens, max_len):
     return expanded_sequence
 
 
-def pad_tensor(tensor, pad_length, pad_value=0, pad_2d=False):
-    zeros = [0] * (tensor.dim() * 2 - 1)
-    amnt_pad = pad_length - len(tensor)
-    if pad_2d:
-        zeros[-2] = amnt_pad
-    if amnt_pad < 0:
-        amnt_pad = 0
-    tensor = torch.nn.functional.pad(tensor, (*zeros, amnt_pad), value=pad_value)
+def pad_tensor(tensor, pad_shape, pad_value=0, debug=None):
+    t_shape = tensor.shape
+    t_dim = tensor.dim()
+    to_pad = [x - y for x, y in zip(pad_shape, t_shape)]
+    for amnt_pad in to_pad:
+        if amnt_pad < 0:
+            # TODO: fix later, but we just return tensor if it is greater than pad length
+            return tensor
+    if sum(to_pad) == 0:
+        # raise Exception(tensor.shape, pad_shape, debug, to_pad)
+        return tensor
+
+    pad_positions = [0] * (t_dim * 2)
+    if t_dim == 2:
+        pad_positions[3] = to_pad[0]
+        pad_positions[1] = to_pad[1]
+    else:
+        for dim_num, pad_amnt in enumerate(to_pad):
+            dim_num = dim_num * 2 + 1
+        pad_positions[dim_num] = pad_amnt
+
+    tensor = torch.nn.functional.pad(tensor, pad_positions, value=pad_value)
     return tensor
 
 

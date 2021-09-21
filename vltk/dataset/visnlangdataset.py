@@ -44,7 +44,6 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
         metadata_ids=None,
         is_train=False,
         batch_info=None,
-        tokenizer_in_visn_dataset=False,
         replace_keys=None,
         **kwargs,
     ):
@@ -62,8 +61,6 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
             shrink_lang,
             shrink_vision,
         )
-
-        self.tokenizer_in_visn_dataset = tokenizer_in_visn_dataset
 
         self.visnlangdatasetadapterdict = visnlangdatasetadapterdict
         self.visndatasetadapterdict = visndatasetadapterdict
@@ -115,10 +112,6 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
         self._init_visnlang_processors(config)
 
         # ======
-
-    def update_visn_lang_keys(self, lang_entry, visn_entry):
-        self.visn = self.visn.union(set(visn_entry.keys()))
-        self.lang = self.lang.union(set(lang_entry.keys()))
 
     def _init_visnlang_processors(self, config):
         visnlang_processors = (
@@ -403,9 +396,10 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
                 text_info, anno_dict, self.config.img_first
             )
 
-            self.update_visn_lang_keys(text_info, anno_dict)
+            self.batch_info.update_visn_lang_keys(text_info, anno_dict)
+            self.visn = self.batch_info.visn_keys
+            self.lang = self.batch_info.lang_keys
             entry = {**text_info, **anno_dict}
-            # self.batch_info.update_visn_lang_keys(text_info, anno_dict)
             entry = self.try_tensorify(entry)
             self.batch_info.update_entry_keys(entry)
 
@@ -463,9 +457,10 @@ class VisionLanguageDataset(VisionDataset, LangDataset):
                 text_info, anno_dict, self.config.img_first
             )
 
-            self.update_visn_lang_keys(text_info, anno_dict)
+            self.batch_info.update_visn_lang_keys(text_info, anno_dict)
+            self.visn = self.batch_info.visn_keys
+            self.lang = self.batch_info.lang_keys
             entry = {**text_info, **anno_dict}
-            # self.batch_info.update_visn_lang_keys(text_info, anno_dict)
             entry = self.try_tensorify(entry)
             self.batch_info.update_entry_keys(entry)
             return entry

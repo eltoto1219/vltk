@@ -176,7 +176,7 @@ class LangDataset(BaseDataset):
         elif (
             vltk.label not in entry
             and not encode_batch
-            and vltk.label in self.max_spanning_cols
+            and vltk.label in self.batch_info.all_keys
         ):
             # this condition is for an entry without label but label is in one dataset
             entry[vltk.label] = torch.tensor(self.config.lang.ignore_id)
